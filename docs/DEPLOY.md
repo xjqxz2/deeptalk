@@ -16,7 +16,7 @@
 目录结构：
 
 ```text
-/opt/deeptalk/
+/srv/deeptalk/
 ├── docker-compose.prod.yml
 ├── .env
 ├── deploy.sh
@@ -24,12 +24,12 @@
 └── data/
 ```
 
-把项目里的 `docker-compose.prod.yml`、`scripts/deploy.sh` 放到 `/opt/deeptalk/`，并创建 `.env`：
+把项目里的 `docker-compose.prod.yml`、`scripts/deploy.sh` 放到 `/srv/deeptalk/`，并创建 `.env`：
 
 ```bash
-sudo mkdir -p /opt/deeptalk/{data,backups}
-sudo chown -R deploy:deploy /opt/deeptalk
-cd /opt/deeptalk
+sudo mkdir -p /srv/deeptalk/{data,backups}
+sudo chown -R deploy:deploy /srv/deeptalk
+cd /srv/deeptalk
 cp .env.production.example .env
 # 编辑 .env：DEEPTALK_IMAGE、DEEPTALK_SECRET、DEEPTALK_BASE_URL、DEEPTALK_DEEPSEEK_KEY
 ```
@@ -42,7 +42,7 @@ DEEPTALK_IMAGE_TAG=v1.0.0
 DEEPTALK_SECRET=固定的长随机串
 DEEPTALK_BASE_URL=https://your-domain.example.com
 DEEPTALK_PORT=9821
-DEEPTALK_DATA_DIR=/opt/deeptalk/data
+DEEPTALK_DATA_DIR=/srv/deeptalk/data
 DEEPTALK_DEEPSEEK_KEY=sk-...
 DEEPTALK_ENV=prod
 DEEPTALK_COOKIE_SECURE=true
@@ -52,7 +52,7 @@ TZ=Asia/Shanghai
 首次手动启动：
 
 ```bash
-cd /opt/deeptalk
+cd /srv/deeptalk
 DEEPTALK_IMAGE_TAG=v1.0.0 docker compose -f docker-compose.prod.yml up -d
 curl -fsS http://127.0.0.1:9821/healthz
 ```
@@ -90,7 +90,7 @@ ssh-copy-id -i ~/.ssh/deeptalk_deploy.pub deploy@YOUR_SERVER
 验证：
 
 ```bash
-ssh -i ~/.ssh/deeptalk_deploy deploy@YOUR_SERVER 'cd /opt/deeptalk && ./deploy.sh --help || true'
+ssh -i ~/.ssh/deeptalk_deploy deploy@YOUR_SERVER 'cd /srv/deeptalk && ./deploy.sh --help || true'
 ```
 
 然后去 GitHub 仓库：
@@ -112,7 +112,7 @@ ssh -i ~/.ssh/deeptalk_deploy deploy@YOUR_SERVER 'cd /opt/deeptalk && ./deploy.s
 | Name | 值 |
 | --- | --- |
 | `DEPLOY_ENABLED` | `true`，不设置则只构建不部署 |
-| `DEPLOY_PATH` | `/opt/deeptalk`，可选 |
+| `DEPLOY_PATH` | `/srv/deeptalk`，可选 |
 
 > Action 使用私钥登录；公钥只放在服务器 `~/.ssh/authorized_keys`。
 > `DEPLOY_KNOWN_HOSTS` 用于防止 SSH 中间人攻击。
@@ -120,7 +120,7 @@ ssh -i ~/.ssh/deeptalk_deploy deploy@YOUR_SERVER 'cd /opt/deeptalk && ./deploy.s
 `deploy.sh` 必须是可执行：
 
 ```bash
-chmod +x /opt/deeptalk/deploy.sh
+chmod +x /srv/deeptalk/deploy.sh
 ```
 
 ## 4. 触发部署
@@ -141,7 +141,7 @@ GitHub Actions 会：
 3. 通过 SSH 执行：
 
 ```bash
-cd /opt/deeptalk
+cd /srv/deeptalk
 ./deploy.sh v1.0.0
 ```
 
@@ -161,19 +161,19 @@ cd /opt/deeptalk
 手动指定上一个 tag：
 
 ```bash
-cd /opt/deeptalk
+cd /srv/deeptalk
 ./deploy.sh v0.9.0
 ```
 
 备份在：
 
 ```text
-/opt/deeptalk/backups/deeptalk-YYYYmmdd-HHMMSS.tar.gz
+/srv/deeptalk/backups/deeptalk-YYYYmmdd-HHMMSS.tar.gz
 ```
 
 ## 6. 数据库与密钥
 
-- `/opt/deeptalk/data` 必须持久化，不能放在容器可写层；
+- `/srv/deeptalk/data` 必须持久化，不能放在容器可写层；
 - `DEEPTALK_SECRET` 首次启动后不要更换，否则厂商 API Key 无法解密；
 - 换服务器时，把 `data/` 和同一个 `DEEPTALK_SECRET` 一起迁移；
 - SQLite 备份必须在容器停止后做，脚本已处理。

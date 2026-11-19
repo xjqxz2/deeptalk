@@ -12,7 +12,7 @@ services:
     ports:
       - "${DEEPTALK_PORT:-9821}:9821"
     volumes:
-      - ${DEEPTALK_DATA_DIR:-/opt/deeptalk/data}:/app/data
+      - ${DEEPTALK_DATA_DIR:-/srv/deeptalk/data}:/app/data
     env_file:
       - .env
     environment:

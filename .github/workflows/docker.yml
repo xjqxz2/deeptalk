@@ -124,7 +124,7 @@ jobs:
 
   # 只有打 v* tag、且仓库变量 DEPLOY_ENABLED=true 时才部署，避免日常 push 误触。
   # 需要先配置 secrets：DEPLOY_HOST / DEPLOY_USER / DEPLOY_SSH_KEY / DEPLOY_KNOWN_HOSTS
-  # 以及 vars：DEPLOY_ENABLED=true、DEPLOY_PATH=/opt/deeptalk（可选）
+  # 以及 vars：DEPLOY_ENABLED=true、DEPLOY_PATH=/srv/deeptalk（可选）
   deploy:
     name: Deploy to server
     needs: image
@@ -141,7 +141,7 @@ jobs:
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
-          DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/deeptalk' }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/srv/deeptalk' }}
           IMAGE_TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
