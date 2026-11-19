@@ -136,6 +136,11 @@ export const useChatStore = defineStore('chat', () => {
     }
     if (!data.items.some((item) => item.id === selectedModelId.value)) {
       selectedModelId.value = data.items.find((item) => item.is_default)?.id ?? data.items[0]?.id ?? 0
+      try {
+        localStorage.setItem('deeptalk.model', String(selectedModelId.value))
+      } catch {
+        // 忽略存储失败
+      }
     }
   }
 
@@ -447,7 +452,8 @@ export const useChatStore = defineStore('chat', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: text,
-          model_id: selectedModelId.value,
+          // 模型可能刚被管理员删除；selectedModel 只会在当前列表中存在
+          model_id: selectedModel.value?.id ?? 0,
           deep_thinking: deepThinking.value,
           web_search: webSearch.value,
           attachment_ids: pendingAttachments.map((item) => item.id),

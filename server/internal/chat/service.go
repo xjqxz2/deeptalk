@@ -176,6 +176,11 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 	var prov *provider.Provider
 	if in.ModelID > 0 {
 		model, prov, err = s.providers.ResolveModel(ctx, in.ModelID)
+		if err != nil {
+			// 模型可能已被管理员删除，但前端 localStorage/旧会话仍记着旧 ID。
+			// 回退到平台默认模型，避免整轮对话直接 502。
+			model, prov, err = s.providers.DefaultModel(ctx)
+		}
 	} else {
 		model, prov, err = s.providers.DefaultModel(ctx)
 	}
