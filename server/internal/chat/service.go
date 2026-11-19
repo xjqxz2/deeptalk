@@ -324,20 +324,58 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 		}
 		var args struct {
 			Query   string   `json:"query"`
+			URLs    []string `json:"urls"`
 			Engines []string `json:"engines"`
 		}
 		if err := json.Unmarshal([]byte(call.Arguments), &args); err != nil {
 			return "", fmt.Errorf("invalid search arguments: %w", err)
 		}
 		args.Query = strings.TrimSpace(args.Query)
-		if args.Query == "" {
-			return "", errors.New("search query is empty")
-		}
 		if s.search == nil || !s.search.Enabled() {
 			return `{"error":"web search is not enabled"}`, nil
 		}
 		if err := emit("search", map[string]string{"status": "searching"}); err != nil {
 			return "", err
+		}
+		// 模型可以直接给出它想读的 URL；否则用 query + 指定/默认引擎搜索。
+		if len(args.URLs) > 0 {
+			pages, err := s.search.FetchPages(ctx, args.URLs)
+			if ctx.Err() != nil {
+				return "", ctx.Err()
+			}
+			if err != nil || len(pages) == 0 {
+				slog.Warn("web fetch tool failed", "conversation_id", assistant.ConversationID, "error", err)
+				_ = emit("notice", map[string]string{"message": "没有抓取到公开网页，已直接回答"})
+				return `{"pages":[]}`, nil
+			}
+			known := make(map[string]struct{}, len(toolSources))
+			for _, item := range toolSources {
+				known[item.URL] = struct{}{}
+			}
+			for _, page := range pages {
+				if _, ok := known[page.URL]; ok {
+					continue
+				}
+				if len(toolSources) >= 10 {
+					break
+				}
+				known[page.URL] = struct{}{}
+				toolSources = append(toolSources, search.Result{
+					Title:   page.Title,
+					URL:     page.URL,
+					Snippet: truncateRunes(page.Content, 300),
+				})
+			}
+			if raw, marshalErr := json.Marshal(toolSources); marshalErr == nil {
+				_ = s.db.WithContext(context.WithoutCancel(ctx)).Model(&Message{}).
+					Where("id = ?", assistant.ID).Update("sources_json", string(raw)).Error
+			}
+			_ = emit("sources", map[string]any{"items": toolSources})
+			raw, _ := json.Marshal(pages)
+			return string(raw), nil
+		}
+		if args.Query == "" {
+			return "", errors.New("search query is empty")
 		}
 		items, err := s.search.SearchWithEngines(ctx, args.Query, args.Engines)
 		if ctx.Err() != nil {
@@ -1041,15 +1079,20 @@ var webSearchTool = provider.Tool{
 			"properties": map[string]any{
 				"query": map[string]any{
 					"type":        "string",
-					"description": "精简后的搜索关键词，例如 DeepSeek V4.1 Flash 价格",
+					"description": "精简后的搜索关键词，例如 DeepSeek V4.1 Flash 价格；与 urls 二选一",
+				},
+				"urls": map[string]any{
+					"type":        "array",
+					"description": "模型已知的具体网页 URL，可直接抓取正文；与 query 二选一，最多 5 个",
+					"items":       map[string]any{"type": "string"},
 				},
 				"engines": map[string]any{
 					"type":        "array",
-					"description": "可选搜索来源：bing、zhihu、sogou、baidu；不填则由后端按语言选择",
-					"items":       map[string]any{"type": "string", "enum": []string{"bing", "zhihu", "sogou", "baidu"}},
+					"description": "可选搜索来源名（如 bing/zhihu/sogou/baidu）；不填则由后端按语言选择",
+					"items":       map[string]any{"type": "string"},
 				},
 			},
-			"required": []string{"query"},
+			"required": []string{},
 		},
 	},
 }

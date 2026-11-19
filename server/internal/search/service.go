@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os/exec"
@@ -34,6 +35,13 @@ type Result struct {
 	Title   string `json:"title"`
 	URL     string `json:"url"`
 	Snippet string `json:"snippet"`
+}
+
+// Page 是模型指定 URL 后抓取到的正文。
+type Page struct {
+	URL     string `json:"url"`
+	Title   string `json:"title"`
+	Content string `json:"content"`
 }
 
 // Engine 是一路搜索来源。
@@ -149,6 +157,127 @@ func (s *Service) SearchWithEngines(ctx context.Context, query string, names []s
 		return s.searchWithEngines(ctx, query, nil)
 	}
 	return s.searchWithEngines(ctx, query, filtered)
+}
+
+// FetchPages 抓取模型明确指定的公开 URL，返回正文供主模型阅读。
+func (s *Service) FetchPages(ctx context.Context, rawURLs []string) ([]Page, error) {
+	if !s.Enabled() {
+		return nil, ErrDisabled
+	}
+	seen := make(map[string]struct{})
+	urls := make([]string, 0, len(rawURLs))
+	for _, raw := range rawURLs {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			continue
+		}
+		normalized, err := s.validatePublicURL(ctx, raw)
+		if err != nil {
+			continue
+		}
+		if _, ok := seen[normalized]; ok {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		urls = append(urls, normalized)
+		if len(urls) >= 5 {
+			break
+		}
+	}
+	if len(urls) == 0 {
+		return nil, errors.New("没有可抓取的公开 URL")
+	}
+	type pageResult struct {
+		page Page
+		err  error
+	}
+	results := make(chan pageResult, len(urls))
+	sem := make(chan struct{}, s.cfg.Concurrency)
+	var wg sync.WaitGroup
+	for _, target := range urls {
+		wg.Add(1)
+		go func(target string) {
+			defer wg.Done()
+			select {
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-ctx.Done():
+				results <- pageResult{err: ctx.Err()}
+				return
+			}
+			raw, err := s.fetchWithObscura(ctx, target)
+			if (err != nil || len(raw) == 0) && s.cfg.HTTPFallback {
+				if httpRaw, httpErr := s.fetchHTTP(ctx, target); httpErr == nil {
+					raw, err = httpRaw, nil
+				}
+			}
+			if err != nil {
+				results <- pageResult{err: err}
+				return
+			}
+			title, content := extractPage(raw)
+			if strings.TrimSpace(content) == "" {
+				results <- pageResult{err: ErrNoResult}
+				return
+			}
+			results <- pageResult{page: Page{URL: target, Title: title, Content: content}}
+		}(target)
+	}
+	go func() { wg.Wait(); close(results) }()
+	pages := make([]Page, 0, len(urls))
+	var firstErr error
+	for item := range results {
+		if item.err != nil {
+			if firstErr == nil {
+				firstErr = item.err
+			}
+			continue
+		}
+		pages = append(pages, item.page)
+	}
+	if len(pages) == 0 {
+		if firstErr != nil {
+			return nil, firstErr
+		}
+		return nil, ErrNoResult
+	}
+	return pages, nil
+}
+
+func extractPage(raw []byte) (string, string) {
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(raw))
+	if err != nil {
+		return "", ""
+	}
+	title := cleanText(doc.Find("title").Text())
+	body := doc.Find("body").Text()
+	if strings.TrimSpace(body) == "" {
+		body = doc.Text()
+	}
+	return title, truncate(cleanText(body), 12000)
+}
+
+func (s *Service) validatePublicURL(ctx context.Context, raw string) (string, error) {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || u.Host == "" {
+		return "", errors.New("URL 不合法")
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return "", errors.New("只允许 HTTP(S) URL")
+	}
+	if u.User != nil {
+		return "", errors.New("URL 不能包含账号信息")
+	}
+	ips, err := net.DefaultResolver.LookupIP(ctx, "ip", u.Hostname())
+	if err != nil {
+		return "", errors.New("URL 域名无法解析")
+	}
+	for _, ip := range ips {
+		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsUnspecified() {
+			return "", errors.New("URL 指向私网地址")
+		}
+	}
+	return u.String(), nil
 }
 
 func (s *Service) searchWithEngines(ctx context.Context, query string, engines []Engine) ([]Result, error) {
@@ -690,6 +819,10 @@ func resolveHrefBase(href, base string) string {
 
 var queryTermPattern = regexp.MustCompile(`[a-zA-Z0-9]{2,}|[\p{Han}]{2,}`)
 
+func isHanRune(r rune) bool {
+	return r >= 0x4e00 && r <= 0x9fff
+}
+
 // queryTerms 提取用于相关性过滤的词；不追求分词精度，只挡住完全跑题的引擎结果。
 func queryTerms(query string) []string {
 	raw := strings.ToLower(query)
@@ -703,7 +836,24 @@ func queryTerms(query string) []string {
 		if _, ok := stop[term]; ok {
 			continue
 		}
-		if len([]rune(term)) < 2 {
+		runes := []rune(term)
+		// 中文长句必须切成 bigram 再做相关性判断；
+		// 否则“今天热点新闻”会要求标题完整包含这六个字，几乎必然被误杀。
+		if len(runes) > 2 && isHanRune(runes[0]) {
+			for i := 0; i+1 < len(runes); i++ {
+				bgram := string(runes[i : i+2])
+				if _, ok := stop[bgram]; ok {
+					continue
+				}
+				if _, ok := seen[bgram]; ok {
+					continue
+				}
+				seen[bgram] = struct{}{}
+				out = append(out, bgram)
+			}
+			continue
+		}
+		if len(runes) < 2 {
 			continue
 		}
 		if _, ok := seen[term]; ok {
