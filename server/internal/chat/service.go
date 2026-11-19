@@ -727,7 +727,7 @@ func (s *Service) preferredSearchEngines(ctx context.Context, model *provider.Mo
 func defaultSearchEngines(query string) []string {
 	for _, r := range query {
 		if r >= 0x4e00 && r <= 0x9fff {
-			return []string{"zhihu", "sogou", "baidu"}
+			return []string{"zhihu", "sogou", "baidu", "bing"}
 		}
 	}
 	return []string{"bing", "zhihu"}

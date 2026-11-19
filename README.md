@@ -159,8 +159,8 @@ PR 只构建不推送；工作流需要仓库的 `packages: write` 权限。需�
 | --- | --- | --- |
 | enabled | true | 关闭后 C 端入口置灰 |
 | obscura_bin | obscura | Obscura 可执行文件；Docker 已内置 |
-| engine_url | `https://cn.bing.com/search?q={query}` | 兼容旧配置的单引擎模板 |
-| engines | bing 1.0 / zhihu 1.0 / sogou 0.8 / baidu 0.5 | 多引擎及 RRF 权重；百度最低 |
+| engine_url | `https://cn.bing.com/search?q={query}&mkt=zh-CN&setlang=zh-Hans&cc=CN` | 兼容旧配置的单引擎模板 |
+| engines | bing 1.0（`mkt=zh-CN`）/ zhihu 1.0 / sogou 0.8 / baidu 0.5 | 多引擎及 RRF 权重；百度最低 |
 | max_results | 5 | 最多注入 / 展示的来源数 |
 | timeout_sec | 25 | 单次检索超时，含浏览器启动 |
 | http_fallback | true | Obscura 失败时是否普通 HTTP 抓取 |

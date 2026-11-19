@@ -73,11 +73,11 @@ web_search:
   # Obscura 可执行文件；Docker 镜像内已包含
   obscura_bin: obscura
   # 兼容旧的单引擎配置；engines 非空时优先使用多引擎
-  engine_url: https://cn.bing.com/search?q={query}
+  engine_url: https://cn.bing.com/search?q={query}&mkt=zh-CN&setlang=zh-Hans&cc=CN
   # 多引擎 RRF（Reciprocal Rank Fusion）融合；百度权重最低
   engines:
     - name: bing
-      url: https://cn.bing.com/search?q={query}
+      url: https://cn.bing.com/search?q={query}&mkt=zh-CN&setlang=zh-Hans&cc=CN
       weight: 1.0
     - name: zhihu
       url: https://www.zhihu.com/search?type=content&q={query}
