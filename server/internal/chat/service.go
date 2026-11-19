@@ -615,8 +615,14 @@ func (s *Service) routeReasoning(ctx context.Context, model *provider.Model, pro
 	if model == nil || prov == nil {
 		return "medium"
 	}
+	routerSystem := reasoningRouterPrompt
+	for _, message := range history {
+		if message.Role == "system" && message.Content != systemPrompt {
+			routerSystem += "\n\n" + message.Content
+		}
+	}
 	forked := make([]provider.ChatMessage, 0, len(history)+1)
-	forked = append(forked, provider.ChatMessage{Role: "system", Content: reasoningRouterPrompt})
+	forked = append(forked, provider.ChatMessage{Role: "system", Content: routerSystem})
 	for _, message := range history {
 		if message.Role == "system" {
 			continue
