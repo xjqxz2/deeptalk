@@ -660,7 +660,7 @@ func testEndpoint(ctx context.Context, baseURL, apiKey string) TestResult {
 		return TestResult{OK: false, LatencyMS: latency, Message: "无法连接上游：" + sanitizeNetErr(err)}
 	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 	if resp.StatusCode != http.StatusOK {
 		return TestResult{OK: false, LatencyMS: latency, Message: fmt.Sprintf("连接失败（HTTP %d）：%s", resp.StatusCode, sanitizeBody(body))}
 	}
