@@ -248,13 +248,15 @@ func (s *Service) searchWithEngines(ctx context.Context, query string, engines [
 			break
 		}
 	}
+	if !hasRelevant {
+		// 全部来源都与问题词无关时，不再把它们塞进来源面板；
+		// 这比展示“我 / 我的世界”这类乱码结果更可信。
+		return nil, ErrNoResult
+	}
 	for _, item := range merged {
-		// 只要有一路结果与问题词汇相关，就过滤掉“答非所问”的引擎结果。
-		// 如果所有结果都不含问题词，则保留原结果，避免语义搜索被误杀。
-		if hasRelevant && !item.relevant {
-			continue
+		if item.relevant {
+			all = append(all, item)
 		}
-		all = append(all, item)
 	}
 	sort.SliceStable(all, func(i, j int) bool {
 		if all[i].score == all[j].score {

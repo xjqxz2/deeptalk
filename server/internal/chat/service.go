@@ -583,11 +583,15 @@ func (s *Service) retrieve(ctx context.Context, assistant *Message, query string
 	}
 	// 先让模型做一次轻量路由：它最了解这个问题更适合知乎、Bing 还是搜狗。
 	// 模型没有明确偏好时，SearchWithEngines 会自动使用全部默认来源。
-	preferred := s.preferredSearchEngines(ctx, model, prov, query)
-	slog.Info("search engines routed", "conversation_id", assistant.ConversationID, "engines", preferred)
-	items, err := s.search.SearchWithEngines(ctx, query, preferred)
-	if err == nil && len(items) == 0 && len(preferred) > 0 {
-		items, err = s.search.Search(ctx, query)
+	route := s.preferredSearchRoute(ctx, model, prov, assistant.ConversationID, query)
+	searchQuery := route.Query
+	if searchQuery == "" {
+		searchQuery = query
+	}
+	slog.Info("search routed", "conversation_id", assistant.ConversationID, "engines", route.Engines, "query", searchQuery)
+	items, err := s.search.SearchWithEngines(ctx, searchQuery, route.Engines)
+	if err == nil && len(items) == 0 && len(route.Engines) > 0 {
+		items, err = s.search.Search(ctx, searchQuery)
 	}
 	if ctx.Err() != nil {
 		return nil
@@ -663,29 +667,56 @@ func (s *Service) routeReasoning(ctx context.Context, model *provider.Model, pro
 	}
 }
 
-const searchRouterPrompt = `你是 DeepTalk 的检索路由器。根据用户问题，选择 1–2 个最合适的搜索来源：
+const searchRouterPrompt = `你是 DeepTalk 的检索路由器。根据用户问题，选择 1–2 个最合适的搜索来源，并提取真正适合搜索引擎的关键词：
 - bing：英文内容、技术文档、官网、国际信息；
 - zhihu：中文经验、观点、评价、问答；
 - sogou：中文资讯、公众号、论坛；
 - baidu：中文百科/一般信息，权重最低，只在没有更合适来源时选择。
 中文生活/价格/资讯问题优先 zhihu、sogou；英文或技术文档问题优先 bing、zhihu。
-必须至少选择一个来源，不要因为不确定就返回空。只输出 JSON，格式：{"engines":["zhihu","sogou"]}。
+query 要结合“最近对话”理解当前问题，去掉“我说的是”“联网查一下”“帮我搜一下”等对话口语，只保留模型名、产品名、数字、时间、专有名词和检索意图；不要编造事实。
+必须至少选择一个来源，不要因为不确定就返回空。只输出 JSON：
+{"engines":["bing"],"query":"DeepSeek V4.1-Flash 价格"}
 不要输出解释、Markdown 或额外文字。`
 
-// preferredSearchEngines 让模型选择检索来源；失败或不确定时返回 nil。
-func (s *Service) preferredSearchEngines(ctx context.Context, model *provider.Model, prov *provider.Provider, query string) []string {
+type searchRoute struct {
+	Engines []string
+	Query   string
+}
+
+// preferredSearchRoute 让模型同时决定搜索来源与检索关键词。
+// 失败或输出不可解析时回退到原始问题 + 语言默认来源。
+func (s *Service) preferredSearchRoute(ctx context.Context, model *provider.Model, prov *provider.Provider, conversationID uint, query string) searchRoute {
+	fallback := searchRoute{Engines: defaultSearchEngines(query), Query: normalizeRouterQuery(query)}
 	if model == nil || prov == nil {
-		return defaultSearchEngines(query)
+		return fallback
 	}
+	// 把最近几轮对话一起给路由器，才能把“我说的是 V4.1-Flash”还原成
+	// “DeepSeek V4.1-Flash 价格”，而不是只拿最后一句去搜。
+	var recent []Message
+	_ = s.db.WithContext(ctx).
+		Where("conversation_id = ? AND status <> ? AND content <> ''", conversationID, StatusError).
+		Order("id DESC").Limit(6).Find(&recent).Error
+	var contextText strings.Builder
+	for i := len(recent) - 1; i >= 0; i-- {
+		role := "用户"
+		if recent[i].Role == RoleAssistant {
+			role = "助手"
+		}
+		contextText.WriteString(role)
+		contextText.WriteString("：")
+		contextText.WriteString(truncateRunes(recent[i].Content, 300))
+		contextText.WriteString("\n")
+	}
+	routerInput := "最近对话：\n" + contextText.String() + "\n当前问题：\n" + query
 	routeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	var output strings.Builder
 	_, err := s.providers.StreamCompletion(routeCtx, prov, model.ModelID,
 		[]provider.ChatMessage{
 			{Role: "system", Content: searchRouterPrompt},
-			{Role: "user", Content: query},
+			{Role: "user", Content: routerInput},
 		},
-		false, "", 64, 4*time.Second,
+		false, "", 96, 4*time.Second,
 		func(ev provider.StreamEvent) error {
 			if ev.Kind == "content" {
 				output.WriteString(ev.Delta)
@@ -693,7 +724,7 @@ func (s *Service) preferredSearchEngines(ctx context.Context, model *provider.Mo
 			return nil
 		})
 	if err != nil {
-		return defaultSearchEngines(query)
+		return fallback
 	}
 	raw := strings.TrimSpace(output.String())
 	if start, end := strings.Index(raw, "{"), strings.LastIndex(raw, "}"); start >= 0 && end > start {
@@ -701,13 +732,14 @@ func (s *Service) preferredSearchEngines(ctx context.Context, model *provider.Mo
 	}
 	var payload struct {
 		Engines []string `json:"engines"`
+		Query   string   `json:"query"`
 	}
 	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
-		return defaultSearchEngines(query)
+		return fallback
 	}
 	allowed := map[string]struct{}{"bing": {}, "zhihu": {}, "sogou": {}, "baidu": {}}
 	seen := make(map[string]struct{})
-	out := make([]string, 0, 2)
+	route := searchRoute{Query: normalizeRouterQuery(payload.Query)}
 	for _, name := range payload.Engines {
 		name = strings.ToLower(strings.TrimSpace(name))
 		if _, ok := allowed[name]; !ok {
@@ -717,19 +749,31 @@ func (s *Service) preferredSearchEngines(ctx context.Context, model *provider.Mo
 			continue
 		}
 		seen[name] = struct{}{}
-		out = append(out, name)
-		if len(out) >= 2 {
+		route.Engines = append(route.Engines, name)
+		if len(route.Engines) >= 2 {
 			break
 		}
 	}
-	if len(out) == 0 {
-		return defaultSearchEngines(query)
+	if len(route.Engines) == 0 {
+		route.Engines = defaultSearchEngines(query)
 	}
-	return out
+	if route.Query == "" {
+		route.Query = normalizeRouterQuery(query)
+	}
+	return route
+}
+
+// normalizeRouterQuery 去掉明显的对话前缀，避免搜索引擎只拿到“我”这类残词。
+func normalizeRouterQuery(query string) string {
+	query = strings.TrimSpace(query)
+	for _, prefix := range []string{"我说的是", "我说", "我指的是", "刚才说的是", "刚才说的", "我问的是"} {
+		query = strings.TrimSpace(strings.TrimPrefix(query, prefix))
+	}
+	return query
 }
 
 // defaultSearchEngines 是模型没有给出偏好时的语言兜底：
-// 中文问题优先知乎/搜狗，避免 Bing 把中文口语查询解析成英文站点；百度放最后。
+// 中文问题优先知乎/搜狗/百度/中文 Bing，英文问题优先 Bing/知乎；百度放最后。
 func defaultSearchEngines(query string) []string {
 	for _, r := range query {
 		if r >= 0x4e00 && r <= 0x9fff {
