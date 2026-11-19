@@ -63,7 +63,7 @@ web_search:
   # Obscura 可执行文件；Docker 镜像内已包含
   obscura_bin: obscura
   # 搜索页模板，{query} 会被 URL 编码后的关键词替换
-  engine_url: https://html.duckduckgo.com/html/?q={query}
+  engine_url: https://www.bing.com/search?q={query}
   # 单次回答最多引用的来源数
   max_results: 5
   # 单次检索超时（秒），需小于上游首字节超时与浏览器等待

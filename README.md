@@ -157,7 +157,7 @@ PR 只构建不推送；工作流需要仓库的 `packages: write` 权限。需�
 | --- | --- | --- |
 | enabled | true | 关闭后 C 端入口置灰 |
 | obscura_bin | obscura | Obscura 可执行文件；Docker 已内置 |
-| engine_url | `https://html.duckduckgo.com/html/?q={query}` | 搜索页模板，`{query}` 会被 URL 编码 |
+| engine_url | `https://www.bing.com/search?q={query}` | 搜索页模板，`{query}` 会被 URL 编码 |
 | max_results | 5 | 最多注入 / 展示的来源数 |
 | timeout_sec | 25 | 单次检索超时，含浏览器启动 |
 | http_fallback | true | Obscura 失败时是否普通 HTTP 抓取 |
