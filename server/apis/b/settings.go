@@ -1,0 +1,112 @@
+package b
+
+import (
+	"os"
+	"strconv"
+
+	"deeptalk/apis/requests"
+	"deeptalk/apis/responses"
+	"deeptalk/internal/audit"
+	"deeptalk/internal/provider"
+	"deeptalk/internal/setting"
+
+	"github.com/gin-gonic/gin"
+)
+
+// SettingsController 处理系统设置：注册开关、默认路由与存储信息。
+type SettingsController struct {
+	settings  *setting.Service  // 设置读写
+	providers *provider.Service // 路由能力
+	audits    *audit.Service    // 审计
+	dbPath    string            // SQLite 文件路径，用于展示存储占用
+}
+
+// NewSettingsController 创建设置控制器。
+func NewSettingsController(settings *setting.Service, providers *provider.Service, audits *audit.Service, dbPath string) *SettingsController {
+	return &SettingsController{settings: settings, providers: providers, audits: audits, dbPath: dbPath}
+}
+
+// Get 返回当前系统设置。
+func (h *SettingsController) Get(c *gin.Context) {
+	responses.OK(c, h.snapshot(c))
+}
+
+// Update 更新注册开关与默认路由。
+func (h *SettingsController) Update(c *gin.Context) {
+	var req requests.SettingsRequest
+	if err := req.Bind(c); err != nil {
+		responses.Fail(c, responses.CodeInvalidArgument, "设置内容不合法")
+		return
+	}
+	ctx := c.Request.Context()
+	if req.AllowRegistration != nil {
+		value := "false"
+		if *req.AllowRegistration {
+			value = "true"
+		}
+		if err := h.settings.Set(ctx, setting.KeyAllowRegistration, value); err != nil {
+			responses.FromError(c, err)
+			return
+		}
+		detail := "关闭开放注册"
+		if *req.AllowRegistration {
+			detail = "开放注册"
+		}
+		recordAudit(c, h.audits, "setting.registration", "setting", 0, detail)
+	}
+	if req.MaxOutputTokens != nil {
+		if *req.MaxOutputTokens < 1024 || *req.MaxOutputTokens > 1_000_000 {
+			responses.Fail(c, responses.CodeInvalidArgument, "输出预算需在 1024–1,000,000 tokens 之间")
+			return
+		}
+		if err := h.settings.Set(ctx, setting.KeyMaxOutputTokens, strconv.Itoa(*req.MaxOutputTokens)); err != nil {
+			responses.FromError(c, err)
+			return
+		}
+		recordAudit(c, h.audits, "setting.output_budget", "setting", 0,
+			"调整单次输出预算为 "+strconv.Itoa(*req.MaxOutputTokens)+" tokens")
+	}
+	if req.DefaultModelID != nil || req.FallbackModelID != nil {
+		current := h.providers.Routing(ctx)
+		defaultID := current.DefaultModelID
+		fallbackID := current.FallbackModelID
+		if req.DefaultModelID != nil {
+			defaultID = *req.DefaultModelID
+		}
+		if req.FallbackModelID != nil {
+			fallbackID = *req.FallbackModelID
+		}
+		if err := h.providers.SetRouting(ctx, defaultID, fallbackID); err != nil {
+			responses.FromError(c, err)
+			return
+		}
+		recordAudit(c, h.audits, "routing.update", "setting", 0, "更新默认 / 兜底模型路由")
+	}
+	responses.OK(c, h.snapshot(c))
+}
+
+// snapshot 组装设置响应，包含存储占用。
+func (h *SettingsController) snapshot(c *gin.Context) responses.SettingsResponse {
+	ctx := c.Request.Context()
+	routing := h.providers.Routing(ctx)
+	used := fileSize(h.dbPath) + fileSize(h.dbPath+"-wal")
+	return responses.SettingsResponse{
+		AllowRegistration: h.settings.Bool(ctx, setting.KeyAllowRegistration, true),
+		DefaultModelID:    routing.DefaultModelID,
+		FallbackModelID:   routing.FallbackModelID,
+		MaxOutputTokens:   h.settings.Int(ctx, setting.KeyMaxOutputTokens, 384000),
+		SiteName:          "DeepTalk",
+		Version:           "v1.0.0",
+		StorageUsedBytes:  used,
+		StorageTotalBytes: 10 * 1024 * 1024 * 1024,
+	}
+}
+
+// fileSize 返回文件字节数，文件不存在时返回 0。
+func fileSize(path string) int64 {
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0
+	}
+	return info.Size()
+}

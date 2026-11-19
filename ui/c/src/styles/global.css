@@ -1,0 +1,15 @@
+/* C 端应用级样式：只放跨页面但无法归入共享主题的规则 */
+#app {
+  min-height: 100%;
+}
+
+body {
+  overflow: hidden;
+}
+
+/* 移动端允许页面自身滚动，避免输入法弹出时布局抖动 */
+@media (max-width: 768px) {
+  body {
+    overflow: auto;
+  }
+}

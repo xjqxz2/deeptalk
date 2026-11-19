@@ -1,0 +1,16 @@
+{
+  "name": "deeptalk-ui",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DeepTalk 前端工作区：C 端对话工作台与 B 端管理后台",
+  "scripts": {
+    "dev:c": "pnpm --filter @deeptalk/c dev",
+    "dev:b": "pnpm --filter @deeptalk/b dev",
+    "build": "pnpm --filter @deeptalk/c build && pnpm --filter @deeptalk/b build",
+    "typecheck": "pnpm --filter @deeptalk/c typecheck && pnpm --filter @deeptalk/b typecheck",
+    "lint": "pnpm --filter @deeptalk/c lint && pnpm --filter @deeptalk/b lint"
+  },
+  "devDependencies": {
+    "playwright-core": "1.64.0"
+  }
+}

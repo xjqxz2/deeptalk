@@ -1,0 +1,26 @@
+# 生产服务器专用：只拉 GHCR 镜像，不在服务器上构建。
+# 与 docker-compose.yml 的区别：没有 build，镜像 tag 由部署脚本传入。
+name: deeptalk
+
+services:
+  deeptalk:
+    image: ${DEEPTALK_IMAGE:?请在 .env 设置 DEEPTALK_IMAGE}:${DEEPTALK_IMAGE_TAG:-latest}
+    container_name: deeptalk
+    restart: unless-stopped
+    init: true
+    pull_policy: always
+    ports:
+      - "${DEEPTALK_PORT:-9821}:9821"
+    volumes:
+      - ${DEEPTALK_DATA_DIR:-/opt/deeptalk/data}:/app/data
+    env_file:
+      - .env
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      DEEPTALK_ADDR: 0.0.0.0:9821
+    stop_grace_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -1,0 +1,74 @@
+# DeepTalk 服务端默认配置
+# 说明：环境变量优先级最高，其次 app-{env}.yaml / secret.local.yaml，最后本文件。
+app:
+  # 应用名，用于日志与页面标题
+  name: DeepTalk
+  # 运行环境：dev / prod；prod 下会强制校验安全项
+  env: dev
+  # 对外监听地址；按交付要求固定 0.0.0.0:9821
+  addr: 0.0.0.0:9821
+  # 对外访问基地址，用于日志与 Cookie 域判断
+  base_url: http://localhost:9821
+
+database:
+  # SQLite 数据文件路径（相对 server 目录）；目录不存在会自动创建
+  dsn: data/deeptalk.db
+  # 首次启动是否写入初始管理员、DeepSeek 厂商与 deepseek-flash 模型
+  seed: true
+
+auth:
+  # 会话 Cookie 名
+  cookie_name: dt_session
+  # 生产环境必须为 true（HTTPS）
+  cookie_secure: false
+  # 会话有效期（小时），设计约定 7 天
+  session_ttl_hours: 168
+  # 连续失败锁定阈值
+  lock_threshold: 5
+  # 锁定时长（分钟）
+  lock_minutes: 10
+  # 默认套餐额度（tokens）
+  default_quota_tokens: 4000000
+
+security:
+  # AES-GCM 与签名密钥；生产必须通过环境变量 DEEPTALK_SECRET 覆盖
+  secret: deeptalk-mvp-local-secret-change-me
+
+cors:
+  # 开发期允许的跨域来源（Vite 两个应用）
+  allowed_origins:
+    - http://localhost:5173
+    - http://127.0.0.1:5173
+    - http://localhost:5174
+    - http://127.0.0.1:5174
+
+upstream:
+  # 单次流式回答最大输出 tokens；深度思考与正文共用这份预算
+  # 默认拉满到 384K；后台系统设置可在线调整（1024–1,000,000）
+  max_output_tokens: 384000
+  # 上游首字节超时（秒）
+  first_byte_timeout_sec: 30
+  # 深度思考强度：low / medium / high；仅在用户开启深度思考时发送 reasoning_effort
+  reasoning_effort: medium
+
+uploads:
+  # 图片附件落盘目录；Docker 中位于 /app/data/uploads，随数据卷持久化
+  dir: data/uploads
+  # 单张图片上限（MB），单条消息最多 4 张
+  max_mb: 8
+
+web_search:
+  # 是否启用联网搜索；关闭后 C 端入口禁用
+  enabled: true
+  # Obscura 可执行文件；Docker 镜像内已包含
+  obscura_bin: obscura
+  # 搜索页模板，{query} 会被 URL 编码后的关键词替换
+  engine_url: https://html.duckduckgo.com/html/?q={query}
+  # 单次回答最多引用的来源数
+  max_results: 5
+  # 单次检索超时（秒），需小于上游首字节超时与浏览器等待
+  timeout_sec: 25
+  # Obscura 不可用时是否允许普通 HTTP 抓取（本地开发建议开启）
+  http_fallback: true
+  # 是否启用 Obscura 反检测模式；默认关闭以降低延迟
+  stealth: false

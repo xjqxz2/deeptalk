@@ -1,0 +1,269 @@
+package provider
+
+import (
+	"bufio"
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"sync/atomic"
+	"time"
+)
+
+// ChatMessage 是发送给上游的一条对话消息。
+type ChatMessage struct {
+	Role    string   // system / user / assistant
+	Content string   // 消息正文
+	Images  []string // 图片 data URL，仅当前用户消息携带
+}
+
+// StreamEvent 是增量输出事件：reasoning 表示深度思考，content 表示正式回答。
+type StreamEvent struct {
+	Kind  string // reasoning / content
+	Delta string // 增量文本
+}
+
+// CompletionUsage 是上游返回的 token 用量。
+type CompletionUsage struct {
+	PromptTokens     int `json:"prompt_tokens"`     // 输入 tokens
+	CompletionTokens int `json:"completion_tokens"` // 输出 tokens
+}
+
+// ErrUpstream 表示上游调用失败，具体原因由返回值携带。
+var ErrUpstream = errors.New("upstream request failed")
+
+// StreamCompletion 调用 OpenAI 兼容的 /chat/completions 流式接口。
+// 通过 onEvent 逐段回调；返回最终 token 用量。
+// 注意：调用方必须处理 ctx 取消（客户端停止生成），本函数会立即关闭上游连接。
+func (s *Service) StreamCompletion(
+	ctx context.Context,
+	p *Provider,
+	upstreamModel string,
+	messages []ChatMessage,
+	deepThinking bool,
+	reasoningEffort string,
+	maxTokens int,
+	firstByteTimeout time.Duration,
+	onEvent func(StreamEvent) error,
+) (CompletionUsage, error) {
+	usage := CompletionUsage{}
+	key, err := DecryptAPIKey(s.secret, p.APIKeyEnc)
+	if err != nil {
+		return usage, fmt.Errorf("密钥解密失败，请重新配置 API Key")
+	}
+	if strings.TrimSpace(key) == "" {
+		return usage, ErrNoAPIKey
+	}
+	if maxTokens <= 0 {
+		maxTokens = 384000
+	}
+	// 深度思考与正文共用 max_tokens；预算太低会出现“只想完、没正文”
+	if deepThinking && maxTokens < 8192 {
+		maxTokens = 8192
+	}
+	if firstByteTimeout <= 0 {
+		firstByteTimeout = 30 * time.Second
+	}
+	payload := map[string]any{
+		"model":       upstreamModel,
+		"messages":    toUpstreamMessages(messages),
+		"stream":      true,
+		"max_tokens":  maxTokens,
+		"temperature": 0.7,
+		// 让上游在最后一帧返回 usage，便于准确记账
+		"stream_options": map[string]any{"include_usage": true},
+	}
+	if deepThinking {
+		// DeepSeek 兼容 reasoning_effort；不支持的厂商会忽略该字段。
+		// 强度由服务端配置统一控制，避免前端硬编码 high。
+		effort := strings.TrimSpace(reasoningEffort)
+		if effort == "" {
+			effort = "medium"
+		}
+		payload["reasoning_effort"] = effort
+	}
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return usage, err
+	}
+	endpoint := strings.TrimRight(p.BaseURL, "/") + "/chat/completions"
+	reqCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, endpoint, bytes.NewReader(raw))
+	if err != nil {
+		return usage, fmt.Errorf("上游地址不合法")
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "text/event-stream")
+	req.Header.Set("Authorization", "Bearer "+key)
+	client := &http.Client{Timeout: 5 * time.Minute}
+	resp, err := client.Do(req)
+	if err != nil {
+		if ctx.Err() != nil {
+			return usage, ctx.Err()
+		}
+		return usage, fmt.Errorf("%w: %s", ErrUpstream, sanitizeNetErr(err))
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return usage, fmt.Errorf("%w: %s", ErrUpstream, upstreamStatusMessage(resp.StatusCode, body))
+	}
+	// 部分聚合网关会用 HTTP 200 + JSON error 返回上游故障；必须在进入 SSE 扫描前识别
+	if contentType := resp.Header.Get("Content-Type"); !strings.Contains(contentType, "text/event-stream") {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 8192))
+		if message := upstreamBodyError(body); message != "" {
+			return usage, fmt.Errorf("%w: %s", ErrUpstream, message)
+		}
+		return usage, fmt.Errorf("%w: 上游返回了非流式响应", ErrUpstream)
+	}
+
+	// 首字节超时：超过约定时间仍未收到任何数据则中止，避免前端长时间空等
+	var firstByte atomic.Bool
+	timer := time.AfterFunc(firstByteTimeout, cancel)
+	defer timer.Stop()
+
+	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	finishReason := ""
+	hadContent := false
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, ":") {
+			continue
+		}
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if data == "[DONE]" {
+			break
+		}
+		if data == "" {
+			continue
+		}
+		timer.Stop()
+		firstByte.Store(true)
+		var chunk upstreamChunk
+		if err := json.Unmarshal([]byte(data), &chunk); err != nil {
+			// 单帧解析失败不应中断整段回答
+			continue
+		}
+		if chunk.Usage != nil {
+			usage.PromptTokens = chunk.Usage.PromptTokens
+			usage.CompletionTokens = chunk.Usage.CompletionTokens
+		}
+		for _, choice := range chunk.Choices {
+			if choice.Delta.ReasoningContent != "" {
+				if err := onEvent(StreamEvent{Kind: "reasoning", Delta: choice.Delta.ReasoningContent}); err != nil {
+					return usage, err
+				}
+			}
+			if choice.Delta.Content != "" {
+				hadContent = true
+				if err := onEvent(StreamEvent{Kind: "content", Delta: choice.Delta.Content}); err != nil {
+					return usage, err
+				}
+			}
+			if choice.FinishReason != "" {
+				finishReason = choice.FinishReason
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		if ctx.Err() != nil {
+			return usage, ctx.Err()
+		}
+		if !firstByte.Load() {
+			return usage, fmt.Errorf("%w: 首字节超时（%s）", ErrUpstream, firstByteTimeout)
+		}
+		return usage, fmt.Errorf("%w: 流式响应中断", ErrUpstream)
+	}
+	if !firstByte.Load() {
+		return usage, fmt.Errorf("%w: 上游未返回任何内容", ErrUpstream)
+	}
+	if finishReason == "length" && !hadContent {
+		return usage, fmt.Errorf("%w: 输出达到 max_tokens 上限，思考内容占满了预算", ErrUpstream)
+	}
+	return usage, nil
+}
+
+// upstreamChunk 是 OpenAI 兼容流式响应的最小结构。
+type upstreamChunk struct {
+	Choices []struct {
+		Delta struct {
+			Content          string `json:"content"`           // 正式回答增量
+			ReasoningContent string `json:"reasoning_content"` // 深度思考增量
+		} `json:"delta"`
+		FinishReason string `json:"finish_reason"` // stop / length
+	} `json:"choices"`
+	Usage *CompletionUsage `json:"usage"` // 最后一帧的用量
+}
+
+// toUpstreamMessages 转换为上游协议需要的消息数组。
+// 有图片时使用 OpenAI 兼容的多模态 content 数组；纯文本仍保持 string，兼容性最好。
+func toUpstreamMessages(messages []ChatMessage) []map[string]any {
+	out := make([]map[string]any, 0, len(messages))
+	for _, m := range messages {
+		if m.Role == "" {
+			continue
+		}
+		if len(m.Images) == 0 {
+			if strings.TrimSpace(m.Content) == "" {
+				continue
+			}
+			out = append(out, map[string]any{"role": m.Role, "content": m.Content})
+			continue
+		}
+		text := strings.TrimSpace(m.Content)
+		if text == "" {
+			text = "请分析用户上传的图片。"
+		}
+		parts := make([]map[string]any, 0, len(m.Images)+1)
+		parts = append(parts, map[string]any{"type": "text", "text": text})
+		for _, image := range m.Images {
+			parts = append(parts, map[string]any{
+				"type":      "image_url",
+				"image_url": map[string]any{"url": image},
+			})
+		}
+		out = append(out, map[string]any{"role": m.Role, "content": parts})
+	}
+	return out
+}
+
+// upstreamStatusMessage 将上游 HTTP 状态映射为可读提示，避免直接暴露原始响应。
+// upstreamBodyError 解析 HTTP 200 响应里的 OpenAI 兼容错误体。
+func upstreamBodyError(body []byte) string {
+	var payload struct {
+		Error struct {
+			Message string `json:"message"`
+			Code    string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return ""
+	}
+	message := strings.TrimSpace(payload.Error.Message)
+	if len([]rune(message)) > 240 {
+		message = string([]rune(message)[:240])
+	}
+	return message
+}
+
+func upstreamStatusMessage(status int, body []byte) string {
+	switch {
+	case status == http.StatusUnauthorized || status == http.StatusForbidden:
+		return fmt.Sprintf("上游密钥无效或无权限（HTTP %d）", status)
+	case status == http.StatusTooManyRequests:
+		return "上游限流，请稍后再试（HTTP 429）"
+	case status >= 500:
+		return fmt.Sprintf("上游服务异常（HTTP %d）", status)
+	default:
+		return fmt.Sprintf("上游返回错误（HTTP %d）：%s", status, sanitizeBody(body))
+	}
+}

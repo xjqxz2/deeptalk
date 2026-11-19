@@ -1,0 +1,9 @@
+packages:
+  - "c"
+  - "b"
+  - "shared"
+
+# 允许 esbuild 与 core-js 执行安装脚本；其余依赖默认不执行，降低供应链风险
+allowBuilds:
+  esbuild: true
+  core-js: true

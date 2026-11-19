@@ -1,0 +1,13 @@
+/* B 端应用级样式：页面底色与滚动行为 */
+#app {
+  min-height: 100vh;
+}
+
+body {
+  background: var(--dt-bg);
+}
+
+/* 表格横向滚动时保留细滚动条，不影响行高 */
+.admin-content {
+  scrollbar-gutter: stable;
+}

@@ -1,0 +1,49 @@
+# DeepTalk 单容器部署：Alpine + glibc + Obscura，数据统一落在 deeptalk-data 卷。
+# 使用前：
+#   1. cp .env.example .env
+#   2. 修改 .env 中的 DEEPTALK_SECRET / DEEPTALK_BASE_URL / DEEPTALK_DEEPSEEK_KEY
+#   3. docker compose up -d --build
+name: deeptalk
+
+services:
+  deeptalk:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${DEEPTALK_VERSION:-local}
+        COMMIT: ${DEEPTALK_COMMIT:-local}
+        BUILD_TIME: ${DEEPTALK_BUILD_TIME:-local}
+    image: deeptalk:${DEEPTALK_VERSION:-latest}
+    container_name: deeptalk
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${DEEPTALK_PORT:-9821}:9821"
+    volumes:
+      - deeptalk-data:/app/data
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      DEEPTALK_ADDR: 0.0.0.0:9821
+      DEEPTALK_BASE_URL: ${DEEPTALK_BASE_URL:-http://localhost:9821}
+      # 必须固定；修改后已加密的厂商 API Key 将无法解密
+      DEEPTALK_SECRET: ${DEEPTALK_SECRET:?请先在 .env 中设置 DEEPTALK_SECRET}
+      # 首次空库时用于 seed 官方 DeepSeek 厂商；已有数据卷时不会覆盖后台配置
+      DEEPTALK_DEEPSEEK_KEY: ${DEEPTALK_DEEPSEEK_KEY:-}
+      DEEPTALK_SEED: ${DEEPTALK_SEED:-true}
+      # 深度思考与正文共用的单次输出预算
+      DEEPTALK_MAX_OUTPUT_TOKENS: ${DEEPTALK_MAX_OUTPUT_TOKENS:-384000}
+      DEEPTALK_REASONING_EFFORT: ${DEEPTALK_REASONING_EFFORT:-medium}
+      # 本地 HTTP 调试保持 dev；HTTPS 反代再设 prod + DEEPTALK_COOKIE_SECURE=true
+      DEEPTALK_ENV: ${DEEPTALK_ENV:-dev}
+      DEEPTALK_COOKIE_SECURE: ${DEEPTALK_COOKIE_SECURE:-false}
+    stop_grace_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  deeptalk-data:
+    name: deeptalk-data

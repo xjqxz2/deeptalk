@@ -1,0 +1,399 @@
+/**
+ * DeepTalk 设计令牌与全局样式（C / B 端共用）。
+ * 令牌来源：docs/design/README.md；页面样式一律 scoped，只有这里放全局规则。
+ */
+:root {
+  /* 品牌色 */
+  --dt-brand: #4d6bfe;
+  --dt-brand-hover: #3b5bdb;
+  --dt-brand-active: #2f4bc9;
+  --dt-brand-soft: #eef2ff;
+  --dt-brand-softer: #f5f8ff;
+  --dt-focus-ring: #c9d4ff;
+
+  /* 文字 */
+  --dt-text: #101828;
+  --dt-text-secondary: #475467;
+  --dt-text-muted: #667085;
+  --dt-text-faint: #98a2b3;
+  --dt-text-disabled: #c4cbd6;
+
+  /* 分割线与底色 */
+  --dt-line: #eaecf0;
+  --dt-line-soft: #eff1f5;
+  --dt-bg: #f7f8fa;
+  --dt-sidebar: #fafbfc;
+  --dt-surface: #ffffff;
+  --dt-hover: #f4f6fa;
+  --dt-code: #171a21;
+
+  /* 状态色 */
+  --dt-success: #12b76a;
+  --dt-success-soft: #ecfdf3;
+  --dt-success-text: #067647;
+  --dt-warning: #f79009;
+  --dt-warning-soft: #fffaeb;
+  --dt-warning-text: #b54708;
+  --dt-danger: #f04438;
+  --dt-danger-soft: #fef3f2;
+  --dt-danger-text: #b42318;
+
+  /* 圆角与阴影 */
+  --dt-radius-card: 14px;
+  --dt-radius-input: 10px;
+  --dt-radius-button: 10px;
+  --dt-shadow-pop: 0 10px 18px rgba(16, 24, 40, 0.1);
+  --dt-shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --dt-shadow-float: 0 14px 26px rgba(16, 24, 40, 0.09);
+
+  /* 字体 */
+  --dt-font: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei',
+    'Noto Sans SC', sans-serif;
+  --dt-mono: 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace;
+
+  /* 布局 */
+  --dt-chat-sidebar: 280px;
+  --dt-chat-sidebar-collapsed: 64px;
+  --dt-chat-topbar: 64px;
+  --dt-chat-column: 704px;
+  --dt-admin-sidebar: 240px;
+  --dt-admin-detail: 312px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--dt-bg);
+  color: var(--dt-text);
+  font-family: var(--dt-font);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea {
+  font-family: inherit;
+}
+
+a {
+  color: var(--dt-brand);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--dt-brand-hover);
+}
+
+::selection {
+  background: var(--dt-brand-soft);
+  color: var(--dt-brand-hover);
+}
+
+/* 细滚动条，贴近设计稿的克制观感 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #d9dee8 transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #d9dee8;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #c4cbd6;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 交互焦点：与设计稿 2px #C9D4FF 焦点环一致 */
+:focus-visible {
+  outline: 2px solid var(--dt-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---------- Markdown 正文排版 ---------- */
+.dt-prose {
+  font-size: 13.4px;
+  line-height: 24px;
+  color: var(--dt-text);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.dt-prose > :first-child {
+  margin-top: 0;
+}
+
+.dt-prose > :last-child {
+  margin-bottom: 0;
+}
+
+.dt-prose p {
+  margin: 0 0 12px;
+}
+
+.dt-prose h1,
+.dt-prose h2,
+.dt-prose h3,
+.dt-prose h4 {
+  margin: 20px 0 10px;
+  color: var(--dt-text);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.dt-prose h1 {
+  font-size: 20px;
+}
+
+.dt-prose h2 {
+  font-size: 17px;
+}
+
+.dt-prose h3 {
+  font-size: 15px;
+}
+
+.dt-prose h4 {
+  font-size: 14px;
+}
+
+.dt-prose ul,
+.dt-prose ol {
+  margin: 8px 0 12px;
+  padding-left: 22px;
+}
+
+.dt-prose li {
+  margin: 4px 0;
+}
+
+.dt-prose li > p {
+  margin: 0;
+}
+
+.dt-prose strong {
+  font-weight: 650;
+}
+
+.dt-prose a {
+  color: var(--dt-brand);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.dt-prose blockquote {
+  margin: 12px 0;
+  padding: 8px 14px;
+  border-left: 3px solid var(--dt-brand);
+  background: var(--dt-brand-softer);
+  color: var(--dt-text-secondary);
+  border-radius: 0 8px 8px 0;
+}
+
+.dt-prose code:not(.hljs) {
+  font-family: var(--dt-mono);
+  font-size: 12.2px;
+  color: var(--dt-brand);
+  background: #f3f5fb;
+  border-radius: 5px;
+  padding: 1px 5px;
+}
+
+.dt-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 12.6px;
+}
+
+.dt-prose th,
+.dt-prose td {
+  border: 1px solid var(--dt-line);
+  padding: 7px 10px;
+  text-align: left;
+}
+
+.dt-prose th {
+  background: #f7f9fc;
+  font-weight: 600;
+}
+
+.dt-prose hr {
+  border: none;
+  border-top: 1px solid var(--dt-line);
+  margin: 18px 0;
+}
+
+.dt-prose img {
+  max-width: 100%;
+  border-radius: 10px;
+}
+
+/* ---------- 代码块：设计稿 #171A21 ---------- */
+.dt-code {
+  margin: 14px 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--dt-code);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.12);
+}
+
+.dt-code-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 38px;
+  padding: 0 12px 0 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  color: #aab4c5;
+  font-size: 11px;
+}
+
+.dt-code-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--dt-mono);
+  color: #c6cfdd;
+}
+
+.dt-code-lang {
+  color: #7f8a9c;
+  font-size: 10.5px;
+}
+
+.dt-code-copy {
+  border: none;
+  background: transparent;
+  color: #aab4c5;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 5px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.dt-code-copy:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.dt-code-pre {
+  margin: 0;
+  padding: 12px 14px 14px;
+  overflow-x: auto;
+  font-size: 11.6px;
+  line-height: 1.65;
+  tab-size: 2;
+}
+
+.dt-code-pre code {
+  font-family: var(--dt-mono);
+  background: transparent;
+  padding: 0;
+  font-size: inherit;
+}
+
+.dt-code .hljs {
+  background: transparent;
+  padding: 0;
+  color: #d6deeb;
+}
+
+/* 浅色提示条，用于流式错误 / 兜底模型切换 */
+.dt-inline-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--dt-warning-soft);
+  color: var(--dt-warning-text);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+/* 通用卡片与文本工具类 */
+.dt-card {
+  background: var(--dt-surface);
+  border: 1px solid var(--dt-line);
+  border-radius: var(--dt-radius-card);
+}
+
+.dt-muted {
+  color: var(--dt-text-muted);
+}
+
+.dt-faint {
+  color: var(--dt-text-faint);
+}
+
+.dt-mono {
+  font-family: var(--dt-mono);
+}
+
+.dt-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 页面进入的轻微动效，尊重 reduced-motion */
+@keyframes dt-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.dt-fade-up {
+  animation: dt-fade-up 0.24s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* 品牌标记容器：SVG 自带圆角，这里只负责裁切与阴影 */
+.dt-brand-mark {
+  display: inline-flex;
+  flex: 0 0 auto;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(77, 107, 254, 0.22);
+}
