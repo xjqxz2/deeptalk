@@ -250,8 +250,8 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 		_ = s.db.WithContext(ctx).Model(&Conversation{}).Where("id = ?", conv.ID).
 			Updates(map[string]any{"model_id": model.ID, "updated_at": time.Now()}).Error
 	}
-	// 短问候/寒暄即使打开了深度思考也不请求 reasoning，避免“HI”也思考几十秒
-	effectiveThinking := in.DeepThinking && shouldThink(userMsg.Content)
+	// 思考与否完全由后端 Auto 决定；短问候先排除，避免“HI”也思考几十秒。
+	effectiveThinking := false
 	maxTokens := s.cfg.MaxOutputTokens
 	if s.settings != nil {
 		maxTokens = s.settings.Int(ctx, setting.KeyMaxOutputTokens, maxTokens)
@@ -315,15 +315,14 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 	// 达到 85% 时后台压缩最老的一段；当前请求继续使用已经构建好的旧上下文。
 	s.maybeCompact(conv, model, prov, historyTokens, userMsg.ID)
 
-	// 用户开启深度思考时，先让模型在“关闭思维链”的模式下选择 Auto 强度。
-	// 前端仍只暴露一个开关，具体 none/low/medium/high 完全由后端决定。
+	// 每个实质问题都由模型在关闭思维链的模式下选择 none/low/medium/high；
+	// 前端不再提供深度思考开关。
 	reasoningEffort := ""
-	if effectiveThinking {
+	if shouldThink(userMsg.Content) {
 		effort := s.routeReasoning(ctx, model, prov, history)
 		slog.Info("reasoning routed", "conversation_id", conv.ID, "effort", effort)
-		if effort == "none" {
-			effectiveThinking = false
-		} else {
+		if effort != "none" {
+			effectiveThinking = true
 			reasoningEffort = effort
 		}
 	}

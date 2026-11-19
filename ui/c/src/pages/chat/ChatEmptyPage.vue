@@ -66,7 +66,6 @@ onMounted(() => {
       <div class="empty-composer">
         <Composer
           v-model:text="prompt"
-          v-model:deep-thinking="chat.deepThinking"
           :attachments="chat.attachments"
           :uploading="chat.uploading"
           :generating="chat.generating"

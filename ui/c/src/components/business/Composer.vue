@@ -11,7 +11,6 @@ import { ArrowUpOutlined, CloseOutlined, LoadingOutlined, PaperClipOutlined } fr
 const props = withDefaults(
   defineProps<{
     text: string
-    deepThinking: boolean
     attachments?: Attachment[]
     uploading?: boolean
     generating: boolean
@@ -30,7 +29,6 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (event: 'update:text', value: string): void
-  (event: 'update:deepThinking', value: boolean): void
   (event: 'add-files', files: File[]): void
   (event: 'remove-attachment', id: number): void
   (event: 'send'): void
@@ -200,23 +198,6 @@ defineExpose({ focus })
           >
             <PaperClipOutlined />
           </button>
-          <button
-            type="button"
-            class="toggle"
-            :class="{ on: deepThinking }"
-            :aria-pressed="deepThinking"
-            title="深度思考：展示模型的推理过程"
-            aria-label="深度思考"
-            @click="emit('update:deepThinking', !deepThinking)"
-          >
-            <svg class="spark" viewBox="0 0 16 16" aria-hidden="true">
-              <path
-                d="M8 1.2l1.62 4.86L14.8 8l-5.18 1.94L8 14.8 6.38 9.94 1.2 8l5.18-1.94L8 1.2Z"
-                fill="currentColor"
-              />
-            </svg>
-            <span class="toggle-text">深度思考</span>
-          </button>
         </div>
         <div class="toolbar-right">
           <ModelSelect />
@@ -372,53 +353,6 @@ defineExpose({ focus })
   cursor: not-allowed;
 }
 
-.toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 11px;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--dt-text-secondary);
-  font-size: 11.8px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
-}
-
-.toggle:hover {
-  background: #f5f7fb;
-}
-
-.toggle.on {
-  background: var(--dt-brand-soft);
-  border-color: #dfe6ff;
-  color: var(--dt-brand-hover);
-}
-
-.toggle.outline {
-  border-color: var(--dt-line);
-  background: #fff;
-}
-
-.toggle:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.toggle.outline.on {
-  border-color: #c9d4ff;
-  background: var(--dt-brand-soft);
-  color: var(--dt-brand-hover);
-}
-
-.spark {
-  width: 13px;
-  height: 13px;
-}
-
 .send-btn {
   display: inline-flex;
   align-items: center;
@@ -491,16 +425,6 @@ defineExpose({ focus })
 @media (max-width: 640px) {
   .composer-box {
     padding: 12px 12px 10px;
-  }
-
-  .toggle {
-    padding: 0 9px;
-    font-size: 11px;
-  }
-
-  /* 移动端只留图标，给模型选择器与发送按钮让出空间 */
-  .toggle-text {
-    display: none;
   }
 
   .model-select {

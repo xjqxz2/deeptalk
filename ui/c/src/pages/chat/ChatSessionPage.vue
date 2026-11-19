@@ -217,7 +217,6 @@ watch(
       <div class="composer-inner">
         <Composer
           v-model:text="prompt"
-          v-model:deep-thinking="chat.deepThinking"
           :attachments="chat.attachments"
           :uploading="chat.uploading"
           :generating="chat.generating"

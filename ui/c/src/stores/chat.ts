@@ -5,27 +5,12 @@
  * - 客户端中断使用 AbortController，服务端会保留已输出内容并标记 stopped；
  * - 重新生成覆盖最后一条回答，不重复插入用户消息。
  */
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { ApiError, conversationGroup } from '@deeptalk/shared'
 import type { Attachment, ChatMessage, Conversation, ModelInfo, SearchSource, StreamMeta, StreamUsage } from '@deeptalk/shared'
 import * as chatApi from '@/services/chat'
 import { useUserStore } from './user'
-
-/** 用户偏好的 localStorage 键。 */
-const PREF_DEEP_THINKING = 'deeptalk.deepThinking'
-
-/** 读取布尔偏好，localStorage 不可用或值非法时回退。 */
-function readBoolPreference(key: string, fallback: boolean): boolean {
-  try {
-    const raw = localStorage.getItem(key)
-    if (raw === 'true') return true
-    if (raw === 'false') return false
-  } catch {
-    // 隐私模式或 SSR 下忽略
-  }
-  return fallback
-}
 
 /** 会话分组顺序。 */
 const GROUP_ORDER = ['今天', '7 天内', '30 天内', '更早'] as const
@@ -67,8 +52,6 @@ export const useChatStore = defineStore('chat', () => {
   const searchKeyword = ref('')
   /** 当前选中的模型主键。 */
   const selectedModelId = ref(0)
-  /** 深度思考开关：默认关闭；用户手动切换后记住选择。 */
-  const deepThinking = ref(readBoolPreference(PREF_DEEP_THINKING, false))
   /** 是否正在生成。 */
   const generating = ref(false)
   /** 待发送的图片附件。 */
@@ -86,14 +69,6 @@ export const useChatStore = defineStore('chat', () => {
   /** 当前流式请求的中断器。 */
   let abortController: AbortController | null = null
 
-  // 两个开关是用户偏好，刷新后继续生效；不要只存在组件内部
-  watch(deepThinking, (value) => {
-    try {
-      localStorage.setItem(PREF_DEEP_THINKING, String(value))
-    } catch {
-      // 忽略存储失败，不影响当前会话
-    }
-  })
   /** 当前选中的模型对象。 */
   const selectedModel = computed(() => models.value.find((item) => item.id === selectedModelId.value) ?? null)
 
@@ -435,7 +410,6 @@ export const useChatStore = defineStore('chat', () => {
           content: text,
           // 模型可能刚被管理员删除；selectedModel 只会在当前列表中存在
           model_id: selectedModel.value?.id ?? 0,
-          deep_thinking: deepThinking.value,
           attachment_ids: pendingAttachments.map((item) => item.id),
           regenerate,
         }),
@@ -520,7 +494,6 @@ export const useChatStore = defineStore('chat', () => {
     searchKeyword,
     selectedModel,
     selectedModelId,
-    deepThinking,
     generating,
     attachments,
     uploading,
