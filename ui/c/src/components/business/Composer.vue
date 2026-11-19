@@ -63,7 +63,7 @@ function resize(): void {
   // 移动端首帧可能宽度为 0；此时按宽度 0 计算 scrollHeight 会把占位文案折成多行，
   // 留下一个异常高的输入框。先给最小高度，等真实布局完成后再计算。
   if (element.clientWidth === 0) {
-    element.style.height = '26px'
+    element.style.height = '52px'
     return
   }
   element.style.height = 'auto'
@@ -337,7 +337,7 @@ defineExpose({ focus })
 .composer-input {
   display: block;
   width: 100%;
-  min-height: 26px;
+  min-height: 52px;
   max-height: 192px;
   border: none;
   outline: none;
@@ -499,6 +499,7 @@ defineExpose({ focus })
 @media (max-width: 768px) {
   /* iOS Safari 在输入框字号小于 16px 时会自动放大页面；保持 16px 避免聚焦后整页变大 */
   .composer-input {
+    min-height: 52px;
     font-size: 16px;
     line-height: 26px;
   }
