@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -16,9 +17,31 @@ import (
 
 // ChatMessage 是发送给上游的一条对话消息。
 type ChatMessage struct {
-	Role    string   // system / user / assistant
-	Content string   // 消息正文
-	Images  []string // 图片 data URL，仅当前用户消息携带
+	Role       string     // system / user / assistant / tool
+	Content    string     // 消息正文
+	Images     []string   // 图片 data URL，仅当前用户消息携带
+	ToolCalls  []ToolCall // assistant 发起的工具调用
+	ToolCallID string     // role=tool 时对应的调用 ID
+}
+
+// ToolCall 是一次模型发起的工具调用。
+type ToolCall struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Arguments string `json:"arguments"`
+}
+
+// Tool 是 OpenAI 兼容的工具声明。
+type Tool struct {
+	Type     string       `json:"type"`
+	Function ToolFunction `json:"function"`
+}
+
+// ToolFunction 描述工具名称、用途与参数 schema。
+type ToolFunction struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Parameters  any    `json:"parameters"`
 }
 
 // StreamEvent 是增量输出事件：reasoning 表示深度思考，content 表示正式回答。
@@ -50,13 +73,31 @@ func (s *Service) StreamCompletion(
 	firstByteTimeout time.Duration,
 	onEvent func(StreamEvent) error,
 ) (CompletionUsage, error) {
+	usage, _, err := s.StreamCompletionWithTools(ctx, p, upstreamModel, messages, deepThinking, reasoningEffort, maxTokens, firstByteTimeout, nil, onEvent)
+	return usage, err
+}
+
+// StreamCompletionWithTools 与 StreamCompletion 相同，但额外支持工具调用。
+func (s *Service) StreamCompletionWithTools(
+	ctx context.Context,
+	p *Provider,
+	upstreamModel string,
+	messages []ChatMessage,
+	deepThinking bool,
+	reasoningEffort string,
+	maxTokens int,
+	firstByteTimeout time.Duration,
+	tools []Tool,
+	onEvent func(StreamEvent) error,
+) (CompletionUsage, []ToolCall, error) {
 	usage := CompletionUsage{}
+	toolCalls := make([]ToolCall, 0)
 	key, err := DecryptAPIKey(s.secret, p.APIKeyEnc)
 	if err != nil {
-		return usage, fmt.Errorf("密钥解密失败，请重新配置 API Key")
+		return usage, toolCalls, fmt.Errorf("密钥解密失败，请重新配置 API Key")
 	}
 	if strings.TrimSpace(key) == "" {
-		return usage, ErrNoAPIKey
+		return usage, toolCalls, ErrNoAPIKey
 	}
 	if maxTokens <= 0 {
 		maxTokens = 384000
@@ -77,6 +118,10 @@ func (s *Service) StreamCompletion(
 		// 让上游在最后一帧返回 usage，便于准确记账
 		"stream_options": map[string]any{"include_usage": true},
 	}
+	if len(tools) > 0 {
+		payload["tools"] = tools
+		payload["tool_choice"] = "auto"
+	}
 	if deepThinking {
 		// DeepSeek 兼容 reasoning_effort；不支持的厂商会忽略该字段。
 		// 强度由服务端配置统一控制，避免前端硬编码 high。
@@ -88,14 +133,14 @@ func (s *Service) StreamCompletion(
 	}
 	raw, err := json.Marshal(payload)
 	if err != nil {
-		return usage, err
+		return usage, toolCalls, err
 	}
 	endpoint := strings.TrimRight(p.BaseURL, "/") + "/chat/completions"
 	reqCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, endpoint, bytes.NewReader(raw))
 	if err != nil {
-		return usage, fmt.Errorf("上游地址不合法")
+		return usage, toolCalls, fmt.Errorf("上游地址不合法")
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "text/event-stream")
@@ -104,22 +149,22 @@ func (s *Service) StreamCompletion(
 	resp, err := client.Do(req)
 	if err != nil {
 		if ctx.Err() != nil {
-			return usage, ctx.Err()
+			return usage, toolCalls, ctx.Err()
 		}
-		return usage, fmt.Errorf("%w: %s", ErrUpstream, sanitizeNetErr(err))
+		return usage, toolCalls, fmt.Errorf("%w: %s", ErrUpstream, sanitizeNetErr(err))
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return usage, fmt.Errorf("%w: %s", ErrUpstream, upstreamStatusMessage(resp.StatusCode, body))
+		return usage, toolCalls, fmt.Errorf("%w: %s", ErrUpstream, upstreamStatusMessage(resp.StatusCode, body))
 	}
 	// 部分聚合网关会用 HTTP 200 + JSON error 返回上游故障；必须在进入 SSE 扫描前识别
 	if contentType := resp.Header.Get("Content-Type"); !strings.Contains(contentType, "text/event-stream") {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 8192))
 		if message := upstreamBodyError(body); message != "" {
-			return usage, fmt.Errorf("%w: %s", ErrUpstream, message)
+			return usage, toolCalls, fmt.Errorf("%w: %s", ErrUpstream, message)
 		}
-		return usage, fmt.Errorf("%w: 上游返回了非流式响应", ErrUpstream)
+		return usage, toolCalls, fmt.Errorf("%w: 上游返回了非流式响应", ErrUpstream)
 	}
 
 	// 首字节超时：超过约定时间仍未收到任何数据则中止，避免前端长时间空等
@@ -131,6 +176,7 @@ func (s *Service) StreamCompletion(
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	finishReason := ""
 	hadContent := false
+	toolMap := make(map[int]*ToolCall)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" || strings.HasPrefix(line, ":") {
@@ -160,14 +206,28 @@ func (s *Service) StreamCompletion(
 		for _, choice := range chunk.Choices {
 			if choice.Delta.ReasoningContent != "" {
 				if err := onEvent(StreamEvent{Kind: "reasoning", Delta: choice.Delta.ReasoningContent}); err != nil {
-					return usage, err
+					return usage, toolCalls, err
 				}
 			}
 			if choice.Delta.Content != "" {
 				hadContent = true
 				if err := onEvent(StreamEvent{Kind: "content", Delta: choice.Delta.Content}); err != nil {
-					return usage, err
+					return usage, toolCalls, err
 				}
+			}
+			for _, call := range choice.Delta.ToolCalls {
+				current := toolMap[call.Index]
+				if current == nil {
+					current = &ToolCall{}
+					toolMap[call.Index] = current
+				}
+				if call.ID != "" {
+					current.ID = call.ID
+				}
+				if call.Function.Name != "" {
+					current.Name = call.Function.Name
+				}
+				current.Arguments += call.Function.Arguments
 			}
 			if choice.FinishReason != "" {
 				finishReason = choice.FinishReason
@@ -176,20 +236,28 @@ func (s *Service) StreamCompletion(
 	}
 	if err := scanner.Err(); err != nil {
 		if ctx.Err() != nil {
-			return usage, ctx.Err()
+			return usage, toolCalls, ctx.Err()
 		}
 		if !firstByte.Load() {
-			return usage, fmt.Errorf("%w: 首字节超时（%s）", ErrUpstream, firstByteTimeout)
+			return usage, toolCalls, fmt.Errorf("%w: 首字节超时（%s）", ErrUpstream, firstByteTimeout)
 		}
-		return usage, fmt.Errorf("%w: 流式响应中断", ErrUpstream)
+		return usage, toolCalls, fmt.Errorf("%w: 流式响应中断", ErrUpstream)
 	}
 	if !firstByte.Load() {
-		return usage, fmt.Errorf("%w: 上游未返回任何内容", ErrUpstream)
+		return usage, toolCalls, fmt.Errorf("%w: 上游未返回任何内容", ErrUpstream)
 	}
-	if finishReason == "length" && !hadContent {
-		return usage, fmt.Errorf("%w: 输出达到 max_tokens 上限，思考内容占满了预算", ErrUpstream)
+	indexes := make([]int, 0, len(toolMap))
+	for index := range toolMap {
+		indexes = append(indexes, index)
 	}
-	return usage, nil
+	sort.Ints(indexes)
+	for _, index := range indexes {
+		toolCalls = append(toolCalls, *toolMap[index])
+	}
+	if finishReason == "length" && !hadContent && len(toolCalls) == 0 {
+		return usage, toolCalls, fmt.Errorf("%w: 输出达到 max_tokens 上限，思考内容占满了预算", ErrUpstream)
+	}
+	return usage, toolCalls, nil
 }
 
 // upstreamChunk 是 OpenAI 兼容流式响应的最小结构。
@@ -198,6 +266,15 @@ type upstreamChunk struct {
 		Delta struct {
 			Content          string `json:"content"`           // 正式回答增量
 			ReasoningContent string `json:"reasoning_content"` // 深度思考增量
+			ToolCalls        []struct {
+				Index    int    `json:"index"`
+				ID       string `json:"id"`
+				Type     string `json:"type"`
+				Function struct {
+					Name      string `json:"name"`
+					Arguments string `json:"arguments"`
+				} `json:"function"`
+			} `json:"tool_calls"`
 		} `json:"delta"`
 		FinishReason string `json:"finish_reason"` // stop / length
 	} `json:"choices"`
@@ -210,6 +287,29 @@ func toUpstreamMessages(messages []ChatMessage) []map[string]any {
 	out := make([]map[string]any, 0, len(messages))
 	for _, m := range messages {
 		if m.Role == "" {
+			continue
+		}
+		if m.Role == "tool" {
+			out = append(out, map[string]any{
+				"role":         "tool",
+				"tool_call_id": m.ToolCallID,
+				"content":      m.Content,
+			})
+			continue
+		}
+		if len(m.ToolCalls) > 0 {
+			calls := make([]map[string]any, 0, len(m.ToolCalls))
+			for _, call := range m.ToolCalls {
+				calls = append(calls, map[string]any{
+					"id":   call.ID,
+					"type": "function",
+					"function": map[string]any{
+						"name":      call.Name,
+						"arguments": call.Arguments,
+					},
+				})
+			}
+			out = append(out, map[string]any{"role": "assistant", "content": m.Content, "tool_calls": calls})
 			continue
 		}
 		if len(m.Images) == 0 {
