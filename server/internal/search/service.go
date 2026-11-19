@@ -92,7 +92,7 @@ func (s *Service) Search(ctx context.Context, query string) ([]Result, error) {
 	if !s.Enabled() {
 		return nil, ErrDisabled
 	}
-	query = strings.TrimSpace(query)
+	query = normalizeQuery(query)
 	if query == "" {
 		return nil, errors.New("search query is empty")
 	}
@@ -139,6 +139,25 @@ func (s *Service) Search(ctx context.Context, query string) ([]Result, error) {
 		return nil, ErrNoResult
 	}
 	return items, nil
+}
+
+// normalizeQuery 去掉“联网查一下关于”等口语前缀，避免搜索引擎把整句话当成关键词。
+func normalizeQuery(query string) string {
+	query = strings.TrimSpace(query)
+	prefixes := []string{
+		"联网查一下关于", "联网查一下", "帮我联网查一下",
+		"帮我查一下关于", "帮我查一下", "帮我搜索一下", "帮我搜一下",
+		"搜索一下关于", "搜索一下", "查一下关于", "查一下",
+		"联网搜索一下", "联网搜索", "搜索关于", "搜索",
+	}
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(query, prefix) {
+			query = strings.TrimSpace(strings.TrimPrefix(query, prefix))
+			break
+		}
+	}
+	query = strings.TrimSpace(strings.TrimLeft(query, "：:，,。！？!? "))
+	return query
 }
 
 // buildURL 把搜索词填入模板；模板没有占位符时按 q 参数补齐。
