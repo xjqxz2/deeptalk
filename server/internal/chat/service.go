@@ -318,7 +318,7 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 	// 每个实质问题都由模型在关闭思维链的模式下选择 none/low/medium/high；
 	// 前端不再提供深度思考开关。
 	reasoningEffort := ""
-	if shouldThink(userMsg.Content) {
+	if strings.TrimSpace(userMsg.Content) != "" {
 		effort := s.routeReasoning(ctx, model, prov, history)
 		slog.Info("reasoning routed", "conversation_id", conv.ID, "effort", effort)
 		if effort != "none" {
@@ -572,10 +572,6 @@ func (s *Service) retrieve(ctx context.Context, assistant *Message, query string
 		_ = emit("notice", map[string]string{"message": "联网搜索未启用，已直接回答"})
 		return nil
 	}
-	// 纯问候/短句直接跳过，不打扰用户；思考中的“正在联网搜索”仍会显示
-	if !shouldSearch(query) {
-		return nil
-	}
 	// 先让模型判断“要不要搜、去哪搜、搜什么”，而不是由前端开关决定。
 	route := s.preferredSearchRoute(ctx, model, prov, assistant.ConversationID, query)
 	if !route.NeedSearch {
@@ -681,6 +677,11 @@ query 要结合“最近对话”理解当前问题，去掉“我说的是”�
 需要搜索时必须至少选择一个来源，不要因为不确定就返回空。只输出 JSON：
 {"need_search":true,"engines":["bing"],"query":"DeepSeek V4.1-Flash 价格"}
 如果不需要搜索：{"need_search":false,"engines":[],"query":""}
+示例：
+用户：需要的联网查查吸烟的危害
+输出：{"need_search":true,"engines":["sogou","baidu"],"query":"吸烟的危害"}
+用户：HI
+输出：{"need_search":false,"engines":[],"query":""}
 不要输出解释、Markdown 或额外文字。`
 
 type searchRoute struct {
@@ -692,7 +693,7 @@ type searchRoute struct {
 // preferredSearchRoute 让模型同时决定搜索来源与检索关键词。
 // 失败或输出不可解析时回退到原始问题 + 语言默认来源。
 func (s *Service) preferredSearchRoute(ctx context.Context, model *provider.Model, prov *provider.Provider, conversationID uint, query string) searchRoute {
-	fallback := searchRoute{NeedSearch: explicitSearchIntent(query), Engines: defaultSearchEngines(query), Query: normalizeRouterQuery(query)}
+	fallback := searchRoute{NeedSearch: false, Engines: defaultSearchEngines(query), Query: normalizeRouterQuery(query)}
 	if model == nil || prov == nil {
 		return fallback
 	}
@@ -747,10 +748,6 @@ func (s *Service) preferredSearchRoute(ctx context.Context, model *provider.Mode
 	allowed := map[string]struct{}{"bing": {}, "zhihu": {}, "sogou": {}, "baidu": {}}
 	seen := make(map[string]struct{})
 	route := searchRoute{NeedSearch: payload.NeedSearch, Query: normalizeRouterQuery(payload.Query)}
-	// 用户明确说“联网查一下/最新/新闻/价格”时，优先尊重用户指令，避免模型误判为常识问题。
-	if !route.NeedSearch && explicitSearchIntent(query) {
-		route.NeedSearch = true
-	}
 	for _, name := range payload.Engines {
 		name = strings.ToLower(strings.TrimSpace(name))
 		if _, ok := allowed[name]; !ok {
@@ -778,21 +775,6 @@ func (s *Service) preferredSearchRoute(ctx context.Context, model *provider.Mode
 		route.Query = normalizeRouterQuery(query)
 	}
 	return route
-}
-
-// explicitSearchIntent 识别用户明确要求联网/实时信息的表达。
-func explicitSearchIntent(query string) bool {
-	lower := strings.ToLower(query)
-	for _, keyword := range []string{
-		"联网", "搜索", "搜一下", "搜搜", "查一下", "查查", "查一查",
-		"最新", "实时", "今天", "今日", "现在", "新闻", "价格", "多少钱",
-		"汇率", "天气", "股价", "比分", "官网", "发布",
-	} {
-		if strings.Contains(lower, keyword) {
-			return true
-		}
-	}
-	return false
 }
 
 // normalizeRouterQuery 去掉明显的对话前缀，避免搜索引擎只拿到“我”这类残词。
