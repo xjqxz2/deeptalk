@@ -11,7 +11,7 @@ const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 
-const email = ref('xjqxz_2@163.com')
+const email = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)

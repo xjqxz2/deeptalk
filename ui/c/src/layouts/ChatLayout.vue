@@ -99,6 +99,7 @@ onBeforeUnmount(() => {
 .chat-shell {
   display: flex;
   height: 100vh;
+  height: 100svh;
   height: 100dvh;
   overflow: hidden;
   background: #fff;

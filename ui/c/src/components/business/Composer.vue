@@ -3,7 +3,7 @@
  * 输入区：1–8 行自适应，Enter 发送 / Shift+Enter 换行。
  * 生成中切换为“停止生成”，并保留用户已输入的内容。
  */
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { Attachment } from '@deeptalk/shared'
 import ModelSelect from './ModelSelect.vue'
 import { ArrowUpOutlined, CloseOutlined, GlobalOutlined, LoadingOutlined, PaperClipOutlined } from '@ant-design/icons-vue'
@@ -60,6 +60,12 @@ const canSend = computed(
 function resize(): void {
   const element = textarea.value
   if (!element) return
+  // 移动端首帧可能宽度为 0；此时按宽度 0 计算 scrollHeight 会把占位文案折成多行，
+  // 留下一个异常高的输入框。先给最小高度，等真实布局完成后再计算。
+  if (element.clientWidth === 0) {
+    element.style.height = '26px'
+    return
+  }
   element.style.height = 'auto'
   element.style.height = `${Math.min(element.scrollHeight, 192)}px`
 }
@@ -124,9 +130,21 @@ watch(
   },
 )
 
-onMounted(() => {
+function onViewportResize(): void {
   resize()
-  if (props.autofocus) focus()
+}
+
+onMounted(() => {
+  // 等浏览器完成首帧布局后再量高度；iOS Safari 首帧宽度经常是 0
+  requestAnimationFrame(() => {
+    resize()
+    if (props.autofocus) focus()
+  })
+  window.addEventListener('resize', onViewportResize)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', onViewportResize)
 })
 
 defineExpose({ focus })
@@ -476,6 +494,14 @@ defineExpose({ focus })
   color: var(--dt-text-faint);
   font-size: 10.2px;
   text-align: center;
+}
+
+@media (max-width: 768px) {
+  /* iOS Safari 在输入框字号小于 16px 时会自动放大页面；保持 16px 避免聚焦后整页变大 */
+  .composer-input {
+    font-size: 16px;
+    line-height: 26px;
+  }
 }
 
 @media (max-width: 640px) {

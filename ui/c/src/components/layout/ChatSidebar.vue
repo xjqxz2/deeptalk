@@ -755,6 +755,7 @@ function conversationTime(item: Conversation): string {
   position: fixed;
   inset: 0 auto 0 0;
   height: 100vh;
+  height: 100svh;
   height: 100dvh;
   width: 280px;
   flex-basis: 280px;

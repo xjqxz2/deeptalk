@@ -243,6 +243,7 @@ watch(
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .messages-column {
@@ -347,7 +348,7 @@ watch(
   }
 
   .composer-dock {
-    padding: 6px 12px 8px;
+    padding: 6px 12px calc(8px + env(safe-area-inset-bottom));
   }
 
   .back-to-bottom {

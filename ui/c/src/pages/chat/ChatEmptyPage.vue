@@ -8,8 +8,10 @@ import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { BrandMark } from '@deeptalk/shared'
 import { useChatStore } from '@/stores/chat'
+import { useAppStore } from '@/stores/app'
 import Composer from '@/components/business/Composer.vue'
 
+const app = useAppStore()
 const chat = useChatStore()
 const router = useRouter()
 
@@ -70,7 +72,7 @@ onMounted(() => {
           :attachments="chat.attachments"
           :uploading="chat.uploading"
           :generating="chat.generating"
-          autofocus
+          :autofocus="!app.isMobile"
           @add-files="handleAddFiles"
           @remove-attachment="chat.removeAttachment"
           @send="handleSend"

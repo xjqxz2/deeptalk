@@ -5,7 +5,7 @@
  */
 import { computed, reactive, ref, watch } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons-vue'
+import { CloudDownloadOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons-vue'
 import { ApiError } from '@deeptalk/shared'
 import type { ProviderInfo, ProviderPayload, TestResult } from '@deeptalk/shared'
 import { createProvider, deleteProvider, testDraft, updateProvider } from '@/services/admin'
@@ -32,6 +32,7 @@ const PRESETS: Array<{ kind: ProviderInfo['kind']; name: string; base_url: strin
 const mode = ref<'preset' | 'custom'>('custom')
 const presetCode = ref<string>('deepseek')
 const testing = ref(false)
+const fetchingModels = ref(false)
 const saving = ref(false)
 const testResult = ref<TestResult | null>(null)
 const error = ref('')
@@ -159,6 +160,55 @@ function addModel(): void {
 /** 移除模型 chip。 */
 function removeModel(id: string): void {
   form.models = form.models.filter((item) => item.model_id !== id)
+}
+
+/** 一键从上游 /models 拉取模型并合并到当前草稿。 */
+async function fetchModelsFromUpstream(): Promise<void> {
+  const base = form.base_url.trim()
+  if (!base) {
+    error.value = '请先填写 Base URL'
+    return
+  }
+  if (!/^https?:\/\//i.test(base)) {
+    error.value = 'Base URL 必须以 http:// 或 https:// 开头'
+    return
+  }
+  if (!isEditing.value && !form.api_key.trim()) {
+    error.value = '请先填写 API Key 再获取模型'
+    return
+  }
+  error.value = ''
+  fetchingModels.value = true
+  try {
+    const result = await testDraft(payload(), props.provider?.id)
+    testResult.value = result
+    if (!result.ok) {
+      error.value = result.message
+      return
+    }
+    const existing = new Set(form.models.map((item) => item.model_id))
+    const incoming = (result.models ?? [])
+      .filter((id) => id && !existing.has(id))
+      .slice(0, 200)
+      .map((id) => ({
+        model_id: id,
+        display_name: id,
+        description: '',
+        context_window: 128000,
+        max_concurrency: 4,
+        enabled: true,
+      }))
+    form.models.push(...incoming)
+    if (incoming.length === 0) {
+      message.info('上游模型都已添加')
+    } else {
+      message.success(`获取到 ${result.models_found} 个模型，新增 ${incoming.length} 个`)
+    }
+  } catch (err) {
+    error.value = err instanceof ApiError ? err.message : '获取模型失败，请稍后重试'
+  } finally {
+    fetchingModels.value = false
+  }
 }
 
 /** 校验表单，返回可读错误。 */
@@ -344,6 +394,10 @@ function close(): void {
               <PlusOutlined />
               添加模型
             </a-button>
+            <a-button size="small" :loading="fetchingModels" @click="fetchModelsFromUpstream">
+              <CloudDownloadOutlined />
+              一键获取模型
+            </a-button>
           </div>
           <p class="field-hint">仅启用的模型会出现在用户侧；上下文与并发可在模型路由表继续编辑。</p>
         </a-form-item>
@@ -516,11 +570,14 @@ function close(): void {
 
 .add-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 7px;
 }
 
 .add-row :deep(.ant-input) {
+  flex: 1 1 180px;
+  min-width: 0;
   font-size: 11.4px;
 }
 

@@ -18,8 +18,7 @@ const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 
-/** 首次部署默认填入管理员邮箱，密码仍需用户输入。 */
-const email = ref('xjqxz_2@163.com')
+const email = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
