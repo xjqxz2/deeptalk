@@ -100,6 +100,7 @@ type StreamInput struct {
 	WebSearch     bool   // 是否在生成前执行联网检索
 	AttachmentIDs []uint // 本次消息的图片附件
 	Regenerate    bool   // 是否重新生成
+	ClientIP      string // 客户端公网 IP，用于注入当前位置
 }
 
 // DailyUsage 是按天聚合的用量。

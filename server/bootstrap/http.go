@@ -64,6 +64,8 @@ func (a *App) startHTTP(ctx context.Context) error {
 		KeepRatio:        cfg.Context.KeepRatio,
 		CacheIdleHours:   cfg.Context.CacheIdleHours,
 		IdleMinTokens:    cfg.Context.IdleMinTokens,
+		Location:         cfg.App.Location,
+		Timezone:         cfg.App.Timezone,
 	})
 	chats.StartCompactionWorker(ctx)
 

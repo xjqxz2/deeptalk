@@ -29,10 +29,12 @@ type Config struct {
 
 // AppConfig 保存进程级基础配置。
 type AppConfig struct {
-	Name    string `yaml:"name"`     // 应用名
-	Env     string `yaml:"env"`      // dev / prod
-	Addr    string `yaml:"addr"`     // 监听地址
-	BaseURL string `yaml:"base_url"` // 对外访问地址
+	Name     string `yaml:"name"`     // 应用名
+	Env      string `yaml:"env"`      // dev / prod
+	Addr     string `yaml:"addr"`     // 监听地址
+	BaseURL  string `yaml:"base_url"` // 对外访问地址
+	Location string `yaml:"location"` // 位置兜底；IP 定位失败时注入
+	Timezone string `yaml:"timezone"` // 时区兜底；IP 定位失败时使用
 }
 
 // DatabaseConfig 保存 SQLite 相关配置。
@@ -166,6 +168,12 @@ func applyEnvOverrides(cfg *Config) {
 	}
 	if v := os.Getenv("DEEPTALK_BASE_URL"); v != "" {
 		cfg.App.BaseURL = v
+	}
+	if v := os.Getenv("DEEPTALK_LOCATION"); v != "" {
+		cfg.App.Location = v
+	}
+	if v := os.Getenv("DEEPTALK_TIMEZONE"); v != "" {
+		cfg.App.Timezone = v
 	}
 	if v := os.Getenv("DEEPTALK_DB"); v != "" {
 		cfg.Database.DSN = v

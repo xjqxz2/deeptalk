@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -183,6 +184,10 @@ func (h *ChatController) Stream(c *gin.Context) {
 		}
 	}()
 
+	clientIP := strings.TrimSpace(c.GetHeader("X-Real-IP"))
+	if clientIP == "" {
+		clientIP = c.ClientIP()
+	}
 	err = h.chats.Stream(c.Request.Context(), current.ID, id, chat.StreamInput{
 		Content:       req.Content,
 		ModelID:       req.ModelID,
@@ -190,6 +195,7 @@ func (h *ChatController) Stream(c *gin.Context) {
 		WebSearch:     req.WebSearch,
 		AttachmentIDs: req.AttachmentIDs,
 		Regenerate:    req.Regenerate,
+		ClientIP:      clientIP,
 	}, emit)
 
 	close(stopHeartbeat)

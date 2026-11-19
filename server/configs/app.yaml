@@ -9,6 +9,10 @@ app:
   addr: 0.0.0.0:9821
   # 对外访问基地址，用于日志与 Cookie 域判断
   base_url: http://localhost:9821
+  # IP 定位失败时的位置兜底；可通过 DEEPTALK_LOCATION 覆盖
+  location: ""
+  # 时间注入使用的时区；IP 定位成功时会优先使用 IP 所在时区
+  timezone: Asia/Shanghai
 
 database:
   # SQLite 数据文件路径（相对 server 目录）；目录不存在会自动创建
