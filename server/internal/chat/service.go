@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -75,7 +76,7 @@ func NewService(db *gorm.DB, providers *provider.Service, users *user.Service, s
 // List 返回用户的会话列表，支持按标题搜索。
 func (s *Service) List(ctx context.Context, userID uint, keyword string) ([]Summary, error) {
 	query := s.db.WithContext(ctx).Model(&Conversation{}).
-		Select("conversations.id, conversations.title, conversations.model_id, conversations.updated_at, "+
+		Select("conversations.id, conversations.public_id, conversations.title, conversations.model_id, conversations.updated_at, "+
 			"(SELECT COUNT(*) FROM messages WHERE messages.conversation_id = conversations.id) AS message_count").
 		Where("conversations.user_id = ? AND conversations.deleted_at IS NULL", userID)
 	if q := strings.TrimSpace(keyword); q != "" {
@@ -88,7 +89,7 @@ func (s *Service) List(ctx context.Context, userID uint, keyword string) ([]Summ
 
 // Create 新建会话；默认标题“新对话”，首轮回答完成后自动生成短标题。
 func (s *Service) Create(ctx context.Context, userID uint) (*Conversation, error) {
-	conv := &Conversation{UserID: userID, Title: "新对话"}
+	conv := &Conversation{UserID: userID, Title: "新对话", PublicID: newPublicID()}
 	if m, _, err := s.providers.DefaultModel(ctx); err == nil {
 		conv.ModelID = m.ID
 	}
@@ -916,6 +917,28 @@ func (s *Service) buildHistory(ctx context.Context, conv *Conversation, untilMes
 		tokens += estimateTokens(rows[i].Content)
 	}
 	return history, tokens, nil
+}
+
+// ResolveRef 把 URL/API 中的公开 ID 或旧数字 ID 解析成内部主键。
+func (s *Service) ResolveRef(ctx context.Context, userID uint, ref string) (uint, error) {
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		return 0, ErrNotFound
+	}
+	var conv Conversation
+	query := s.db.WithContext(ctx).Where("user_id = ? AND deleted_at IS NULL", userID)
+	if parsed, err := strconv.ParseUint(ref, 10, 64); err == nil {
+		query = query.Where("id = ?", parsed)
+	} else {
+		query = query.Where("public_id = ?", ref)
+	}
+	if err := query.First(&conv).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, ErrNotFound
+		}
+		return 0, err
+	}
+	return conv.ID, nil
 }
 
 // findConversation 查询会话并强制校验归属，防止越权读取。

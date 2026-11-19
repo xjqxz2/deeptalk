@@ -91,8 +91,9 @@ async function openConversation(item: Conversation): Promise<void> {
     return
   }
   app.closeMobileSidebar()
-  if (Number(route.params.id) === item.id) return
-  await router.push({ name: 'chat-session', params: { id: item.id } })
+  const ref = item.public_id || String(item.id)
+  if (String(route.params.id) === ref) return
+  await router.push({ name: 'chat-session', params: { id: ref } })
 }
 
 /** 展开侧栏并聚焦搜索框。 */
@@ -140,7 +141,7 @@ function confirmDelete(item: Conversation): void {
     cancelText: '取消',
     async onOk() {
       await chat.deleteConversation(item.id)
-      if (Number(route.params.id) === item.id) {
+      if (String(route.params.id) === (item.public_id || String(item.id))) {
         await router.push({ name: 'chat-empty' })
       }
       message.success('对话已删除')

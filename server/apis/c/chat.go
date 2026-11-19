@@ -60,9 +60,9 @@ func (h *ChatController) Create(c *gin.Context) {
 // Get 返回会话详情与全部消息。
 func (h *ChatController) Get(c *gin.Context) {
 	current := middleware.CurrentUser(c)
-	id, ok := parseID(c.Param("id"))
-	if !ok {
-		responses.Fail(c, responses.CodeInvalidArgument, "会话 ID 不合法")
+	id, err := h.chats.ResolveRef(c.Request.Context(), current.ID, c.Param("id"))
+	if err != nil {
+		responses.FromError(c, err)
 		return
 	}
 	conv, messages, err := h.chats.Get(c.Request.Context(), current.ID, id)
@@ -83,9 +83,9 @@ func (h *ChatController) Get(c *gin.Context) {
 // Rename 重命名会话。
 func (h *ChatController) Rename(c *gin.Context) {
 	current := middleware.CurrentUser(c)
-	id, ok := parseID(c.Param("id"))
-	if !ok {
-		responses.Fail(c, responses.CodeInvalidArgument, "会话 ID 不合法")
+	id, err := h.chats.ResolveRef(c.Request.Context(), current.ID, c.Param("id"))
+	if err != nil {
+		responses.FromError(c, err)
 		return
 	}
 	var req requests.ConversationRenameRequest
@@ -104,9 +104,9 @@ func (h *ChatController) Rename(c *gin.Context) {
 // Delete 删除会话。
 func (h *ChatController) Delete(c *gin.Context) {
 	current := middleware.CurrentUser(c)
-	id, ok := parseID(c.Param("id"))
-	if !ok {
-		responses.Fail(c, responses.CodeInvalidArgument, "会话 ID 不合法")
+	id, err := h.chats.ResolveRef(c.Request.Context(), current.ID, c.Param("id"))
+	if err != nil {
+		responses.FromError(c, err)
 		return
 	}
 	if err := h.chats.Delete(c.Request.Context(), current.ID, id); err != nil {
@@ -120,9 +120,9 @@ func (h *ChatController) Delete(c *gin.Context) {
 // 说明：只有在业务层确认可生成后才写出响应头，因此额度不足、模型不可用等错误仍返回 JSON。
 func (h *ChatController) Stream(c *gin.Context) {
 	current := middleware.CurrentUser(c)
-	id, ok := parseID(c.Param("id"))
-	if !ok {
-		responses.Fail(c, responses.CodeInvalidArgument, "会话 ID 不合法")
+	id, err := h.chats.ResolveRef(c.Request.Context(), current.ID, c.Param("id"))
+	if err != nil {
+		responses.FromError(c, err)
 		return
 	}
 	var req requests.StreamRequest
@@ -183,7 +183,7 @@ func (h *ChatController) Stream(c *gin.Context) {
 		}
 	}()
 
-	err := h.chats.Stream(c.Request.Context(), current.ID, id, chat.StreamInput{
+	err = h.chats.Stream(c.Request.Context(), current.ID, id, chat.StreamInput{
 		Content:       req.Content,
 		ModelID:       req.ModelID,
 		DeepThinking:  req.DeepThinking,

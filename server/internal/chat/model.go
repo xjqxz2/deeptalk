@@ -3,6 +3,8 @@
 package chat
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"time"
 
@@ -35,6 +37,7 @@ var (
 // Conversation 是用户会话。软删除便于审计，列表查询自动过滤。
 type Conversation struct {
 	ID        uint           `gorm:"primaryKey"`                     // 主键
+	PublicID  string         `gorm:"size:64;index" json:"public_id"` // URL 使用的不可枚举公开 ID
 	UserID    uint           `gorm:"index;not null"`                 // 所属用户
 	Title     string         `gorm:"size:60;not null;default:'新对话'"` // 会话标题
 	ModelID   uint           `gorm:"not null;default:0"`             // 最近使用的模型
@@ -47,6 +50,15 @@ type Conversation struct {
 	SummaryUntilID   uint       `gorm:"not null;default:0" json:"-"`
 	SummaryTokens    int        `gorm:"not null;default:0" json:"-"`
 	SummaryUpdatedAt *time.Time `json:"-"`
+}
+
+// newPublicID 生成不可枚举的会话公开 ID。
+func newPublicID() string {
+	buf := make([]byte, 16)
+	if _, err := rand.Read(buf); err != nil {
+		return time.Now().Format("20060102150405.000000000")
+	}
+	return hex.EncodeToString(buf)
 }
 
 // Message 是一条会话消息。
@@ -73,6 +85,7 @@ type Message struct {
 // Summary 是会话列表项。
 type Summary struct {
 	ID           uint      `json:"id"`            // 会话 ID
+	PublicID     string    `json:"public_id"`     // URL 公开 ID
 	Title        string    `json:"title"`         // 标题
 	ModelID      uint      `json:"model_id"`      // 最近模型
 	UpdatedAt    time.Time `json:"updated_at"`    // 最近更新时间
@@ -96,7 +109,19 @@ type DailyUsage struct {
 	Messages int64  `json:"messages"` // 消息条数
 }
 
-// Migrate 创建会话与消息表。
+// Migrate 创建会话与消息表，并为旧会话补齐 URL 公开 ID。
 func Migrate(db *gorm.DB) error {
-	return db.AutoMigrate(&Conversation{}, &Message{})
+	if err := db.AutoMigrate(&Conversation{}, &Message{}); err != nil {
+		return err
+	}
+	var rows []Conversation
+	if err := db.Where("public_id = '' OR public_id IS NULL").Find(&rows).Error; err != nil {
+		return err
+	}
+	for _, conv := range rows {
+		if err := db.Model(&Conversation{}).Where("id = ?", conv.ID).Update("public_id", newPublicID()).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }

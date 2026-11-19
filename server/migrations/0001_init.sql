@@ -45,6 +45,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_revoked_at ON sessions(revoked_at);
 
 CREATE TABLE IF NOT EXISTS conversations (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  public_id  TEXT,
   user_id    INTEGER NOT NULL,
   title      TEXT    NOT NULL DEFAULT '新对话',
   model_id   INTEGER NOT NULL DEFAULT 0,
@@ -57,6 +58,7 @@ CREATE TABLE IF NOT EXISTS conversations (
   summary_updated_at DATETIME
 );
 CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON conversations(user_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_public_id ON conversations(public_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_updated_at ON conversations(updated_at);
 CREATE INDEX IF NOT EXISTS idx_conversations_deleted_at ON conversations(deleted_at);
 

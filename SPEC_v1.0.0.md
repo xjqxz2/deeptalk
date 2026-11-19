@@ -457,7 +457,7 @@ Model 字段：`id`、`provider_id`、`provider_name`、`model_id`、`display_na
 | --- | --- | --- |
 | users | id,email(uniq),nickname,password_hash,role,plan,quota_tokens,used_tokens,disabled,failed_attempts,locked_until,created_at,last_login_at,last_login_ip,last_login_city | 账号；邮箱小写唯一 |
 | sessions | id,user_id,token_hash,expires_at,revoked_at,ip,user_agent,created_at | 服务端会话 |
-| conversations | id,user_id,title,model_id,created_at,updated_at,deleted_at,summary,summary_until_id,summary_tokens,summary_updated_at | 会话按用户隔离；summary 为前缀压缩记忆 |
+| conversations | id,public_id,user_id,title,model_id,created_at,updated_at,deleted_at,summary,summary_until_id,summary_tokens,summary_updated_at | 会话按用户隔离；summary 为前缀压缩记忆 |
 | messages | id,conversation_id,user_id,role,content,reasoning,status,model_name,input_tokens,output_tokens,duration_ms,feedback,sources_json,attachments_json,created_at | 消息、用量、联网来源与附件快照 |
 | attachments | id,user_id,message_id,name,mime,size,width,height,storage_name,created_at | 图片附件；storage_name 随机且唯一 |
 | providers | id,name,code(uniq),kind,base_url,api_key_enc,api_key_masked,timeout_sec,max_concurrency,enabled,verified,is_builtin,is_default,sort_order,created_at,updated_at | 上游厂商 |

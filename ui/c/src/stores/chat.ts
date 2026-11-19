@@ -191,7 +191,7 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /** 打开会话；生成中重复打开同一会话不重复请求。 */
-  async function loadConversation(id: number): Promise<void> {
+  async function loadConversation(id: number | string): Promise<void> {
     if (generating.value && current.value?.id === id) return
     if (generating.value) stop()
     loadingMessages.value = true

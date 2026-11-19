@@ -83,7 +83,8 @@ func NewModel(m provider.Model) ModelResponse {
 
 // ConversationResponse 是会话展示结构。
 type ConversationResponse struct {
-	ID           uint      `json:"id"`            // 会话 ID
+	ID           uint      `json:"id"`            // 会话内部 ID
+	PublicID     string    `json:"public_id"`     // URL 公开 ID
 	Title        string    `json:"title"`         // 标题
 	ModelID      uint      `json:"model_id"`      // 最近模型
 	UpdatedAt    time.Time `json:"updated_at"`    // 最近更新时间
@@ -92,7 +93,7 @@ type ConversationResponse struct {
 
 // NewConversation 由列表项构造响应。
 func NewConversation(item chat.Summary) ConversationResponse {
-	return ConversationResponse{ID: item.ID, Title: item.Title, ModelID: item.ModelID, UpdatedAt: item.UpdatedAt, MessageCount: item.MessageCount}
+	return ConversationResponse{ID: item.ID, PublicID: item.PublicID, Title: item.Title, ModelID: item.ModelID, UpdatedAt: item.UpdatedAt, MessageCount: item.MessageCount}
 }
 
 // NewConversationDetail 由会话模型构造响应。
@@ -100,7 +101,7 @@ func NewConversationDetail(conv *chat.Conversation) ConversationResponse {
 	if conv == nil {
 		return ConversationResponse{}
 	}
-	return ConversationResponse{ID: conv.ID, Title: conv.Title, ModelID: conv.ModelID, UpdatedAt: conv.UpdatedAt}
+	return ConversationResponse{ID: conv.ID, PublicID: conv.PublicID, Title: conv.Title, ModelID: conv.ModelID, UpdatedAt: conv.UpdatedAt}
 }
 
 // MessageResponse 是消息展示结构。

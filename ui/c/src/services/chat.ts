@@ -13,8 +13,8 @@ export function createConversation(): Promise<{ conversation: Conversation }> {
 }
 
 /** 会话详情与全部消息。 */
-export function getConversation(id: number): Promise<{ conversation: Conversation; messages: ChatMessage[] }> {
-  return get<{ conversation: Conversation; messages: ChatMessage[] }>(`/c/conversations/${id}`)
+export function getConversation(id: number | string): Promise<{ conversation: Conversation; messages: ChatMessage[] }> {
+  return get<{ conversation: Conversation; messages: ChatMessage[] }>(`/c/conversations/${encodeURIComponent(String(id))}`)
 }
 
 /** 重命名会话。 */

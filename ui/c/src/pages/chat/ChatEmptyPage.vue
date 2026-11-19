@@ -40,7 +40,7 @@ async function handleSend(): Promise<void> {
     const conversation = await chat.createConversation()
     chat.queuePrompt(text)
     prompt.value = ''
-    await router.push({ name: 'chat-session', params: { id: conversation.id } })
+    await router.push({ name: 'chat-session', params: { id: conversation.public_id || conversation.id } })
   } catch (error) {
     message.error(error instanceof Error ? error.message : '创建对话失败，请稍后重试')
   }

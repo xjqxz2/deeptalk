@@ -103,8 +103,8 @@ async function handleFeedback(item: ChatMessage, rating: 'up' | 'down'): Promise
 
 /** 加载会话；消费从空态带过来的首条消息。 */
 async function load(): Promise<void> {
-  const id = Number(route.params.id)
-  if (!Number.isFinite(id) || id <= 0) {
+  const id = String(route.params.id ?? '').trim()
+  if (!id) {
     await router.replace({ name: 'chat-empty' })
     return
   }
@@ -112,6 +112,10 @@ async function load(): Promise<void> {
   loadError.value = ''
   try {
     await chat.loadConversation(id)
+    // 旧链接 /chat/17 首次打开后换成不可枚举的 public_id，避免继续暴露自增 ID
+    if (chat.current?.public_id && id !== chat.current.public_id) {
+      await router.replace({ name: 'chat-session', params: { id: chat.current.public_id } })
+    }
     const pending = chat.consumePendingPrompt()
     // 先结束骨架：首条消息的流式请求不能在骨架状态下等待，否则整段生成都被遮住
     booting.value = false
@@ -150,6 +154,8 @@ watch(
   () => route.params.id,
   async (value, previous) => {
     if (value && value !== previous) {
+      // 从数字 ID 重定向到 public_id 时，当前会话已经加载，不要重复请求
+      if (chat.current && String(value) === chat.current.public_id) return
       prompt.value = ''
       await load()
     }

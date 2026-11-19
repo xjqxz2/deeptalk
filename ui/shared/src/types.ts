@@ -58,6 +58,7 @@ export interface ModelInfo {
 /** 会话列表项。 */
 export interface Conversation {
   id: number
+  public_id: string
   title: string
   model_id: number
   updated_at: string
