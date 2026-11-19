@@ -8,7 +8,6 @@ import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { useAppStore } from '@/stores/app'
 import { useChatStore } from '@/stores/chat'
-import { fetchAuthConfig } from '@/services/auth'
 import ChatSidebar from '@/components/layout/ChatSidebar.vue'
 import ChatTopbar from '@/components/layout/ChatTopbar.vue'
 
@@ -60,13 +59,6 @@ onMounted(async () => {
     await Promise.all([chat.loadModels(), chat.loadConversations()])
   } catch {
     message.error('初始化失败，请确认后端服务已启动')
-  }
-  // 联网搜索能力由后端配置决定；失败时保留开关，由服务端返回未启用提示
-  try {
-    const config = await fetchAuthConfig()
-    chat.setWebSearchEnabled(config.web_search_enabled)
-  } catch {
-    // 公开配置失败不阻断工作台
   }
 })
 

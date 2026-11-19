@@ -48,7 +48,7 @@ try {
   await page.waitForTimeout(500)
   check('C 端登录进入空态', await page.locator('.chat-empty').isVisible())
   check('空态不展示场景卡', (await page.locator('.scenarios').count()) === 0)
-  check('联网搜索入口可见', await page.getByRole('button', { name: '联网搜索' }).isVisible())
+  check('联网搜索入口已移除', (await page.getByRole('button', { name: '联网搜索' }).count()) === 0)
 
   // 新建对话并等待真实 DeepSeek 流式回答完成
   await page.getByRole('button', { name: '新建对话' }).first().click()

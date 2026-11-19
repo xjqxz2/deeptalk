@@ -6,14 +6,12 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { Attachment } from '@deeptalk/shared'
 import ModelSelect from './ModelSelect.vue'
-import { ArrowUpOutlined, CloseOutlined, GlobalOutlined, LoadingOutlined, PaperClipOutlined } from '@ant-design/icons-vue'
+import { ArrowUpOutlined, CloseOutlined, LoadingOutlined, PaperClipOutlined } from '@ant-design/icons-vue'
 
 const props = withDefaults(
   defineProps<{
     text: string
     deepThinking: boolean
-    webSearch: boolean
-    webSearchEnabled?: boolean
     attachments?: Attachment[]
     uploading?: boolean
     generating: boolean
@@ -23,7 +21,6 @@ const props = withDefaults(
   }>(),
   {
     disabled: false,
-    webSearchEnabled: true,
     attachments: () => [],
     uploading: false,
     placeholder: '给 DeepTalk 发送消息…',
@@ -34,7 +31,6 @@ const props = withDefaults(
 const emit = defineEmits<{
   (event: 'update:text', value: string): void
   (event: 'update:deepThinking', value: boolean): void
-  (event: 'update:webSearch', value: boolean): void
   (event: 'add-files', files: File[]): void
   (event: 'remove-attachment', id: number): void
   (event: 'send'): void
@@ -220,19 +216,6 @@ defineExpose({ focus })
               />
             </svg>
             <span class="toggle-text">深度思考</span>
-          </button>
-          <button
-            type="button"
-            class="toggle outline"
-            :class="{ on: webSearch && webSearchEnabled }"
-            :disabled="!webSearchEnabled"
-            :aria-pressed="webSearch && webSearchEnabled"
-            :title="webSearchEnabled ? '联网搜索：通过 Obscura 检索公开网页' : '联网搜索未启用，请先配置 Obscura'"
-            aria-label="联网搜索"
-            @click="webSearchEnabled && emit('update:webSearch', !webSearch)"
-          >
-            <GlobalOutlined />
-            <span class="toggle-text">联网搜索</span>
           </button>
         </div>
         <div class="toolbar-right">

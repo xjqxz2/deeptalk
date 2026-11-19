@@ -14,7 +14,6 @@ import { useUserStore } from './user'
 
 /** 用户偏好的 localStorage 键。 */
 const PREF_DEEP_THINKING = 'deeptalk.deepThinking'
-const PREF_WEB_SEARCH = 'deeptalk.webSearch'
 
 /** 读取布尔偏好，localStorage 不可用或值非法时回退。 */
 function readBoolPreference(key: string, fallback: boolean): boolean {
@@ -70,10 +69,6 @@ export const useChatStore = defineStore('chat', () => {
   const selectedModelId = ref(0)
   /** 深度思考开关：默认关闭；用户手动切换后记住选择。 */
   const deepThinking = ref(readBoolPreference(PREF_DEEP_THINKING, false))
-  /** 联网搜索开关：常驻用户选择；是否真正检索由服务端意图判断。 */
-  const webSearch = ref(readBoolPreference(PREF_WEB_SEARCH, false))
-  /** 后台是否配置了可用的联网搜索。 */
-  const webSearchEnabled = ref(true)
   /** 是否正在生成。 */
   const generating = ref(false)
   /** 待发送的图片附件。 */
@@ -99,14 +94,6 @@ export const useChatStore = defineStore('chat', () => {
       // 忽略存储失败，不影响当前会话
     }
   })
-  watch(webSearch, (value) => {
-    try {
-      localStorage.setItem(PREF_WEB_SEARCH, String(value))
-    } catch {
-      // 忽略存储失败，不影响当前会话
-    }
-  })
-
   /** 当前选中的模型对象。 */
   const selectedModel = computed(() => models.value.find((item) => item.id === selectedModelId.value) ?? null)
 
@@ -142,12 +129,6 @@ export const useChatStore = defineStore('chat', () => {
         // 忽略存储失败
       }
     }
-  }
-
-  /** 同步联网搜索能力；关闭时强制收起开关，避免请求必然失败。 */
-  function setWebSearchEnabled(value: boolean): void {
-    webSearchEnabled.value = value
-    if (!value) webSearch.value = false
   }
 
   /** 切换模型；只影响下一条消息，不追溯历史。 */
@@ -455,7 +436,6 @@ export const useChatStore = defineStore('chat', () => {
           // 模型可能刚被管理员删除；selectedModel 只会在当前列表中存在
           model_id: selectedModel.value?.id ?? 0,
           deep_thinking: deepThinking.value,
-          web_search: webSearch.value,
           attachment_ids: pendingAttachments.map((item) => item.id),
           regenerate,
         }),
@@ -541,8 +521,6 @@ export const useChatStore = defineStore('chat', () => {
     selectedModel,
     selectedModelId,
     deepThinking,
-    webSearch,
-    webSearchEnabled,
     generating,
     attachments,
     uploading,
@@ -551,7 +529,6 @@ export const useChatStore = defineStore('chat', () => {
     listError,
     loadModels,
     setModel,
-    setWebSearchEnabled,
     uploadFiles,
     removeAttachment,
     clearAttachments,

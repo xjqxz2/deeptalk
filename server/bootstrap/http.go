@@ -51,6 +51,7 @@ func (a *App) startHTTP(ctx context.Context) error {
 		EngineURL:    cfg.WebSearch.EngineURL,
 		Engines:      engines,
 		MaxResults:   cfg.WebSearch.MaxResults,
+		Concurrency:  cfg.WebSearch.Concurrency,
 		Timeout:      time.Duration(cfg.WebSearch.TimeoutSec) * time.Second,
 		HTTPFallback: cfg.WebSearch.HTTPFallback,
 		Stealth:      cfg.WebSearch.Stealth,

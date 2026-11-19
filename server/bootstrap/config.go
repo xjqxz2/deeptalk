@@ -91,6 +91,7 @@ type WebSearchConfig struct {
 	EngineURL    string               `yaml:"engine_url"`
 	Engines      []SearchEngineConfig `yaml:"engines"`       // 搜索页模板，支持 {query}
 	MaxResults   int                  `yaml:"max_results"`   // 最多引用条数
+	Concurrency  int                  `yaml:"concurrency"`   // 多引擎并发数
 	TimeoutSec   int                  `yaml:"timeout_sec"`   // 单次检索超时（秒）
 	HTTPFallback bool                 `yaml:"http_fallback"` // Obscura 失败时是否允许 HTTP 回退
 	Stealth      bool                 `yaml:"stealth"`       // 是否启用 Obscura 反检测
@@ -279,6 +280,12 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.WebSearch.MaxResults <= 0 {
 		cfg.WebSearch.MaxResults = 5
+	}
+	if cfg.WebSearch.Concurrency <= 0 {
+		cfg.WebSearch.Concurrency = 5
+	}
+	if cfg.WebSearch.Concurrency > 10 {
+		cfg.WebSearch.Concurrency = 10
 	}
 	if cfg.WebSearch.MaxResults > 8 {
 		cfg.WebSearch.MaxResults = 8

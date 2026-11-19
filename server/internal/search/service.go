@@ -50,6 +50,7 @@ type Config struct {
 	EngineURL    string        // 兼容旧配置：单引擎搜索页模板
 	Engines      []Engine      // 多引擎配置；非空时优先使用
 	MaxResults   int           // 最多返回条数
+	Concurrency  int           // 多引擎并发数
 	Timeout      time.Duration // 单次检索超时
 	HTTPFallback bool          // Obscura 失败时是否允许普通 HTTP 抓取
 	Stealth      bool          // 是否启用 Obscura 反检测模式
@@ -92,6 +93,12 @@ func New(cfg Config) *Service {
 	}
 	if cfg.MaxResults > 8 {
 		cfg.MaxResults = 8
+	}
+	if cfg.Concurrency <= 0 {
+		cfg.Concurrency = 5
+	}
+	if cfg.Concurrency > 10 {
+		cfg.Concurrency = 10
 	}
 	if cfg.Timeout <= 0 {
 		cfg.Timeout = 25 * time.Second
@@ -169,7 +176,7 @@ func (s *Service) searchWithEngines(ctx context.Context, query string, engines [
 		engines = s.cfg.Engines
 	}
 	results := make(chan engineResult, len(engines))
-	sem := make(chan struct{}, 2) // 同时最多两个 Obscura，避免容器内存峰值过高
+	sem := make(chan struct{}, s.cfg.Concurrency) // 默认 5 路并发，可通过配置调整
 	var wg sync.WaitGroup
 	for index, engine := range engines {
 		target := buildEngineURL(engine.URL, query)

@@ -299,13 +299,12 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 
 	// 联网检索在生成前完成：先下发搜索状态，再把结果作为系统上下文注入，
 	// 这样模型回答时可以引用来源，前端也能在等待期间展示“正在联网搜索”。
-	var sources []search.Result
-	if in.WebSearch {
-		sources = s.retrieve(ctx, assistant, userMsg.Content, emit, model, prov)
-		if ctx.Err() != nil {
-			s.saveStopped(context.WithoutCancel(ctx), assistant, "", "", time.Now())
-			return nil
-		}
+	// 联网不再由前端开关决定：每个实质问题先让模型判断是否需要搜索，
+	// 以及搜哪个来源、用什么关键词。
+	sources := s.retrieve(ctx, assistant, userMsg.Content, emit, model, prov)
+	if ctx.Err() != nil {
+		s.saveStopped(context.WithoutCancel(ctx), assistant, "", "", time.Now())
+		return nil
 	}
 
 	history, historyTokens, err := s.buildHistory(ctx, conv, userMsg.ID)
@@ -578,15 +577,17 @@ func (s *Service) retrieve(ctx context.Context, assistant *Message, query string
 	if !shouldSearch(query) {
 		return nil
 	}
-	if err := emit("search", map[string]string{"status": "searching"}); err != nil {
+	// 先让模型判断“要不要搜、去哪搜、搜什么”，而不是由前端开关决定。
+	route := s.preferredSearchRoute(ctx, model, prov, assistant.ConversationID, query)
+	if !route.NeedSearch {
 		return nil
 	}
-	// 先让模型做一次轻量路由：它最了解这个问题更适合知乎、Bing 还是搜狗。
-	// 模型没有明确偏好时，SearchWithEngines 会自动使用全部默认来源。
-	route := s.preferredSearchRoute(ctx, model, prov, assistant.ConversationID, query)
 	searchQuery := route.Query
 	if searchQuery == "" {
 		searchQuery = query
+	}
+	if err := emit("search", map[string]string{"status": "searching"}); err != nil {
+		return nil
 	}
 	slog.Info("search routed", "conversation_id", assistant.ConversationID, "engines", route.Engines, "query", searchQuery)
 	items, err := s.search.SearchWithEngines(ctx, searchQuery, route.Engines)
@@ -674,19 +675,25 @@ const searchRouterPrompt = `你是 DeepTalk 的检索路由器。根据用户问
 - baidu：中文百科/一般信息，权重最低，只在没有更合适来源时选择。
 中文生活/价格/资讯问题优先 zhihu、sogou；英文或技术文档问题优先 bing、zhihu。
 query 要结合“最近对话”理解当前问题，去掉“我说的是”“联网查一下”“帮我搜一下”等对话口语，只保留模型名、产品名、数字、时间、专有名词和检索意图；不要编造事实。
-必须至少选择一个来源，不要因为不确定就返回空。只输出 JSON：
-{"engines":["bing"],"query":"DeepSeek V4.1-Flash 价格"}
+先判断这个问题是否需要实时/公开网页信息。出现以下情况必须 need_search=true：
+新闻、价格、版本发布、政策、公司/人物近况、实时数据、用户明确要求查资料，或你不能确定最新事实。
+只有纯问候、纯逻辑、纯写作、常识或不依赖外部信息的问题才 need_search=false。
+不要因为“我可能知道”就拒绝搜索；涉及可能变化的信息必须搜索。
+需要搜索时必须至少选择一个来源，不要因为不确定就返回空。只输出 JSON：
+{"need_search":true,"engines":["bing"],"query":"DeepSeek V4.1-Flash 价格"}
+如果不需要搜索：{"need_search":false,"engines":[],"query":""}
 不要输出解释、Markdown 或额外文字。`
 
 type searchRoute struct {
-	Engines []string
-	Query   string
+	NeedSearch bool
+	Engines    []string
+	Query      string
 }
 
 // preferredSearchRoute 让模型同时决定搜索来源与检索关键词。
 // 失败或输出不可解析时回退到原始问题 + 语言默认来源。
 func (s *Service) preferredSearchRoute(ctx context.Context, model *provider.Model, prov *provider.Provider, conversationID uint, query string) searchRoute {
-	fallback := searchRoute{Engines: defaultSearchEngines(query), Query: normalizeRouterQuery(query)}
+	fallback := searchRoute{NeedSearch: false, Engines: defaultSearchEngines(query), Query: normalizeRouterQuery(query)}
 	if model == nil || prov == nil {
 		return fallback
 	}
@@ -731,15 +738,16 @@ func (s *Service) preferredSearchRoute(ctx context.Context, model *provider.Mode
 		raw = raw[start : end+1]
 	}
 	var payload struct {
-		Engines []string `json:"engines"`
-		Query   string   `json:"query"`
+		NeedSearch bool     `json:"need_search"`
+		Engines    []string `json:"engines"`
+		Query      string   `json:"query"`
 	}
 	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
 		return fallback
 	}
 	allowed := map[string]struct{}{"bing": {}, "zhihu": {}, "sogou": {}, "baidu": {}}
 	seen := make(map[string]struct{})
-	route := searchRoute{Query: normalizeRouterQuery(payload.Query)}
+	route := searchRoute{NeedSearch: payload.NeedSearch, Query: normalizeRouterQuery(payload.Query)}
 	for _, name := range payload.Engines {
 		name = strings.ToLower(strings.TrimSpace(name))
 		if _, ok := allowed[name]; !ok {
@@ -753,6 +761,12 @@ func (s *Service) preferredSearchRoute(ctx context.Context, model *provider.Mode
 		if len(route.Engines) >= 2 {
 			break
 		}
+	}
+	slog.Info("search decision", "conversation_id", conversationID, "need_search", route.NeedSearch, "engines", route.Engines, "query", route.Query)
+	if !route.NeedSearch {
+		route.Engines = nil
+		route.Query = ""
+		return route
 	}
 	if len(route.Engines) == 0 {
 		route.Engines = defaultSearchEngines(query)

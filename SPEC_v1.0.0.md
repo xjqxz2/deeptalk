@@ -243,7 +243,7 @@ Request Body：
 | content | string | 是 | 用户输入，1–8000 字 |
 | model_id | int | 否 | 模型主键；缺省用平台默认模型 |
 | deep_thinking | bool | 否 | 是否请求深度思考；前端默认关闭，开启后按服务端 `reasoning_effort` 请求 |
-| web_search | bool | 否 | 是否允许联网检索；开关常驻，纯问候/短句由服务端跳过 |
+| web_search | bool | 否 | 已废弃；服务端始终由模型判断是否联网 |
 | attachment_ids | int[] | 否 | 本次消息的图片附件 ID，最多 4 个；重新生成时忽略并复用上一条用户消息 |
 | regenerate | bool | 否 | 重新生成：忽略 content，重跑最后一条用户消息 |
 
