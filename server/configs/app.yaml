@@ -51,6 +51,16 @@ upstream:
   # 深度思考强度：low / medium / high；仅在用户开启深度思考时发送 reasoning_effort
   reasoning_effort: medium
 
+context:
+  # 达到模型上下文窗口的 85% 时，异步压缩最老的一段对话
+  compact_ratio: 0.85
+  # 压缩后保留最近 30% 的原始消息，其余改为结构化摘要
+  keep_ratio: 0.30
+  # 空闲多久后尝试在 DeepSeek 缓存失效前做一次压缩（小时，尽力而为）
+  cache_idle_hours: 2
+  # 空闲压缩的最小上下文 token 数，太短不压缩
+  idle_min_tokens: 16000
+
 uploads:
   # 图片附件落盘目录；Docker 中位于 /app/data/uploads，随数据卷持久化
   dir: data/uploads
@@ -62,8 +72,22 @@ web_search:
   enabled: true
   # Obscura 可执行文件；Docker 镜像内已包含
   obscura_bin: obscura
-  # 搜索页模板，{query} 会被 URL 编码后的关键词替换
-  engine_url: https://www.bing.com/search?q={query}
+  # 兼容旧的单引擎配置；engines 非空时优先使用多引擎
+  engine_url: https://cn.bing.com/search?q={query}
+  # 多引擎 RRF（Reciprocal Rank Fusion）融合；百度权重最低
+  engines:
+    - name: bing
+      url: https://cn.bing.com/search?q={query}
+      weight: 1.0
+    - name: zhihu
+      url: https://www.zhihu.com/search?type=content&q={query}
+      weight: 1.0
+    - name: sogou
+      url: https://www.sogou.com/web?query={query}
+      weight: 0.8
+    - name: baidu
+      url: https://www.baidu.com/s?wd={query}
+      weight: 0.5
   # 单次回答最多引用的来源数
   max_results: 5
   # 单次检索超时（秒），需小于上游首字节超时与浏览器等待

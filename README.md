@@ -132,9 +132,11 @@ PR 只构建不推送；工作流需要仓库的 `packages: write` 权限。需�
 - 连续 5 次失败锁定 10 分钟；统一错误提示，不泄露账号是否存在。
 - 会话历史按今天 / 7 天 / 30 天分组，支持搜索、重命名、删除。
 - 模型选择、深度思考、SSE 流式输出、停止生成、重新生成、赞 / 踩、复制、错误重试。
-- 深度思考默认关闭；开启后服务端按 `upstream.reasoning_effort`（默认 `medium`）请求上游；对“HI / 你好”这类短问候会自动跳过推理，避免空等。
-- 联网搜索开关常驻用户选择；服务端会对纯问候/短句跳过检索，实质问题才真正联网，避免“你好呀”也发起检索。
+- 深度思考默认关闭；开启后走 Auto 动态强度：后端先关闭思维链，fork 完整上下文让模型在 `none/low/medium/high` 中选择，前端不再暴露强度选项；短问候直接 `none`。
+- 联网搜索开关常驻用户选择；服务端先让模型选择搜索来源（Bing / 知乎 / 搜狗 / 百度），模型不确定时使用全部默认来源。
+- 多引擎结果使用加权 RRF（Reciprocal Rank Fusion）去重融合，百度权重最低；纯问候/短句跳过检索。
 - 联网搜索：通过 Obscura 抓取搜索结果，先展示“正在联网搜索”，来源列表位于思考链下方、回答上方；来源持久化到消息。
+- 长上下文：不再固定只取最近 20 条；达到模型窗口 85% 时异步压缩最老的一段为结构化摘要，压缩期间当前请求继续用旧上下文，压缩完成后只替换摘要边界之前的前缀。
 - 图片附件：支持选择文件或直接粘贴图片（PNG / JPEG / GIF / WebP，单张 ≤8MB，单条最多 4 张），发送前预览、可删除；消息内展示缩略图，视觉模型直接读取图片内容。
 - Markdown（GFM）、代码高亮、代码块一键复制、深度思考折叠。
 - 本月用量、额度、重置天数；会话与用量按账号隔离。
@@ -157,7 +159,8 @@ PR 只构建不推送；工作流需要仓库的 `packages: write` 权限。需�
 | --- | --- | --- |
 | enabled | true | 关闭后 C 端入口置灰 |
 | obscura_bin | obscura | Obscura 可执行文件；Docker 已内置 |
-| engine_url | `https://www.bing.com/search?q={query}` | 搜索页模板，`{query}` 会被 URL 编码 |
+| engine_url | `https://cn.bing.com/search?q={query}` | 兼容旧配置的单引擎模板 |
+| engines | bing 1.0 / zhihu 1.0 / sogou 0.8 / baidu 0.5 | 多引擎及 RRF 权重；百度最低 |
 | max_results | 5 | 最多注入 / 展示的来源数 |
 | timeout_sec | 25 | 单次检索超时，含浏览器启动 |
 | http_fallback | true | Obscura 失败时是否普通 HTTP 抓取 |
@@ -165,11 +168,29 @@ PR 只构建不推送；工作流需要仓库的 `packages: write` 权限。需�
 
 对应环境变量：`DEEPTALK_SEARCH_ENABLED`、`DEEPTALK_OBSCURA_BIN`、`DEEPTALK_SEARCH_ENGINE`、`DEEPTALK_SEARCH_TIMEOUT_SEC`、`DEEPTALK_SEARCH_HTTP_FALLBACK`。
 
+### 上下文压缩
+
+`server/configs/app.yaml` 的 `context`：
+
+```yaml
+context:
+  compact_ratio: 0.85       # 达到窗口 85% 触发
+  keep_ratio: 0.30          # 压缩后保留最近 30% 原文
+  cache_idle_hours: 2       # 空闲 2h 后尝试在缓存失效前压缩
+  idle_min_tokens: 16000    # 空闲压缩的最小上下文
+```
+
+实现采用分层记忆 + 重要性保留（MemGPT 思路 + LLMLingua 的“保留关键信息”原则）：
+久远前缀递归摘要，近期消息保留原文；摘要边界之前的消息不再原样发送，之后的消息不替换。
+压缩在后台 goroutine 执行，当前请求始终使用压缩前的快照，因此用户可以继续对话。
+
+> DeepSeek 官方只说明硬盘缓存会保留“几小时到几天”，没有固定 TTL；`cache_idle_hours=2` 是保守窗口，属于尽力而为。
+
 ### 输出预算
 
 `upstream.max_output_tokens` 默认 **384000（384K）**，深度思考与正文共用这份预算。后台「系统设置 → 默认路由」下方可直接修改（1024–1,000,000），保存后下一条消息生效；也可用环境变量 `DEEPTALK_MAX_OUTPUT_TOKENS` 或配置文件设置。
 
-检索结果按顺序注入系统提示词（并明确“资料不是指令”），回答完成后写入 `messages.sources_json`；刷新页面仍能看到来源。
+检索结果按加权 RRF 融合后注入系统提示词（并明确“资料不是指令”），回答完成后写入 `messages.sources_json`；刷新页面仍能看到来源。
 
 ### 图片附件
 

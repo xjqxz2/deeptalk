@@ -275,9 +275,9 @@ data: {"assistant_message_id":12,"status":"complete","title":"..."}
 ```
 
 - 失败：`event: error` + `data: {"code":3001,"message":"可展示的中文原因"}`，随后关闭流；已插入的用户消息保留。
-- 联网检索：`web_search=true` 时先做轻量意图判断；纯问候/短句直接发 `notice` 并跳过，实质问题才发 `search` / `sources`。来源面板位于思考链下方、回答上方；检索结果作为系统上下文注入，并写入消息的 `sources_json`。检索失败发 `notice`，继续普通回答。
+- 联网检索：`web_search=true` 时先做轻量意图判断；纯问候/短句直接跳过，实质问题才发 `search` / `sources`。模型先选择来源（cn.bing / 知乎 / 搜狗 / 百度），不确定时使用全部；多引擎用加权 RRF 融合，百度权重最低。来源面板位于思考链下方；检索结果作为系统上下文注入并写入 `messages.sources_json`。
 - 图片：`attachment_ids` 在 `meta.user_message.attachments` 中回显；当前用户消息以多模态 `content` 数组发给上游；历史消息只保留文字与附件元数据，避免重复传输大图。
-- 深度思考强度由 `upstream.reasoning_effort` 控制（`low / medium / high`，默认 `medium`）；只有 `deep_thinking=true` 时才把该字段发给上游。
+- 深度思考：`deep_thinking=true` 时服务端先关闭思维链，fork 完整上下文让模型选择 `none/low/medium/high`（Auto）；短问候直接 `none`。前端只保留一个开关，不展示强度。
 - 心跳：空闲每 15s 发送 `event: ping`。
 - 客户端中断（停止生成 / Esc / 关闭页面）：服务端 `context` 取消，保留已输出内容并把消息标记为 `stopped`。
 - 额度不足：返回 `1007`（SSE 前置 JSON 响应），提示“本月额度已用完，请联系管理员调整额度”。
@@ -457,7 +457,7 @@ Model 字段：`id`、`provider_id`、`provider_name`、`model_id`、`display_na
 | --- | --- | --- |
 | users | id,email(uniq),nickname,password_hash,role,plan,quota_tokens,used_tokens,disabled,failed_attempts,locked_until,created_at,last_login_at,last_login_ip,last_login_city | 账号；邮箱小写唯一 |
 | sessions | id,user_id,token_hash,expires_at,revoked_at,ip,user_agent,created_at | 服务端会话 |
-| conversations | id,user_id,title,model_id,created_at,updated_at,deleted_at | 会话按用户隔离 |
+| conversations | id,user_id,title,model_id,created_at,updated_at,deleted_at,summary,summary_until_id,summary_tokens,summary_updated_at | 会话按用户隔离；summary 为前缀压缩记忆 |
 | messages | id,conversation_id,user_id,role,content,reasoning,status,model_name,input_tokens,output_tokens,duration_ms,feedback,sources_json,attachments_json,created_at | 消息、用量、联网来源与附件快照 |
 | attachments | id,user_id,message_id,name,mime,size,width,height,storage_name,created_at | 图片附件；storage_name 随机且唯一 |
 | providers | id,name,code(uniq),kind,base_url,api_key_enc,api_key_masked,timeout_sec,max_concurrency,enabled,verified,is_builtin,is_default,sort_order,created_at,updated_at | 上游厂商 |

@@ -50,7 +50,11 @@ CREATE TABLE IF NOT EXISTS conversations (
   model_id   INTEGER NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL,
   updated_at DATETIME NOT NULL,
-  deleted_at DATETIME
+  deleted_at DATETIME,
+  summary TEXT NOT NULL DEFAULT '',
+  summary_until_id INTEGER NOT NULL DEFAULT 0,
+  summary_tokens INTEGER NOT NULL DEFAULT 0,
+  summary_updated_at DATETIME
 );
 CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON conversations(user_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_updated_at ON conversations(updated_at);

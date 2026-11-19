@@ -12,8 +12,10 @@ import (
 	"net/http"
 	"net/url"
 	"os/exec"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -33,11 +35,19 @@ type Result struct {
 	Snippet string `json:"snippet"`
 }
 
+// Engine 是一路搜索来源。
+type Engine struct {
+	Name   string  // bing / zhihu / sogou / baidu
+	URL    string  // 搜索页模板，支持 {query}
+	Weight float64 // RRF 融合权重
+}
+
 // Config 是检索服务的可配置项。
 type Config struct {
 	Enabled      bool          // 是否启用联网搜索
 	ObscuraBin   string        // Obscura 可执行文件路径或 PATH 中的命令名
-	EngineURL    string        // 搜索页模板，支持 {query} 占位符
+	EngineURL    string        // 兼容旧配置：单引擎搜索页模板
+	Engines      []Engine      // 多引擎配置；非空时优先使用
 	MaxResults   int           // 最多返回条数
 	Timeout      time.Duration // 单次检索超时
 	HTTPFallback bool          // Obscura 失败时是否允许普通 HTTP 抓取
@@ -53,7 +63,27 @@ type Service struct {
 
 // New 创建检索服务；配置不完整时返回 nil，调用方应按“未启用”处理。
 func New(cfg Config) *Service {
-	if !cfg.Enabled || strings.TrimSpace(cfg.EngineURL) == "" {
+	if !cfg.Enabled || (strings.TrimSpace(cfg.EngineURL) == "" && len(cfg.Engines) == 0) {
+		return nil
+	}
+	if len(cfg.Engines) == 0 && strings.TrimSpace(cfg.EngineURL) != "" {
+		cfg.Engines = []Engine{{Name: "bing", URL: cfg.EngineURL, Weight: 1}}
+	}
+	cleaned := make([]Engine, 0, len(cfg.Engines))
+	for _, engine := range cfg.Engines {
+		if strings.TrimSpace(engine.URL) == "" {
+			continue
+		}
+		if strings.TrimSpace(engine.Name) == "" {
+			engine.Name = "search"
+		}
+		if engine.Weight <= 0 {
+			engine.Weight = 1
+		}
+		cleaned = append(cleaned, engine)
+	}
+	cfg.Engines = cleaned
+	if len(cfg.Engines) == 0 {
 		return nil
 	}
 	if cfg.MaxResults <= 0 {
@@ -86,9 +116,34 @@ func (s *Service) Enabled() bool {
 	return s != nil && s.cfg.Enabled
 }
 
-// Search 执行一次检索。
-// 优先调用 Obscura；Obscura 失败且开启回退时再走普通 HTTP。
+// Search 并发检索多个来源，用加权 RRF（Reciprocal Rank Fusion）融合排序。
+// 单引擎失败不会拖垮整体；只有所有引擎都没有结果时才返回错误。
 func (s *Service) Search(ctx context.Context, query string) ([]Result, error) {
+	return s.searchWithEngines(ctx, query, nil)
+}
+
+// SearchWithEngines 只检索模型指定的来源；names 为空时使用全部默认来源。
+func (s *Service) SearchWithEngines(ctx context.Context, query string, names []string) ([]Result, error) {
+	if len(names) == 0 {
+		return s.searchWithEngines(ctx, query, nil)
+	}
+	wanted := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		wanted[strings.ToLower(strings.TrimSpace(name))] = struct{}{}
+	}
+	filtered := make([]Engine, 0, len(names))
+	for _, engine := range s.cfg.Engines {
+		if _, ok := wanted[strings.ToLower(engine.Name)]; ok {
+			filtered = append(filtered, engine)
+		}
+	}
+	if len(filtered) == 0 {
+		return s.searchWithEngines(ctx, query, nil)
+	}
+	return s.searchWithEngines(ctx, query, filtered)
+}
+
+func (s *Service) searchWithEngines(ctx context.Context, query string, engines []Engine) ([]Result, error) {
 	if !s.Enabled() {
 		return nil, ErrDisabled
 	}
@@ -96,27 +151,125 @@ func (s *Service) Search(ctx context.Context, query string) ([]Result, error) {
 	if query == "" {
 		return nil, errors.New("search query is empty")
 	}
-	// 搜索词过长会被搜索引擎截断，这里主动限制，避免 URL 超长
 	runes := []rune(query)
 	if len(runes) > 200 {
 		query = string(runes[:200])
 	}
-	target := s.buildURL(query)
-	if target == "" {
-		return nil, errors.New("invalid search engine url")
-	}
 	searchCtx, cancel := context.WithTimeout(ctx, s.cfg.Timeout)
 	defer cancel()
 
+	type engineResult struct {
+		index  int
+		engine Engine
+		items  []Result
+		err    error
+	}
+	if len(engines) == 0 {
+		engines = s.cfg.Engines
+	}
+	results := make(chan engineResult, len(engines))
+	sem := make(chan struct{}, 2) // 同时最多两个 Obscura，避免容器内存峰值过高
+	var wg sync.WaitGroup
+	for index, engine := range engines {
+		target := buildEngineURL(engine.URL, query)
+		if target == "" {
+			continue
+		}
+		wg.Add(1)
+		go func(index int, engine Engine, target string) {
+			defer wg.Done()
+			select {
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-searchCtx.Done():
+				results <- engineResult{index: index, engine: engine, err: searchCtx.Err()}
+				return
+			}
+			items, err := s.searchEngine(searchCtx, engine, target)
+			results <- engineResult{index: index, engine: engine, items: items, err: err}
+		}(index, engine, target)
+	}
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	type candidate struct {
+		result    Result
+		score     float64
+		firstSeen int
+	}
+	merged := make(map[string]*candidate)
+	var firstErr error
+	engineCount := 0
+	for item := range results {
+		if item.err != nil {
+			if firstErr == nil {
+				firstErr = item.err
+			}
+			continue
+		}
+		engineCount++
+		for rank, result := range item.items {
+			key := canonicalURL(result.URL)
+			if key == "" {
+				continue
+			}
+			score := item.engine.Weight / (60 + float64(rank+1))
+			if current, ok := merged[key]; ok {
+				current.score += score
+				if current.result.Snippet == "" && result.Snippet != "" {
+					current.result.Snippet = result.Snippet
+				}
+				if current.result.Title == "" && result.Title != "" {
+					current.result.Title = result.Title
+				}
+				continue
+			}
+			merged[key] = &candidate{result: result, score: score, firstSeen: item.index*100 + rank}
+		}
+	}
+	if len(merged) == 0 {
+		if firstErr != nil {
+			return nil, firstErr
+		}
+		return nil, ErrNoResult
+	}
+	all := make([]*candidate, 0, len(merged))
+	for _, item := range merged {
+		all = append(all, item)
+	}
+	sort.SliceStable(all, func(i, j int) bool {
+		if all[i].score == all[j].score {
+			return all[i].firstSeen < all[j].firstSeen
+		}
+		return all[i].score > all[j].score
+	})
+	out := make([]Result, 0, s.cfg.MaxResults)
+	for _, item := range all {
+		out = append(out, item.result)
+		if len(out) >= s.cfg.MaxResults {
+			break
+		}
+	}
+	if len(out) == 0 {
+		return nil, ErrNoResult
+	}
+	_ = engineCount
+	return out, nil
+}
+
+// searchEngine 调用 Obscura；失败且允许回退时再走普通 HTTP。
+func (s *Service) searchEngine(ctx context.Context, engine Engine, target string) ([]Result, error) {
 	var (
 		raw []byte
 		err error
 	)
 	if s.cfg.ObscuraBin != "" {
-		raw, err = s.fetchWithObscura(searchCtx, target)
+		raw, err = s.fetchWithObscura(ctx, target)
 	}
 	if err == nil && len(raw) > 0 {
-		if items := parse(raw, s.cfg.MaxResults); len(items) > 0 {
+		if items := parseEngine(engine.Name, raw, s.cfg.MaxResults, engine.URL); len(items) > 0 {
 			return items, nil
 		}
 		err = ErrNoResult
@@ -127,14 +280,14 @@ func (s *Service) Search(ctx context.Context, query string) ([]Result, error) {
 		}
 		return nil, err
 	}
-	raw, httpErr := s.fetchHTTP(searchCtx, target)
+	raw, httpErr := s.fetchHTTP(ctx, target)
 	if httpErr != nil {
 		if err != nil {
 			return nil, fmt.Errorf("obscura: %v; http: %w", err, httpErr)
 		}
 		return nil, httpErr
 	}
-	items := parse(raw, s.cfg.MaxResults)
+	items := parseEngine(engine.Name, raw, s.cfg.MaxResults, engine.URL)
 	if len(items) == 0 {
 		return nil, ErrNoResult
 	}
@@ -163,6 +316,23 @@ func normalizeQuery(query string) string {
 // buildURL 把搜索词填入模板；模板没有占位符时按 q 参数补齐。
 func (s *Service) buildURL(query string) string {
 	engine := strings.TrimSpace(s.cfg.EngineURL)
+	if engine == "" {
+		return ""
+	}
+	escaped := url.QueryEscape(query)
+	if strings.Contains(engine, "{query}") {
+		return strings.ReplaceAll(engine, "{query}", escaped)
+	}
+	separator := "?"
+	if strings.Contains(engine, "?") {
+		separator = "&"
+	}
+	return engine + separator + "q=" + escaped
+}
+
+// buildEngineURL 把搜索词填入指定引擎模板。
+func buildEngineURL(engine, query string) string {
+	engine = strings.TrimSpace(engine)
 	if engine == "" {
 		return ""
 	}
@@ -235,6 +405,166 @@ func (s *Service) fetchHTTP(ctx context.Context, target string) ([]byte, error) 
 	}
 	// 搜索页通常在 100KB 内，限制 4MB 防止异常响应占满内存
 	return io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+}
+
+// parseEngine 按来源选择解析器；未知来源走通用解析。
+func parseEngine(name string, raw []byte, limit int, base string) []Result {
+	switch {
+	case strings.Contains(strings.ToLower(name), "bing"):
+		return parseBing(raw, limit, base)
+	case strings.Contains(strings.ToLower(name), "zhihu"):
+		return parseZhihu(raw, limit, base)
+	case strings.Contains(strings.ToLower(name), "sogou"):
+		return parseSogou(raw, limit, base)
+	case strings.Contains(strings.ToLower(name), "baidu"):
+		return parseBaidu(raw, limit, base)
+	default:
+		return parse(raw, limit)
+	}
+}
+
+// parseBing 解析 cn.bing.com 的 b_algo 结果块。
+func parseBing(raw []byte, limit int, base string) []Result {
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(raw))
+	if err != nil {
+		return nil
+	}
+	var items []Result
+	seen := make(map[string]struct{})
+	doc.Find("li.b_algo").EachWithBreak(func(_ int, item *goquery.Selection) bool {
+		if len(items) >= limit {
+			return false
+		}
+		link := item.Find("h2 a").First()
+		if link.Length() == 0 {
+			return true
+		}
+		href, _ := link.Attr("href")
+		href = resolveHrefBase(href, base)
+		title := cleanText(link.Text())
+		if href == "" || title == "" {
+			return true
+		}
+		if _, ok := seen[href]; ok {
+			return true
+		}
+		seen[href] = struct{}{}
+		items = append(items, Result{
+			Title:   title,
+			URL:     href,
+			Snippet: truncate(cleanText(item.Find(".b_caption p, .b_snippet").First().Text()), 320),
+		})
+		return true
+	})
+	return items
+}
+
+// parseSogou 解析搜狗网页搜索结果。
+func parseSogou(raw []byte, limit int, base string) []Result {
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(raw))
+	if err != nil {
+		return nil
+	}
+	var items []Result
+	seen := make(map[string]struct{})
+	doc.Find("div.vrwrap, div.rb").EachWithBreak(func(_ int, item *goquery.Selection) bool {
+		if len(items) >= limit {
+			return false
+		}
+		link := item.Find("h3 a, .vr-title a").First()
+		if link.Length() == 0 {
+			return true
+		}
+		href, _ := link.Attr("href")
+		href = resolveHrefBase(href, base)
+		title := cleanText(link.Text())
+		if href == "" || title == "" {
+			return true
+		}
+		if _, ok := seen[href]; ok {
+			return true
+		}
+		seen[href] = struct{}{}
+		items = append(items, Result{
+			Title:   title,
+			URL:     href,
+			Snippet: truncate(cleanText(item.Find(".str-text-info, .text-layout, .str_info").First().Text()), 320),
+		})
+		return true
+	})
+	return items
+}
+
+// parseBaidu 解析百度结果容器；百度的跳转链接保留原样，避免解析失败丢结果。
+func parseBaidu(raw []byte, limit int, base string) []Result {
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(raw))
+	if err != nil {
+		return nil
+	}
+	var items []Result
+	seen := make(map[string]struct{})
+	doc.Find("div.result, div.c-container").EachWithBreak(func(_ int, item *goquery.Selection) bool {
+		if len(items) >= limit {
+			return false
+		}
+		link := item.Find("h3 a").First()
+		if link.Length() == 0 {
+			return true
+		}
+		href, _ := link.Attr("href")
+		href = resolveHrefBase(href, base)
+		title := cleanText(link.Text())
+		if href == "" || title == "" {
+			return true
+		}
+		if _, ok := seen[href]; ok {
+			return true
+		}
+		seen[href] = struct{}{}
+		items = append(items, Result{
+			Title:   title,
+			URL:     href,
+			Snippet: truncate(cleanText(item.Find(".c-abstract, .content-right_8Zs40").First().Text()), 320),
+		})
+		return true
+	})
+	return items
+}
+
+// parseZhihu 解析知乎搜索卡片；未登录时结果可能为空，交给其他引擎兜底。
+func parseZhihu(raw []byte, limit int, base string) []Result {
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(raw))
+	if err != nil {
+		return nil
+	}
+	var items []Result
+	seen := make(map[string]struct{})
+	doc.Find("div.SearchResult-Card, div.List-item").EachWithBreak(func(_ int, item *goquery.Selection) bool {
+		if len(items) >= limit {
+			return false
+		}
+		link := item.Find("h2 a, .ContentItem-title a").First()
+		if link.Length() == 0 {
+			return true
+		}
+		href, _ := link.Attr("href")
+		href = resolveHrefBase(href, base)
+		title := cleanText(link.Text())
+		if href == "" || title == "" {
+			return true
+		}
+		if _, ok := seen[href]; ok {
+			return true
+		}
+		seen[href] = struct{}{}
+		items = append(items, Result{
+			Title:   title,
+			URL:     href,
+			Snippet: truncate(cleanText(item.Find(".RichText, .SearchItem-meta").First().Text()), 320),
+		})
+		return true
+	})
+	return items
 }
 
 // parse 从 DuckDuckGo / Bing 搜索结果页提取条目。
@@ -310,6 +640,48 @@ func parse(raw []byte, limit int) []Result {
 		items = items[:limit]
 	}
 	return items
+}
+
+// resolveHrefBase 处理相对地址，并复用 DuckDuckGo 跳转解析。
+func resolveHrefBase(href, base string) string {
+	href = strings.TrimSpace(href)
+	if href == "" {
+		return ""
+	}
+	if strings.HasPrefix(href, "//") {
+		href = "https:" + href
+	}
+	baseURL, err := url.Parse(base)
+	if err != nil {
+		return resolveHref(href)
+	}
+	ref, err := url.Parse(href)
+	if err != nil {
+		return ""
+	}
+	return resolveHref(baseURL.ResolveReference(ref).String())
+}
+
+// canonicalURL 用于 RRF 去重：忽略 fragment、tracking 参数，统一 host 大小写与 query 顺序。
+func canonicalURL(raw string) string {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || u.Host == "" {
+		return ""
+	}
+	u.Fragment = ""
+	u.Host = strings.ToLower(u.Host)
+	q := u.Query()
+	for key := range q {
+		lower := strings.ToLower(key)
+		if strings.HasPrefix(lower, "utm_") || lower == "spm" || lower == "from" || lower == "ref" || lower == "source" {
+			q.Del(key)
+		}
+	}
+	u.RawQuery = q.Encode()
+	if u.Path != "/" {
+		u.Path = strings.TrimRight(u.Path, "/")
+	}
+	return u.String()
 }
 
 // resolveHref 解开 DuckDuckGo 的跳转链接，并过滤非 HTTP(S) 地址。

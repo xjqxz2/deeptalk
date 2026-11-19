@@ -41,10 +41,15 @@ func (a *App) startHTTP(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	engines := make([]search.Engine, 0, len(cfg.WebSearch.Engines))
+	for _, item := range cfg.WebSearch.Engines {
+		engines = append(engines, search.Engine{Name: item.Name, URL: item.URL, Weight: item.Weight})
+	}
 	searcher := search.New(search.Config{
 		Enabled:      cfg.WebSearch.Enabled,
 		ObscuraBin:   cfg.WebSearch.ObscuraBin,
 		EngineURL:    cfg.WebSearch.EngineURL,
+		Engines:      engines,
 		MaxResults:   cfg.WebSearch.MaxResults,
 		Timeout:      time.Duration(cfg.WebSearch.TimeoutSec) * time.Second,
 		HTTPFallback: cfg.WebSearch.HTTPFallback,
@@ -54,7 +59,12 @@ func (a *App) startHTTP(ctx context.Context) error {
 		MaxOutputTokens:  cfg.Upstream.MaxOutputTokens,
 		FirstByteTimeout: time.Duration(cfg.Upstream.FirstByteTimeoutSec) * time.Second,
 		ReasoningEffort:  cfg.Upstream.ReasoningEffort,
+		CompactRatio:     cfg.Context.CompactRatio,
+		KeepRatio:        cfg.Context.KeepRatio,
+		CacheIdleHours:   cfg.Context.CacheIdleHours,
+		IdleMinTokens:    cfg.Context.IdleMinTokens,
 	})
+	chats.StartCompactionWorker(ctx)
 
 	router := apis.NewRouter(apis.Config{
 		Env:    cfg.App.Env,

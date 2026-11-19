@@ -41,6 +41,12 @@ type Conversation struct {
 	CreatedAt time.Time      // 创建时间
 	UpdatedAt time.Time      `gorm:"index"` // 最近更新时间
 	DeletedAt gorm.DeletedAt `gorm:"index"` // 软删除时间
+
+	// 上下文压缩：Summary 是 prefix 的结构化记忆，SummaryUntilID 之前的消息不再原样发送。
+	Summary          string     `gorm:"type:text;not null;default:''" json:"-"`
+	SummaryUntilID   uint       `gorm:"not null;default:0" json:"-"`
+	SummaryTokens    int        `gorm:"not null;default:0" json:"-"`
+	SummaryUpdatedAt *time.Time `json:"-"`
 }
 
 // Message 是一条会话消息。

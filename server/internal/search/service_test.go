@@ -79,3 +79,28 @@ func TestNormalizeQuery(t *testing.T) {
 		}
 	}
 }
+
+func TestParseMultiEngines(t *testing.T) {
+	sogou := `<html><body><div class="vrwrap"><h3><a href="https://sogou.example/a">Sogou A</a></h3><div class="str-text-info">Sogou snippet</div></div></body></html>`
+	if items := parseEngine("sogou", []byte(sogou), 5, "https://www.sogou.com/web"); len(items) != 1 || items[0].URL != "https://sogou.example/a" {
+		t.Fatalf("sogou parse failed: %+v", items)
+	}
+	baidu := `<html><body><div class="result c-container"><h3><a href="https://baidu.example/a">Baidu A</a></h3><div class="c-abstract">Baidu snippet</div></div></body></html>`
+	if items := parseEngine("baidu", []byte(baidu), 5, "https://www.baidu.com/s"); len(items) != 1 || items[0].Snippet != "Baidu snippet" {
+		t.Fatalf("baidu parse failed: %+v", items)
+	}
+	zhihu := `<html><body><div class="SearchResult-Card"><h2><a href="https://zhihu.example/a">Zhihu A</a></h2><div class="RichText">Zhihu snippet</div></div></body></html>`
+	if items := parseEngine("zhihu", []byte(zhihu), 5, "https://www.zhihu.com/search"); len(items) != 1 || items[0].Title != "Zhihu A" {
+		t.Fatalf("zhihu parse failed: %+v", items)
+	}
+}
+
+func TestCanonicalURL(t *testing.T) {
+	got := canonicalURL("https://Example.com/a/?utm_source=x&b=2&a=1#frag")
+	if got != "https://example.com/a?a=1&b=2" {
+		t.Fatalf("canonicalURL = %q", got)
+	}
+	if canonicalURL("javascript:alert(1)") != "" {
+		t.Fatal("javascript URL should be rejected")
+	}
+}

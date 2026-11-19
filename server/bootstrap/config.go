@@ -24,6 +24,7 @@ type Config struct {
 	Upstream  UpstreamConfig  `yaml:"upstream"`   // 上游模型调用策略
 	WebSearch WebSearchConfig `yaml:"web_search"` // 联网检索策略
 	Uploads   UploadsConfig   `yaml:"uploads"`    // 图片附件存储
+	Context   ContextConfig   `yaml:"context"`    // 长上下文压缩
 }
 
 // AppConfig 保存进程级基础配置。
@@ -61,6 +62,14 @@ type CORSConfig struct {
 }
 
 // UpstreamConfig 保存上游模型的调用策略。
+// ContextConfig 是长上下文压缩策略。
+type ContextConfig struct {
+	CompactRatio   float64 `yaml:"compact_ratio"`    // 达到上下文窗口的百分比时触发压缩
+	KeepRatio      float64 `yaml:"keep_ratio"`       // 压缩后保留的最近上下文百分比
+	CacheIdleHours int     `yaml:"cache_idle_hours"` // 空闲多久后尝试在缓存失效前压缩
+	IdleMinTokens  int     `yaml:"idle_min_tokens"`  // 空闲压缩的最小上下文 token 数
+}
+
 type UpstreamConfig struct {
 	MaxOutputTokens     int    `yaml:"max_output_tokens"`      // 单次回答最大输出 tokens
 	FirstByteTimeoutSec int    `yaml:"first_byte_timeout_sec"` // 首字节超时（秒）
@@ -70,14 +79,21 @@ type UpstreamConfig struct {
 
 // WebSearchConfig 保存联网检索配置。
 // 检索页由 Obscura 抓取；Obscura 不可用时可降级到普通 HTTP，便于本地开发。
+type SearchEngineConfig struct {
+	Name   string  `yaml:"name"`
+	URL    string  `yaml:"url"`
+	Weight float64 `yaml:"weight"`
+}
+
 type WebSearchConfig struct {
-	Enabled      bool   `yaml:"enabled"`       // 是否启用联网搜索
-	ObscuraBin   string `yaml:"obscura_bin"`   // Obscura 可执行文件
-	EngineURL    string `yaml:"engine_url"`    // 搜索页模板，支持 {query}
-	MaxResults   int    `yaml:"max_results"`   // 最多引用条数
-	TimeoutSec   int    `yaml:"timeout_sec"`   // 单次检索超时（秒）
-	HTTPFallback bool   `yaml:"http_fallback"` // Obscura 失败时是否允许 HTTP 回退
-	Stealth      bool   `yaml:"stealth"`       // 是否启用 Obscura 反检测
+	Enabled      bool                 `yaml:"enabled"`     // 是否启用联网搜索
+	ObscuraBin   string               `yaml:"obscura_bin"` // Obscura 可执行文件
+	EngineURL    string               `yaml:"engine_url"`
+	Engines      []SearchEngineConfig `yaml:"engines"`       // 搜索页模板，支持 {query}
+	MaxResults   int                  `yaml:"max_results"`   // 最多引用条数
+	TimeoutSec   int                  `yaml:"timeout_sec"`   // 单次检索超时（秒）
+	HTTPFallback bool                 `yaml:"http_fallback"` // Obscura 失败时是否允许 HTTP 回退
+	Stealth      bool                 `yaml:"stealth"`       // 是否启用 Obscura 反检测
 }
 
 // UploadsConfig 保存图片附件配置。
@@ -235,6 +251,18 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.Upstream.FirstByteTimeoutSec <= 0 {
 		cfg.Upstream.FirstByteTimeoutSec = 30
+	}
+	if cfg.Context.CompactRatio <= 0 || cfg.Context.CompactRatio >= 1 {
+		cfg.Context.CompactRatio = 0.85
+	}
+	if cfg.Context.KeepRatio <= 0 || cfg.Context.KeepRatio >= cfg.Context.CompactRatio {
+		cfg.Context.KeepRatio = 0.30
+	}
+	if cfg.Context.CacheIdleHours <= 0 {
+		cfg.Context.CacheIdleHours = 2
+	}
+	if cfg.Context.IdleMinTokens <= 0 {
+		cfg.Context.IdleMinTokens = 16000
 	}
 	switch strings.ToLower(strings.TrimSpace(cfg.Upstream.ReasoningEffort)) {
 	case "low", "medium", "high":
