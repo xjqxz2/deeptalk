@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os/exec"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -198,7 +199,9 @@ func (s *Service) searchWithEngines(ctx context.Context, query string, engines [
 		result    Result
 		score     float64
 		firstSeen int
+		relevant  bool
 	}
+	terms := queryTerms(query)
 	merged := make(map[string]*candidate)
 	var firstErr error
 	engineCount := 0
@@ -215,9 +218,11 @@ func (s *Service) searchWithEngines(ctx context.Context, query string, engines [
 			if key == "" {
 				continue
 			}
+			relevant := isRelevantResult(result, terms)
 			score := item.engine.Weight / (60 + float64(rank+1))
 			if current, ok := merged[key]; ok {
 				current.score += score
+				current.relevant = current.relevant || relevant
 				if current.result.Snippet == "" && result.Snippet != "" {
 					current.result.Snippet = result.Snippet
 				}
@@ -226,7 +231,7 @@ func (s *Service) searchWithEngines(ctx context.Context, query string, engines [
 				}
 				continue
 			}
-			merged[key] = &candidate{result: result, score: score, firstSeen: item.index*100 + rank}
+			merged[key] = &candidate{result: result, score: score, firstSeen: item.index*100 + rank, relevant: relevant}
 		}
 	}
 	if len(merged) == 0 {
@@ -236,7 +241,19 @@ func (s *Service) searchWithEngines(ctx context.Context, query string, engines [
 		return nil, ErrNoResult
 	}
 	all := make([]*candidate, 0, len(merged))
+	hasRelevant := false
 	for _, item := range merged {
+		if item.relevant {
+			hasRelevant = true
+			break
+		}
+	}
+	for _, item := range merged {
+		// 只要有一路结果与问题词汇相关，就过滤掉“答非所问”的引擎结果。
+		// 如果所有结果都不含问题词，则保留原结果，避免语义搜索被误杀。
+		if hasRelevant && !item.relevant {
+			continue
+		}
 		all = append(all, item)
 	}
 	sort.SliceStable(all, func(i, j int) bool {
@@ -660,6 +677,47 @@ func resolveHrefBase(href, base string) string {
 		return ""
 	}
 	return resolveHref(baseURL.ResolveReference(ref).String())
+}
+
+var queryTermPattern = regexp.MustCompile(`[a-zA-Z0-9]{2,}|[\p{Han}]{2,}`)
+
+// queryTerms 提取用于相关性过滤的词；不追求分词精度，只挡住完全跑题的引擎结果。
+func queryTerms(query string) []string {
+	raw := strings.ToLower(query)
+	stop := map[string]struct{}{
+		"什么": {}, "怎么": {}, "多少": {}, "请问": {}, "一下": {}, "可以": {}, "需要": {},
+		"为什么": {}, "如何": {}, "是否": {}, "以及": {}, "然后": {},
+	}
+	seen := make(map[string]struct{})
+	out := make([]string, 0, 8)
+	for _, term := range queryTermPattern.FindAllString(raw, -1) {
+		if _, ok := stop[term]; ok {
+			continue
+		}
+		if len([]rune(term)) < 2 {
+			continue
+		}
+		if _, ok := seen[term]; ok {
+			continue
+		}
+		seen[term] = struct{}{}
+		out = append(out, term)
+	}
+	return out
+}
+
+// isRelevantResult 要求标题/摘要/URL 至少包含一个问题词。
+func isRelevantResult(result Result, terms []string) bool {
+	if len(terms) == 0 {
+		return true
+	}
+	haystack := strings.ToLower(result.Title + " " + result.Snippet + " " + result.URL)
+	for _, term := range terms {
+		if strings.Contains(haystack, term) {
+			return true
+		}
+	}
+	return false
 }
 
 // canonicalURL 用于 RRF 去重：忽略 fragment、tracking 参数，统一 host 大小写与 query 顺序。

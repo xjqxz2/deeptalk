@@ -275,7 +275,7 @@ data: {"assistant_message_id":12,"status":"complete","title":"..."}
 ```
 
 - 失败：`event: error` + `data: {"code":3001,"message":"可展示的中文原因"}`，随后关闭流；已插入的用户消息保留。
-- 联网检索：`web_search=true` 时先做轻量意图判断；纯问候/短句直接跳过，实质问题才发 `search` / `sources`。模型先选择来源（cn.bing / 知乎 / 搜狗 / 百度），不确定时使用全部；多引擎用加权 RRF 融合，百度权重最低。来源面板位于思考链下方；检索结果作为系统上下文注入并写入 `messages.sources_json`。
+- 联网检索：`web_search=true` 时先做轻量意图判断；纯问候/短句直接跳过，实质问题才发 `search` / `sources`。模型先选择来源（cn.bing / 知乎 / 搜狗 / 百度）；不确定时中文问题回退知乎/搜狗/百度，英文问题回退 cn.bing/知乎；多引擎用加权 RRF 融合并做问题词相关性过滤，百度权重最低。来源面板位于思考链下方；检索结果作为系统上下文注入并写入 `messages.sources_json`。
 - 图片：`attachment_ids` 在 `meta.user_message.attachments` 中回显；当前用户消息以多模态 `content` 数组发给上游；历史消息只保留文字与附件元数据，避免重复传输大图。
 - 深度思考：`deep_thinking=true` 时服务端先关闭思维链，fork 完整上下文让模型选择 `none/low/medium/high`（Auto）；短问候直接 `none`。前端只保留一个开关，不展示强度。
 - 心跳：空闲每 15s 发送 `event: ping`。

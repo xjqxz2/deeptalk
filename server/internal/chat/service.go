@@ -657,18 +657,19 @@ func (s *Service) routeReasoning(ctx context.Context, model *provider.Model, pro
 	}
 }
 
-const searchRouterPrompt = `你是 DeepTalk 的检索路由器。根据用户问题，选择最多两个最合适的搜索来源：
-- bing：通用信息、英文内容、技术文档、官网；
+const searchRouterPrompt = `你是 DeepTalk 的检索路由器。根据用户问题，选择 1–2 个最合适的搜索来源：
+- bing：英文内容、技术文档、官网、国际信息；
 - zhihu：中文经验、观点、评价、问答；
 - sogou：中文资讯、公众号、论坛；
 - baidu：中文百科/一般信息，权重最低，只在没有更合适来源时选择。
-只输出 JSON，格式：{"engines":["bing"]}。如果不确定，输出 {"engines":[]}，由系统使用全部默认来源。
+中文生活/价格/资讯问题优先 zhihu、sogou；英文或技术文档问题优先 bing、zhihu。
+必须至少选择一个来源，不要因为不确定就返回空。只输出 JSON，格式：{"engines":["zhihu","sogou"]}。
 不要输出解释、Markdown 或额外文字。`
 
 // preferredSearchEngines 让模型选择检索来源；失败或不确定时返回 nil。
 func (s *Service) preferredSearchEngines(ctx context.Context, model *provider.Model, prov *provider.Provider, query string) []string {
 	if model == nil || prov == nil {
-		return nil
+		return defaultSearchEngines(query)
 	}
 	routeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -686,7 +687,7 @@ func (s *Service) preferredSearchEngines(ctx context.Context, model *provider.Mo
 			return nil
 		})
 	if err != nil {
-		return nil
+		return defaultSearchEngines(query)
 	}
 	raw := strings.TrimSpace(output.String())
 	if start, end := strings.Index(raw, "{"), strings.LastIndex(raw, "}"); start >= 0 && end > start {
@@ -696,7 +697,7 @@ func (s *Service) preferredSearchEngines(ctx context.Context, model *provider.Mo
 		Engines []string `json:"engines"`
 	}
 	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
-		return nil
+		return defaultSearchEngines(query)
 	}
 	allowed := map[string]struct{}{"bing": {}, "zhihu": {}, "sogou": {}, "baidu": {}}
 	seen := make(map[string]struct{})
@@ -715,7 +716,21 @@ func (s *Service) preferredSearchEngines(ctx context.Context, model *provider.Mo
 			break
 		}
 	}
+	if len(out) == 0 {
+		return defaultSearchEngines(query)
+	}
 	return out
+}
+
+// defaultSearchEngines 是模型没有给出偏好时的语言兜底：
+// 中文问题优先知乎/搜狗，避免 Bing 把中文口语查询解析成英文站点；百度放最后。
+func defaultSearchEngines(query string) []string {
+	for _, r := range query {
+		if r >= 0x4e00 && r <= 0x9fff {
+			return []string{"zhihu", "sogou", "baidu"}
+		}
+	}
+	return []string{"bing", "zhihu"}
 }
 
 // shouldSearch 做一次轻量意图判断。
