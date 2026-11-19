@@ -32,6 +32,13 @@ jobs:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
 
+      # server/web/dist 是构建产物、不入库；go:embed 需要目录里有文件才能编译测试
+      - name: Prepare embedded frontend placeholders
+        run: |
+          mkdir -p server/web/dist/c server/web/dist/b
+          printf '<!doctype html><title>DeepTalk</title>\n' > server/web/dist/c/index.html
+          printf '<!doctype html><title>DeepTalk Admin</title>\n' > server/web/dist/b/index.html
+
       - name: Go test
         working-directory: server
         run: go test ./...

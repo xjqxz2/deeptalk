@@ -37,7 +37,7 @@ cp .env.production.example .env
 `.env` 至少：
 
 ```dotenv
-DEEPTALK_IMAGE=ghcr.io/owner/repo
+DEEPTALK_IMAGE=ghcr.io/xjqxz2/deeptalk
 DEEPTALK_IMAGE_TAG=v1.0.0
 DEEPTALK_SECRET=固定的长随机串
 DEEPTALK_BASE_URL=https://your-domain.example.com
@@ -134,9 +134,9 @@ GitHub Actions 会：
 
 1. 跑 Go 测试、前端 typecheck / lint / build；
 2. 构建并推送：
-   - `ghcr.io/owner/repo:v1.0.0`
-   - `ghcr.io/owner/repo:1.0.0`
-   - `ghcr.io/owner/repo:1.0`
+   - `ghcr.io/xjqxz2/deeptalk:v1.0.0`
+   - `ghcr.io/xjqxz2/deeptalk:1.0.0`
+   - `ghcr.io/xjqxz2/deeptalk:1.0`
    - 以及 `sha-<commit>` 标签；
 3. 通过 SSH 执行：
 
