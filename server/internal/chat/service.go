@@ -634,7 +634,8 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 		if titleCh != nil {
 			select {
 			case generated := <-titleCh:
-				if strings.TrimSpace(generated) != "" {
+				// 太短的标题（如“便宜好”）没有信息量，保留本地兜底
+				if len([]rune(strings.TrimSpace(generated))) >= 4 {
 					title = generated
 				}
 			case <-time.After(1200 * time.Millisecond):
@@ -715,20 +716,36 @@ func (s *Service) generate(
 				roundTools = nil
 			}
 			var calls []provider.ToolCall
+			var inline bool
+			var inlineText string
 			var err error
 			for attempt := 0; attempt < 2; attempt++ {
 				attemptStart := time.Now()
 				var used provider.CompletionUsage
+				// 有些上游（如 DSML 系模型）把工具调用写进正文，这里边流边过滤，
+				// 既不让内部标记出现在回答里，也把它们还原成标准工具调用。
+				filter := newDSMLStream(func(kind, delta string) error {
+					produced = true
+					return emitDelta(kind, delta)
+				})
 				used, calls, err = s.providers.StreamCompletionWithTools(ctx, prov, model.ModelID, history,
 					deepThinking, reasoningEffort, maxTokens, s.cfg.FirstByteTimeout, roundTools,
 					func(ev provider.StreamEvent) error {
-						kind := ev.Kind
-						if kind == "reasoning" && !deepThinking {
+						if ev.Kind == "reasoning" && !deepThinking {
 							return nil
 						}
-						produced = true
-						return emitDelta(kind, ev.Delta)
+						if ev.Kind == "reasoning" {
+							produced = true
+							return emitDelta(ev.Kind, ev.Delta)
+						}
+						return filter.Write(ev.Delta)
 					})
+				inlineCalls := filter.Finish()
+				inlineText = filter.Spoken()
+				if len(inlineCalls) > 0 && len(calls) == 0 {
+					calls = inlineCalls
+					inline = true
+				}
 				usage.PromptTokens += used.PromptTokens
 				usage.CompletionTokens += used.CompletionTokens
 				if err == nil {
@@ -755,16 +772,35 @@ func (s *Service) generate(
 			}
 			// 工具调用本身也是一次有效响应；后面失败不能再降级成演示回答
 			produced = true
-			history = append(history, provider.ChatMessage{Role: "assistant", ToolCalls: calls})
-			for _, call := range calls {
-				result, toolErr := executeTool(call)
-				if toolErr != nil {
-					if ctx.Err() != nil {
-						return usage, produced, ctx.Err()
+			if inline {
+				// 上游不认 OpenAI 的 tool_calls，就用“正文 + 工具结果”的对话方式回填，
+				// 避免第二轮因为不理解 role=tool 而答非所问。
+				history = append(history, provider.ChatMessage{Role: "assistant", Content: inlineText})
+				for _, call := range calls {
+					result, toolErr := executeTool(call)
+					if toolErr != nil {
+						if ctx.Err() != nil {
+							return usage, produced, ctx.Err()
+						}
+						result = fmt.Sprintf(`{"error":%q}`, toolErr.Error())
 					}
-					result = fmt.Sprintf(`{"error":%q}`, toolErr.Error())
+					history = append(history, provider.ChatMessage{
+						Role:    "user",
+						Content: fmt.Sprintf("我调用了工具 %s，返回结果如下：\n%s\n请基于这些结果直接回答我最初的问题。", call.Name, result),
+					})
 				}
-				history = append(history, provider.ChatMessage{Role: "tool", ToolCallID: call.ID, Content: result})
+			} else {
+				history = append(history, provider.ChatMessage{Role: "assistant", ToolCalls: calls})
+				for _, call := range calls {
+					result, toolErr := executeTool(call)
+					if toolErr != nil {
+						if ctx.Err() != nil {
+							return usage, produced, ctx.Err()
+						}
+						result = fmt.Sprintf(`{"error":%q}`, toolErr.Error())
+					}
+					history = append(history, provider.ChatMessage{Role: "tool", ToolCallID: call.ID, Content: result})
+				}
 			}
 		}
 		return usage, produced, errors.New("工具调用次数过多，请重试")

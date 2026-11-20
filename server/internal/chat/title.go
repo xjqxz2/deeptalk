@@ -10,8 +10,12 @@ import (
 
 // titlePrompt 让模型把用户问题压缩成一个短标题，风格对齐 DeepSeek：
 // 只给结论，不带引号或标点，长度控制在十来个字。
-const titlePrompt = `你是会话标题生成器。根据用户的问题，输出一个不超过 12 个字的中文标题，概括主题。
-要求：只输出标题本身；不要引号、书名号、句号、冒号；不要解释；不要以“关于”“询问”开头；不要换行。`
+const titlePrompt = `你是会话标题生成器。根据用户的问题，生成一个 6 到 14 个字的中文标题。
+要求：
+1. 只输出标题本身，一行，不要换行；
+2. 不要引号、书名号、句号、冒号、分点符号；
+3. 不要解释、不要重复问题原句、不要以“关于”“询问”开头；
+4. 概括主题而不是回答内容，例如“小红书挂商品链接流程”。`
 
 // isDefaultTitle 判断会话是否还停留在默认标题。
 func isDefaultTitle(title string) bool {
@@ -91,10 +95,9 @@ func cleanTitle(raw string) string {
 	if text == "" {
 		return ""
 	}
-	if index := strings.IndexAny(text, "\r\n"); index >= 0 {
-		text = text[:index]
-	}
-	text = strings.TrimSpace(text)
+	// 模型偶尔会分行输出（"便宜好" + 换行 + 补充说明），直接取第一行会丢掉语义，
+	// 这里把所有空白折叠成单个空格，再整体限长。
+	text = strings.Join(strings.Fields(text), " ")
 	text = strings.TrimPrefix(text, "标题：")
 	text = strings.TrimPrefix(text, "标题:")
 	// 引号和句号常常交替出现（“标题”。），反复清理直到稳定
@@ -107,7 +110,11 @@ func cleanTitle(raw string) string {
 			break
 		}
 	}
-	runes := []rune(text)
+	runes := []rune(strings.TrimSpace(text))
+	if len(runes) < 2 {
+		// 太短的结果没有信息量，交给本地兜底标题
+		return ""
+	}
 	if len(runes) > 24 {
 		runes = runes[:24]
 	}

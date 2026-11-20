@@ -158,9 +158,10 @@ func NewSharedConversation(shared chat.SharedConversation) SharedConversationRes
 // NewMessage 构造消息响应。
 func NewMessage(m chat.Message) MessageResponse {
 	return MessageResponse{
-		ID:           m.ID,
-		Role:         m.Role,
-		Content:      m.Content,
+		ID:   m.ID,
+		Role: m.Role,
+		// 历史消息可能残留上游的 DSML 工具标记，展示前统一清洗
+		Content:      chat.SanitizeDSML(m.Content),
 		Reasoning:    m.Reasoning,
 		Status:       m.Status,
 		ModelName:    m.ModelName,
