@@ -4,6 +4,32 @@
 import { BASE_URL } from '@/config/env'
 import { getToken, clearSession } from '@/store/session'
 
+// 并发请求同时 401 时只跳一次登录页，避免连续 reLaunch 把页面来回重建
+let redirecting = false
+
+/** 当前是否已经在登录页。 */
+function onLoginPage() {
+  const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+  const top = pages[pages.length - 1]
+  return Boolean(top && String(top.route || '').includes('login'))
+}
+
+/** 跳转登录页（单次）。 */
+function gotoLogin() {
+  if (redirecting || onLoginPage()) return
+  redirecting = true
+  clearSession()
+  uni.reLaunch({
+    url: '/pages/login/login',
+    fail: () => {},
+    complete: () => {
+      setTimeout(() => {
+        redirecting = false
+      }, 1000)
+    },
+  })
+}
+
 /**
  * 发起请求。
  * @param {object} options
@@ -26,8 +52,7 @@ export function request({ url, method = 'GET', data, silent = false }) {
       success: (res) => {
         const body = res.data || {}
         if (res.statusCode === 401 || body.code === 1002) {
-          clearSession()
-          uni.reLaunch({ url: '/pages/login/login' })
+          gotoLogin()
           reject(new Error(body.msg || '登录已失效，请重新登录'))
           return
         }

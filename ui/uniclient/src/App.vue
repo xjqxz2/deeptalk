@@ -8,14 +8,17 @@ import { fetchMe } from '@/api/auth'
 export default {
   onLaunch() {
     if (!isLoggedIn()) {
-      uni.reLaunch({ url: '/pages/login/login' })
+      uni.reLaunch({ url: '/pages/login/login', fail: () => {} })
       return
     }
     // 校验 token 是否还有效，并刷新额度信息
+    let redirected = false
     fetchMe()
       .then((data) => setSession(session.token, data.user))
       .catch(() => {
-        uni.reLaunch({ url: '/pages/login/login' })
+        if (redirected) return
+        redirected = true
+        uni.reLaunch({ url: '/pages/login/login', fail: () => {} })
       })
   },
 }

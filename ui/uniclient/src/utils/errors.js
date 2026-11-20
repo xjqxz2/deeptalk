@@ -11,7 +11,10 @@ export const errorState = reactive({
 
 /** 记录一条错误（重复错误只保留最新一条）。 */
 export function reportError(message, detail = '') {
-  errorState.message = String(message || '未知错误').slice(0, 200)
+  // 只展示人能看懂的错误；uni 的 {errMsg:'xxx:fail'} 之类噪声直接忽略
+  const text = typeof message === 'string' ? message.trim() : ''
+  if (!text || text === '[object Object]' || /:fail$/.test(text)) return
+  errorState.message = text.slice(0, 200)
   errorState.detail = String(detail || '').slice(0, 300)
 }
 

@@ -94,7 +94,7 @@ async function submit() {
   try {
     const data = mode.value === 'login' ? await login(email.value.trim(), password.value) : await register(email.value.trim(), password.value)
     setSession(data.token, data.user)
-    uni.reLaunch({ url: '/pages/chat/chat' })
+    uni.reLaunch({ url: '/pages/chat/chat', fail: () => {} })
   } catch (err) {
     error.value = err?.message || '操作失败，请重试'
   } finally {

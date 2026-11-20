@@ -186,7 +186,7 @@ import {
 } from '@/store/chat'
 import { chatSocket } from '@/utils/ws'
 import { uploadFile } from '@/api/http'
-import { session, clearSession } from '@/store/session'
+import { session, clearSession, isLoggedIn } from '@/store/session'
 import { errorState, clearError } from '@/utils/errors'
 import { toast, confirm } from '@/utils/ui'
 import { logout as logoutApi } from '@/api/auth'
@@ -228,8 +228,9 @@ function scrollToBottom() {
   })
 }
 
-async function onSend() {
-  const content = draft.value
+async function onSend(payload) {
+  // 输入框会带上当前真实内容；按钮点击没有参数时回退到 draft
+  const content = typeof payload === 'string' ? payload : draft.value
   if (chat.generating) return
   if (!content.trim() && !attachments.value.length) return
   draft.value = ''
@@ -374,7 +375,7 @@ async function logout() {
   chatSocket.close()
   clearSession()
   drawerOpen.value = false
-  uni.reLaunch({ url: '/pages/login/login' })
+  uni.reLaunch({ url: '/pages/login/login', fail: () => {} })
 }
 
 function loadMore() {
@@ -382,6 +383,11 @@ function loadMore() {
 }
 
 onMounted(async () => {
+  // 没登录就不发任何请求：否则会同时打出 3 个 401，进而触发多次 reLaunch
+  if (!isLoggedIn()) {
+    uni.reLaunch({ url: '/pages/login/login', fail: () => {} })
+    return
+  }
   chatSocket.connect()
   await Promise.all([loadModels(), loadConversations(), loadUsage()])
   if (chat.conversations.length) {

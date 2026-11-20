@@ -2,9 +2,9 @@
   <view class="composer">
     <view class="composer-box" @click="focusInput">
       <textarea
+        :key="inputKey"
         class="composer-input"
         :value="modelValue"
-        :focus="focused"
         :placeholder="generating ? '正在生成，可以先继续输入…' : '继续追问，或让 DeepTalk 补充更多细节…'"
         placeholder-class="composer-placeholder"
         :maxlength="8000"
@@ -12,7 +12,6 @@
         :adjust-position="true"
         confirm-type="send"
         @input="onInput"
-        @blur="focused = false"
         @keydown="onKeydown"
         @confirm="$emit('send')"
       />
@@ -37,7 +36,7 @@
 
 <script setup>
 /** 输入框：自动增高、附件、模型选择、圆形发送/停止按钮，样式对齐 Web 端手机视口。 */
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -48,17 +47,44 @@ const emit = defineEmits(['update:modelValue', 'send', 'stop', 'attach', 'pick-m
 
 const canSend = computed(() => Boolean(props.modelValue && props.modelValue.trim()))
 
-// 整块输入区可点：点空白处也能聚焦到输入框（否则只有文字那一行能点）
-const focused = ref(false)
+// 输入框的即时值：props 更新有一帧延迟，回车时要拿到真实内容
+const localValue = ref(props.modelValue || '')
 
+// 清空时换一个 key 重建 textarea：uni 的 textarea 聚焦时不会跟随 props 清空 DOM 值
+const inputKey = ref(0)
+
+watch(
+  () => props.modelValue,
+  (value) => {
+    if (value === localValue.value) return
+    localValue.value = value || ''
+    // 发送后 props 变成空串：重建 textarea，确保界面真的清空
+    if (!value) inputKey.value += 1
+  },
+)
+
+/** 当前输入内容：H5 直接读 DOM，最可靠。 */
+function currentValue() {
+  // #ifdef H5
+  const box = document.querySelector('.composer-box')
+  const field = box && box.querySelector('textarea')
+  if (field) return field.value
+  // #endif
+  return localValue.value
+}
+
+// 整块输入区可点：点空白处也能聚焦到输入框（否则只有文字那一行能点）
+/** 点输入框空白处也能聚焦。直接用原生 focus，不走响应式 prop（否则会自激）。 */
 function focusInput() {
-  focused.value = false
-  setTimeout(() => {
-    focused.value = true
-  }, 0)
+  // #ifdef H5
+  const box = document.querySelector('.composer-box')
+  const field = box && box.querySelector('textarea')
+  if (field && document.activeElement !== field) field.focus()
+  // #endif
 }
 
 function onInput(event) {
+  localValue.value = event.detail.value
   emit('update:modelValue', event.detail.value)
 }
 
@@ -70,7 +96,8 @@ function onKeydown(event) {
   const key = event?.key
   if (key !== 'Enter' || event.shiftKey || event.isComposing) return
   if (event.preventDefault) event.preventDefault()
-  if (props.modelValue && props.modelValue.trim()) emit('send')
+  const value = currentValue()
+  if (value && value.trim()) emit('send', value)
 }
 </script>
 
