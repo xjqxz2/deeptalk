@@ -7,6 +7,7 @@ import DOMPurify from 'dompurify'
 import hljs from 'highlight.js'
 import MarkdownIt from 'markdown-it'
 import 'highlight.js/styles/github-dark.css'
+import type { SearchSource } from './types'
 
 /** markdown-it 实例；html:false 从源头阻止原始 HTML。 */
 const md = new MarkdownIt({
@@ -71,6 +72,35 @@ md.renderer.rules.fence = (tokens, idx) => {
   ].join('')
 }
 
+/**
+ * 把模型输出的 [1]、[2] 转成可点击的引用上标。
+ * 只在当前消息确实有 sources 时生效；代码块和普通链接不会被误伤。
+ */
+md.inline.ruler.before('link', 'citation', (state, silent) => {
+  if (state.src.charCodeAt(state.pos) !== 0x5b) return false
+  const match = /^\[(\d{1,2})\]/.exec(state.src.slice(state.pos))
+  if (!match) return false
+  const after = state.src[state.pos + match[0].length]
+  if (after === '(' || after === '[' || after === ':') return false
+  const sources = (state.env as { sources?: SearchSource[] }).sources ?? []
+  const index = Number(match[1]) - 1
+  const source = sources[index]
+  if (!source?.url) return false
+  if (!silent) {
+    const token = state.push('citation', '', 0)
+    token.meta = { index, source }
+  }
+  state.pos += match[0].length
+  return true
+})
+
+md.renderer.rules.citation = (tokens, idx) => {
+  const { index, source } = tokens[idx].meta as { index: number; source: SearchSource }
+  const title = md.utils.escapeHtml(source.title || source.url)
+  const url = md.utils.escapeHtml(source.url)
+  return `<sup class="dt-cite"><a href="${url}" target="_blank" rel="noopener noreferrer" title="${title}">${index + 1}</a></sup>`
+}
+
 /** 外链统一新窗口打开，并补 rel 防止 opener 攻击。 */
 md.renderer.rules.link_open = (tokens, idx, options, _env, self) => {
   const token = tokens[idx]
@@ -80,9 +110,9 @@ md.renderer.rules.link_open = (tokens, idx, options, _env, self) => {
 }
 
 /** 渲染 Markdown 为可安全插入的 HTML。 */
-export function renderMarkdown(text: string): string {
+export function renderMarkdown(text: string, sources: SearchSource[] = []): string {
   if (!text) return ''
-  const html = md.render(text)
+  const html = md.render(text, { sources })
   return DOMPurify.sanitize(html, {
     ADD_ATTR: ['target', 'rel'],
     FORBID_TAGS: ['style', 'form', 'input', 'iframe', 'object', 'embed'],

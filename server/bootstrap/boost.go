@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"deeptalk/internal/mcp"
+
 	"gorm.io/gorm"
 )
 
@@ -17,6 +19,7 @@ type App struct {
 	Config *Config      // 生效配置
 	Log    *slog.Logger // 结构化日志
 	DB     *gorm.DB     // 数据库句柄
+	MCP    *mcp.Client  // MCP client；未启用或启动失败时为 nil
 	server *httpServer  // HTTP 设备
 	cfgDir string       // 配置文件目录
 }
@@ -35,7 +38,7 @@ type Boost struct {
 	started int    // 已成功启动的步骤数
 }
 
-// New 创建启动器；Add 顺序即启动顺序：配置 -> 日志 -> 数据库 -> HTTP。
+// New 创建启动器；Add 顺序即启动顺序：配置 -> 日志 -> 数据库 -> MCP -> HTTP。
 func New() *Boost {
 	app := &App{cfgDir: configDir()}
 	boost := &Boost{app: app}
@@ -43,6 +46,7 @@ func New() *Boost {
 		{name: "config", start: app.startConfig},
 		{name: "logger", start: app.startLogger},
 		{name: "database", start: app.startDatabase, stop: app.stopDatabase},
+		{name: "mcp", start: app.startMCP, stop: app.stopMCP},
 		{name: "http", start: app.startHTTP, stop: app.stopHTTP},
 	}
 	return boost

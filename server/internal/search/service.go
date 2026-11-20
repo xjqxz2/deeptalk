@@ -1,6 +1,6 @@
 // Package search 提供联网检索能力。
-// 检索页面由 Obscura 无头浏览器抓取，Obscura 不可用时可按配置回退到普通 HTTP；
-// 返回结果只包含标题、链接与摘要，不把原始 HTML 暴露给上层。
+// 检索页面优先由 Obscura MCP 的浏览器工具抓取；MCP 不可用时回退 Obscura CLI，
+// 最后才走普通 HTTP。返回结果只包含标题、链接与摘要，不把原始 HTML 暴露给上层。
 package search
 
 import (
@@ -44,6 +44,12 @@ type Page struct {
 	Content string `json:"content"`
 }
 
+// ToolCaller 是检索服务消费的 MCP 能力，定义在消费方以便测试替换。
+type ToolCaller interface {
+	HasTool(name string) bool
+	CallTool(ctx context.Context, name string, args any) (string, error)
+}
+
 // Engine 是一路搜索来源。
 type Engine struct {
 	Name   string  // bing / zhihu / sogou / baidu
@@ -63,12 +69,15 @@ type Config struct {
 	HTTPFallback bool          // Obscura 失败时是否允许普通 HTTP 抓取
 	Stealth      bool          // 是否启用 Obscura 反检测模式
 	UserAgent    string        // HTTP 回退时使用的浏览器 UA
+	MCP          ToolCaller    // Obscura MCP client；为 nil 时走本地检索链路
 }
 
 // Service 是联网检索服务。
 type Service struct {
 	cfg    Config
 	client *http.Client
+	// Obscura MCP 只有一个活动页面；navigate + evaluate 必须原子执行。
+	mcpMu sync.Mutex
 }
 
 // New 创建检索服务；配置不完整时返回 nil，调用方应按“未启用”处理。
@@ -205,12 +214,7 @@ func (s *Service) FetchPages(ctx context.Context, rawURLs []string) ([]Page, err
 				results <- pageResult{err: ctx.Err()}
 				return
 			}
-			raw, err := s.fetchWithObscura(ctx, target)
-			if (err != nil || len(raw) == 0) && s.cfg.HTTPFallback {
-				if httpRaw, httpErr := s.fetchHTTP(ctx, target); httpErr == nil {
-					raw, err = httpRaw, nil
-				}
-			}
+			raw, err := s.fetchPage(ctx, target)
 			if err != nil {
 				results <- pageResult{err: err}
 				return
@@ -414,15 +418,10 @@ func (s *Service) searchWithEngines(ctx context.Context, query string, engines [
 	return out, nil
 }
 
-// searchEngine 调用 Obscura；失败且允许回退时再走普通 HTTP。
+// searchEngine 优先用 Obscura MCP 浏览器打开搜索页，再复用现有解析与排序；
+// MCP 无法启动时退回 Obscura CLI，最后才走普通 HTTP。
 func (s *Service) searchEngine(ctx context.Context, engine Engine, target string) ([]Result, error) {
-	var (
-		raw []byte
-		err error
-	)
-	if s.cfg.ObscuraBin != "" {
-		raw, err = s.fetchWithObscura(ctx, target)
-	}
+	raw, err := s.fetchPage(ctx, target)
 	if err == nil && len(raw) > 0 {
 		if items := parseEngine(engine.Name, raw, s.cfg.MaxResults, engine.URL); len(items) > 0 {
 			return items, nil
@@ -438,7 +437,7 @@ func (s *Service) searchEngine(ctx context.Context, engine Engine, target string
 	raw, httpErr := s.fetchHTTP(ctx, target)
 	if httpErr != nil {
 		if err != nil {
-			return nil, fmt.Errorf("obscura: %v; http: %w", err, httpErr)
+			return nil, fmt.Errorf("mcp/obscura: %v; http: %w", err, httpErr)
 		}
 		return nil, httpErr
 	}
@@ -447,6 +446,78 @@ func (s *Service) searchEngine(ctx context.Context, engine Engine, target string
 		return nil, ErrNoResult
 	}
 	return items, nil
+}
+
+// fetchPage 按 MCP -> Obscura CLI -> HTTP 的顺序取页面，返回第一个成功结果。
+func (s *Service) fetchPage(ctx context.Context, target string) ([]byte, error) {
+	var errs []string
+	if s.cfg.MCP != nil && s.cfg.MCP.HasTool("browser_navigate") && s.cfg.MCP.HasTool("browser_evaluate") {
+		// MCP 只有一个活动页面。拿不到锁时不要排队，直接走 CLI/HTTP，
+		// 既保留并发搜索，也避免一个慢页面拖住所有引擎。
+		if s.mcpMu.TryLock() {
+			raw, err := s.fetchWithMCPUnlocked(ctx, target)
+			s.mcpMu.Unlock()
+			if err == nil && len(raw) > 0 {
+				return raw, nil
+			}
+			if err != nil {
+				errs = append(errs, "mcp: "+err.Error())
+			}
+		}
+	}
+	if s.cfg.ObscuraBin != "" {
+		raw, err := s.fetchWithObscura(ctx, target)
+		if err == nil && len(raw) > 0 {
+			return raw, nil
+		}
+		if err != nil {
+			errs = append(errs, "obscura: "+err.Error())
+		}
+	}
+	if s.cfg.HTTPFallback {
+		raw, err := s.fetchHTTP(ctx, target)
+		if err == nil && len(raw) > 0 {
+			return raw, nil
+		}
+		if err != nil {
+			errs = append(errs, "http: "+err.Error())
+		}
+	}
+	if len(errs) == 0 {
+		errs = append(errs, "no fetch backend available")
+	}
+	return nil, errors.New(strings.Join(errs, "; "))
+}
+
+// fetchWithMCP 通过 Obscura MCP 的浏览器工具取得渲染后的 HTML。
+func (s *Service) fetchWithMCP(ctx context.Context, target string) ([]byte, error) {
+	s.mcpMu.Lock()
+	defer s.mcpMu.Unlock()
+	return s.fetchWithMCPUnlocked(ctx, target)
+}
+
+// fetchWithMCPUnlocked 要求调用方已持有 mcpMu，保证 navigate + evaluate 原子执行。
+func (s *Service) fetchWithMCPUnlocked(ctx context.Context, target string) ([]byte, error) {
+	if s.cfg.MCP == nil {
+		return nil, errors.New("mcp is not configured")
+	}
+	if _, err := s.cfg.MCP.CallTool(ctx, "browser_navigate", map[string]any{
+		"url":       target,
+		"waitUntil": "domcontentloaded",
+	}); err != nil {
+		return nil, err
+	}
+	raw, err := s.cfg.MCP.CallTool(ctx, "browser_evaluate", map[string]any{
+		"expression": "document.documentElement.outerHTML",
+		"timeoutMs":  8000,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(raw) == "" {
+		return nil, ErrNoResult
+	}
+	return []byte(raw), nil
 }
 
 // normalizeQuery 去掉“联网查一下关于”等口语前缀，避免搜索引擎把整句话当成关键词。

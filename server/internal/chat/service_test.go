@@ -1,8 +1,11 @@
 package chat
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
+
+	"deeptalk/internal/search"
 )
 
 // TestGenerateTitle 校验自动标题的长度与口语前缀清理。
@@ -72,5 +75,29 @@ func TestShouldSearch(t *testing.T) {
 		if got := shouldThink(item.query); got != item.want {
 			t.Fatalf("shouldThink(%q) = %v, want %v", item.query, got, item.want)
 		}
+	}
+}
+
+// TestSearchToolPayloadKeepsCitationIDsStable 锁定 sources[].id 与 sources_json 的顺序。
+func TestSearchToolPayloadKeepsCitationIDsStable(t *testing.T) {
+	raw := searchToolPayload([]search.Result{
+		{Title: "A", URL: "https://example.com/a", Snippet: "first"},
+		{Title: "B", URL: "https://example.com/b", Snippet: "second"},
+	}, map[string]any{"pages": []search.Page{}})
+	var payload struct {
+		Sources []struct {
+			ID  int    `json:"id"`
+			URL string `json:"url"`
+		} `json:"sources"`
+		CitationRule string `json:"citation_rule"`
+	}
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		t.Fatalf("unmarshal payload: %v", err)
+	}
+	if len(payload.Sources) != 2 || payload.Sources[0].ID != 1 || payload.Sources[1].ID != 2 {
+		t.Fatalf("unexpected sources: %+v", payload.Sources)
+	}
+	if !strings.Contains(payload.CitationRule, "[1]") {
+		t.Fatalf("missing citation rule: %q", payload.CitationRule)
 	}
 }

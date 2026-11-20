@@ -8,12 +8,8 @@ import {
   CheckOutlined,
   CopyOutlined,
   DislikeOutlined,
-  DownOutlined,
-  GlobalOutlined,
   LikeOutlined,
-  LoadingOutlined,
   ReloadOutlined,
-  UpOutlined,
   WarningOutlined,
 } from '@ant-design/icons-vue'
 import { BrandMark, copyText, enhanceMarkdown, formatNumber, formatTime, renderMarkdown } from '@deeptalk/shared'
@@ -31,17 +27,15 @@ const emit = defineEmits<{
 const proseRef = ref<HTMLElement | null>(null)
 /** 复制成功后的短暂状态。 */
 const copied = ref(false)
-/** 联网来源面板是否展开。 */
-const sourcesOpen = ref(false)
 
-/** 渲染后的安全 HTML。 */
-const html = computed(() => renderMarkdown(props.message.content))
+/** 联网检索来源。 */
+const sources = computed(() => props.message.sources ?? [])
+/** 渲染后的安全 HTML；正文里的 [1] 会按来源列表变成可点击上标。 */
+const html = computed(() => renderMarkdown(props.message.content, sources.value))
 /** 是否处于生成中。 */
 const streaming = computed(() => props.message.status === 'streaming')
 /** 字数展示：优先使用服务端统计。 */
 const characterCount = computed(() => props.message.character_count ?? props.message.content.length)
-/** 联网检索来源。 */
-const sources = computed(() => props.message.sources ?? [])
 /** 用户消息附带的图片。 */
 const userAttachments = computed(() => (props.message.role === 'user' ? (props.message.attachments ?? []) : []))
 /** 是否展示操作栏。 */
@@ -50,8 +44,6 @@ const hasActions = computed(
     props.message.content.length > 0 ||
     props.message.reasoning.length > 0 ||
     Boolean(props.message.error) ||
-    sources.value.length > 0 ||
-    Boolean(props.message.searching) ||
     props.message.status === 'stopped' ||
     props.message.status === 'error',
 )
@@ -112,7 +104,7 @@ watch(html, () => {
         <div class="assistant-head">
           <span class="assistant-name">DeepTalk</span>
           <span class="assistant-model">
-            {{ message.model_name || 'DeepSeek' }}<template v-if="message.reasoning"> · 深度思考</template>
+            {{ message.model_name || 'DeepSeek' }}
           </span>
         </div>
 
@@ -122,33 +114,6 @@ watch(html, () => {
           :streaming="streaming"
           :duration-ms="message.duration_ms"
         />
-
-        <div v-if="message.searching" class="searching">
-          <LoadingOutlined spin />
-          正在联网搜索…
-        </div>
-
-        <div v-if="sources.length" class="sources">
-          <button
-            type="button"
-            class="sources-head"
-            :aria-expanded="sourcesOpen"
-            @click="sourcesOpen = !sourcesOpen"
-          >
-            <GlobalOutlined />
-            <span>联网搜索 · {{ sources.length }} 个来源</span>
-            <UpOutlined v-if="sourcesOpen" />
-            <DownOutlined v-else />
-          </button>
-          <ol v-if="sourcesOpen">
-            <li v-for="source in sources" :key="source.url">
-              <a :href="source.url" target="_blank" rel="noopener noreferrer">
-                {{ source.title || source.url }}
-              </a>
-              <p v-if="source.snippet">{{ source.snippet }}</p>
-            </li>
-          </ol>
-        </div>
 
         <div v-if="message.notice" class="dt-inline-notice notice">
           <WarningOutlined />
@@ -300,77 +265,6 @@ watch(html, () => {
 
 .prose {
   min-width: 0;
-}
-
-.searching {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 2px 0 10px;
-  color: var(--dt-brand);
-  font-size: 12px;
-}
-
-.sources {
-  margin: 4px 0 12px;
-  border: 1px solid var(--dt-line);
-  border-radius: 10px;
-  background: #fbfcff;
-  overflow: hidden;
-}
-
-.sources-head {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  width: 100%;
-  padding: 9px 12px;
-  border: 0;
-  background: transparent;
-  color: var(--dt-text-muted);
-  font-size: 11.5px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.sources-head .anticon:last-child {
-  margin-left: auto;
-}
-
-.sources-head:hover {
-  color: var(--dt-brand-hover);
-}
-
-.sources ol {
-  margin: 0;
-  padding: 0 12px 10px 30px;
-  border-top: 1px solid #eef1f7;
-  list-style: decimal;
-}
-
-.sources li {
-  padding: 7px 0 0;
-  color: var(--dt-text-muted);
-}
-
-.sources a {
-  color: var(--dt-brand-hover);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 18px;
-  text-decoration: none;
-  word-break: break-all;
-}
-
-.sources a:hover {
-  text-decoration: underline;
-}
-
-.sources p {
-  margin: 3px 0 0;
-  color: var(--dt-text-faint);
-  font-size: 11px;
-  line-height: 17px;
 }
 
 .typing {

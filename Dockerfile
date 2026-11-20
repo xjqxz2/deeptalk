@@ -100,6 +100,7 @@ ENV HOME=/app \
     DEEPTALK_SEED=true \
     DEEPTALK_SEARCH_ENABLED=true \
     DEEPTALK_OBSCURA_BIN=obscura \
+    DEEPTALK_MCP_ENABLED=true \
     DEEPTALK_UPLOAD_DIR=/app/data/uploads
 
 VOLUME ["/app/data"]

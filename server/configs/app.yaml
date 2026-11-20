@@ -102,3 +102,13 @@ web_search:
   http_fallback: true
   # 是否启用 Obscura 反检测模式；默认关闭以降低延迟
   stealth: false
+
+mcp:
+  # 使用 Obscura 的 stdio MCP server；启动失败时自动回退到现有本地检索链路
+  enabled: true
+  command: obscura
+  args:
+    - mcp
+  # Obscura 0.2.x 支持的协议版本
+  protocol_version: "2024-11-05"
+  timeout_sec: 30

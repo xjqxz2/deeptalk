@@ -23,6 +23,7 @@ type Config struct {
 	CORS      CORSConfig      `yaml:"cors"`       // 跨域来源
 	Upstream  UpstreamConfig  `yaml:"upstream"`   // 上游模型调用策略
 	WebSearch WebSearchConfig `yaml:"web_search"` // 联网检索策略
+	MCP       MCPConfig       `yaml:"mcp"`        // MCP client（当前对接 Obscura）
 	Uploads   UploadsConfig   `yaml:"uploads"`    // 图片附件存储
 	Context   ContextConfig   `yaml:"context"`    // 长上下文压缩
 }
@@ -97,6 +98,17 @@ type WebSearchConfig struct {
 	TimeoutSec   int                  `yaml:"timeout_sec"`   // 单次检索超时（秒）
 	HTTPFallback bool                 `yaml:"http_fallback"` // Obscura 失败时是否允许 HTTP 回退
 	Stealth      bool                 `yaml:"stealth"`       // 是否启用 Obscura 反检测
+}
+
+// MCPConfig 保存 stdio MCP server 的启动参数。
+// 当前只连接一个 server（Obscura），后续需要多 server 时再扩展为列表。
+type MCPConfig struct {
+	Enabled         bool              `yaml:"enabled"`          // 是否启用 MCP client
+	Command         string            `yaml:"command"`          // MCP server 可执行文件
+	Args            []string          `yaml:"args"`             // 启动参数
+	Env             map[string]string `yaml:"env"`              // 追加/覆盖子进程环境变量
+	ProtocolVersion string            `yaml:"protocol_version"` // MCP 协议版本
+	TimeoutSec      int               `yaml:"timeout_sec"`      // 连接与单次工具调用超时
 }
 
 // UploadsConfig 保存图片附件配置。
@@ -228,6 +240,20 @@ func applyEnvOverrides(cfg *Config) {
 			cfg.WebSearch.TimeoutSec = n
 		}
 	}
+	if v := os.Getenv("DEEPTALK_MCP_ENABLED"); v != "" {
+		cfg.MCP.Enabled = v == "true" || v == "1"
+	}
+	if v := os.Getenv("DEEPTALK_MCP_COMMAND"); v != "" {
+		cfg.MCP.Command = v
+	}
+	if v := os.Getenv("DEEPTALK_MCP_PROTOCOL_VERSION"); v != "" {
+		cfg.MCP.ProtocolVersion = v
+	}
+	if v := os.Getenv("DEEPTALK_MCP_TIMEOUT_SEC"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.MCP.TimeoutSec = n
+		}
+	}
 }
 
 // validateConfig 校验启动必需项，任何一项不合法都直接失败。
@@ -303,6 +329,24 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.WebSearch.TimeoutSec > 45 {
 		cfg.WebSearch.TimeoutSec = 45
+	}
+	if cfg.MCP.Command == "" {
+		cfg.MCP.Command = "obscura"
+	}
+	if len(cfg.MCP.Args) == 0 {
+		cfg.MCP.Args = []string{"mcp"}
+	}
+	if cfg.MCP.ProtocolVersion == "" {
+		cfg.MCP.ProtocolVersion = "2024-11-05"
+	}
+	if cfg.MCP.TimeoutSec <= 0 {
+		cfg.MCP.TimeoutSec = 30
+	}
+	if cfg.MCP.TimeoutSec > 120 {
+		cfg.MCP.TimeoutSec = 120
+	}
+	if cfg.MCP.Env == nil {
+		cfg.MCP.Env = make(map[string]string)
 	}
 	if cfg.Uploads.Dir == "" {
 		cfg.Uploads.Dir = "data/uploads"

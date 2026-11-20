@@ -48,8 +48,8 @@ const seconds = computed(() => {
 
 /** 折叠态标题。 */
 const label = computed(() => {
-  if (props.streaming) return '正在深度思考…'
-  return `已深度思考 ${seconds.value} 秒`
+  if (props.streaming) return '正在思考…'
+  return `已思考 ${seconds.value} 秒`
 })
 </script>
 

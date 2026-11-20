@@ -45,6 +45,11 @@ func (a *App) startHTTP(ctx context.Context) error {
 	for _, item := range cfg.WebSearch.Engines {
 		engines = append(engines, search.Engine{Name: item.Name, URL: item.URL, Weight: item.Weight})
 	}
+	// nil interface 与 nil 指针不同：MCP 未启用时保持接口为 nil，检索服务才走本地引擎
+	var mcpCaller search.ToolCaller
+	if a.MCP != nil {
+		mcpCaller = a.MCP
+	}
 	searcher := search.New(search.Config{
 		Enabled:      cfg.WebSearch.Enabled,
 		ObscuraBin:   cfg.WebSearch.ObscuraBin,
@@ -55,6 +60,7 @@ func (a *App) startHTTP(ctx context.Context) error {
 		Timeout:      time.Duration(cfg.WebSearch.TimeoutSec) * time.Second,
 		HTTPFallback: cfg.WebSearch.HTTPFallback,
 		Stealth:      cfg.WebSearch.Stealth,
+		MCP:          mcpCaller,
 	})
 	chats := chat.NewService(a.DB, providers, users, searcher, attachments, settings, chat.Config{
 		MaxOutputTokens:  cfg.Upstream.MaxOutputTokens,

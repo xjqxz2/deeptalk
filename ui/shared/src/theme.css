@@ -218,6 +218,33 @@ a:hover {
   text-underline-offset: 3px;
 }
 
+/* 正文引用上标：编号对应 messages.sources，点击打开原网页 */
+.dt-cite {
+  margin-left: 1px;
+  font-size: 0.74em;
+  line-height: 0;
+  vertical-align: 0.25em;
+}
+
+.dt-cite a {
+  display: inline-block;
+  min-width: 14px;
+  padding: 1px 3px;
+  border-radius: 4px;
+  background: var(--dt-brand-soft);
+  color: var(--dt-brand-hover);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 14px;
+  text-align: center;
+  text-decoration: none;
+}
+
+.dt-cite a:hover {
+  background: #dce5ff;
+  color: var(--dt-brand-active);
+}
+
 .dt-prose blockquote {
   margin: 12px 0;
   padding: 8px 14px;
