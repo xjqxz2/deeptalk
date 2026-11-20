@@ -264,7 +264,11 @@ a:hover {
 }
 
 .dt-prose table {
+  /* 宽表格自己横向滚动，避免把整页撑出横向滚动条 */
+  display: block;
   width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
   border-collapse: collapse;
   margin: 12px 0;
   font-size: 12.6px;

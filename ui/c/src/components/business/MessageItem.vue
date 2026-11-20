@@ -114,16 +114,18 @@ watch(html, () => {
     </template>
 
     <template v-else>
-      <div class="assistant-avatar">
-        <BrandMark :size="24" :radius="7" />
-      </div>
-      <div class="assistant-main">
+      <div class="assistant-head-row">
+        <div class="assistant-avatar">
+          <BrandMark :size="24" :radius="7" />
+        </div>
         <div class="assistant-head">
           <span class="assistant-name">DeepTalk</span>
           <span class="assistant-model">
             {{ message.model_name || 'DeepSeek' }}
           </span>
         </div>
+      </div>
+      <div class="assistant-main">
 
         <ThinkingPanel
           v-if="message.reasoning || thinkingActivity || viewedSources.length"
@@ -253,19 +255,45 @@ watch(html, () => {
 }
 
 .message.assistant {
-  align-items: flex-start;
-  gap: 12px;
+  /* 用 grid 而不是 flex：桌面上头像占第一列、正文缩进；
+     移动端让头部与正文都跨满整行，正文才不会整体偏右。 */
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  column-gap: 12px;
+  align-items: start;
   padding: 10px 0 24px;
 }
 
+.assistant-head-row {
+  display: contents;
+}
+
 .assistant-avatar {
-  flex: 0 0 auto;
   margin-top: 1px;
 }
 
 .assistant-main {
-  flex: 1;
+  grid-column: 2;
   min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .message.assistant {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 6px;
+  }
+
+  /* 手机上把头像和模型名并成一行，正文接着占满整宽，视觉上左右对称 */
+  .assistant-head-row {
+    display: flex;
+    grid-column: 1 / -1;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .assistant-main {
+    grid-column: 1 / -1;
+  }
 }
 
 .assistant-head {
