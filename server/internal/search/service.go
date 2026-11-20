@@ -303,6 +303,21 @@ func (s *Service) searchWithEngines(ctx context.Context, query string, engines [
 	if query == "" {
 		return nil, errors.New("search query is empty")
 	}
+	// 口语化问句常常一条结果都捡不到；用关键词化的说法再试一次，
+	// 避免把“搜索没用”直接甩给用户。
+	results, err := s.runEngines(ctx, query, engines)
+	if len(results) == 0 {
+		if alt := keywordize(query); alt != "" && alt != query {
+			if retry, retryErr := s.runEngines(ctx, alt, engines); len(retry) > 0 {
+				return retry, retryErr
+			}
+		}
+	}
+	return results, err
+}
+
+// runEngines 用给定检索词跑一轮多引擎融合。
+func (s *Service) runEngines(ctx context.Context, query string, engines []Engine) ([]Result, error) {
 	runes := []rune(query)
 	if len(runes) > 200 {
 		query = string(runes[:200])
@@ -351,6 +366,7 @@ func (s *Service) searchWithEngines(ctx context.Context, query string, engines [
 		score     float64
 		firstSeen int
 		relevant  bool
+		matches   float64 // 命中的问题词加权分，用于把跑题结果压到后面
 	}
 	terms := queryTerms(query)
 	merged := make(map[string]*candidate)
@@ -369,11 +385,15 @@ func (s *Service) searchWithEngines(ctx context.Context, query string, engines [
 			if key == "" {
 				continue
 			}
-			relevant := isRelevantResult(result, terms)
+			hits := termMatchScore(result, terms)
+			relevant := hits > 0 && hits >= relevantThreshold(terms)
 			score := item.engine.Weight / (60 + float64(rank+1))
 			if current, ok := merged[key]; ok {
 				current.score += score
 				current.relevant = current.relevant || relevant
+				if hits > current.matches {
+					current.matches = hits
+				}
 				if current.result.Snippet == "" && result.Snippet != "" {
 					current.result.Snippet = result.Snippet
 				}
@@ -382,7 +402,7 @@ func (s *Service) searchWithEngines(ctx context.Context, query string, engines [
 				}
 				continue
 			}
-			merged[key] = &candidate{result: result, score: score, firstSeen: item.index*100 + rank, relevant: relevant}
+			merged[key] = &candidate{result: result, score: score, firstSeen: item.index*100 + rank, relevant: relevant, matches: hits}
 		}
 	}
 	if len(merged) == 0 {
@@ -410,6 +430,11 @@ func (s *Service) searchWithEngines(ctx context.Context, query string, engines [
 		}
 	}
 	sort.SliceStable(all, func(i, j int) bool {
+		// 先看命中问题词的数量，再看多引擎融合分：
+		// 这样“只蹭到一个‘今天’”的黄历页不会挤掉真正的行情页。
+		if all[i].matches != all[j].matches {
+			return all[i].matches > all[j].matches
+		}
 		if all[i].score == all[j].score {
 			return all[i].firstSeen < all[j].firstSeen
 		}
@@ -539,6 +564,8 @@ func normalizeQuery(query string) string {
 		"帮我查一下关于", "帮我查一下", "帮我搜索一下", "帮我搜一下",
 		"搜索一下关于", "搜索一下", "查一下关于", "查一下",
 		"联网搜索一下", "联网搜索", "搜索关于", "搜索",
+		"我想知道", "想知道", "查一查", "搜一搜", "找一下", "看一下",
+		"请问", "帮我", "帮忙", "麻烦",
 	}
 	for _, prefix := range prefixes {
 		if strings.HasPrefix(query, prefix) {
@@ -547,6 +574,53 @@ func normalizeQuery(query string) string {
 		}
 	}
 	query = strings.TrimSpace(strings.TrimLeft(query, "：:，,。！？!? "))
+	query = stripQueryFillers(query)
+	return query
+}
+
+// queryFillers 是口语化的填充词。它们几乎不携带检索意图，却会让搜索引擎
+// 抓到“现在北京时间”“今日头条”这类无关页面，所以送去检索前直接删掉。
+// 注意保留“今天/今年/最近/本周”等时间限定词，它们对时效性问题有用。
+var queryFillers = []string{
+	"现在", "目前", "刚刚", "刚才", "请问", "麻烦", "帮我", "帮忙",
+	"我想知道", "想知道", "能不能", "可不可以", "是否", "一下子",
+	"查一下", "搜一下", "看一下", "找一下", "告诉我",
+}
+
+// queryParticles 是句法助词。它们单独出现时价值很低，但在词中间可能是实词的一部分。
+// 只有在首次检索无结果时，才把它们替换成空格做“关键词化”重试。
+const queryParticles = "的了着过在是有和与及或也都就还很太吧啊呀吗呢"
+
+// keywordize 把自然语言问句压成关键词串，用于无结果时的兜底重试。
+// 例：「股市在涨的股票」→「股市 涨 股票」
+func keywordize(query string) string {
+	var b strings.Builder
+	for _, r := range query {
+		if strings.ContainsRune(queryParticles, r) || r == '，' || r == '。' || r == '、' || r == '？' || r == '！' {
+			b.WriteRune(' ')
+			continue
+		}
+		b.WriteRune(r)
+	}
+	out := strings.Join(strings.Fields(b.String()), " ")
+	if len([]rune(strings.ReplaceAll(out, " ", ""))) < 2 {
+		return ""
+	}
+	return out
+}
+
+// stripQueryFillers 删除填充词并规范化空白与结尾语气词。
+func stripQueryFillers(query string) string {
+	for _, filler := range queryFillers {
+		query = strings.ReplaceAll(query, filler, " ")
+	}
+	// 句末语气词与问号对检索没有帮助
+	query = strings.TrimRight(query, "吗呢吧啊呀的了 　\t")
+	query = strings.Join(strings.Fields(query), " ")
+	if len([]rune(query)) < 2 {
+		// 清理后不成词（例如整句都是填充词）就退回原文，避免发出空检索
+		return strings.TrimSpace(query)
+	}
 	return query
 }
 
@@ -945,6 +1019,50 @@ func queryTerms(query string) []string {
 		out = append(out, term)
 	}
 	return out
+}
+
+// lowValueTerms 是“蹭热度”的词：几乎每个页面都有，单独命中说明不了相关性。
+// 这类词仍参与检索（时间限定对搜索本身有用），但计分权重很低。
+var lowValueTerms = map[string]struct{}{
+	"今天": {}, "今日": {}, "现在": {}, "目前": {}, "最新": {},
+	"热点": {}, "热门": {}, "新闻": {}, "资讯": {}, "消息": {},
+}
+
+// termWeight 返回一个词的相关性权重。
+func termWeight(term string) float64 {
+	if _, ok := lowValueTerms[term]; ok {
+		return 0.25
+	}
+	return 1
+}
+
+// termMatchScore 计算结果命中问题词的加权分。
+func termMatchScore(result Result, terms []string) float64 {
+	if len(terms) == 0 {
+		return 1
+	}
+	haystack := strings.ToLower(result.Title + " " + result.Snippet + " " + result.URL)
+	score := 0.0
+	for _, term := range terms {
+		if strings.Contains(haystack, term) {
+			score += termWeight(term)
+		}
+	}
+	return score
+}
+
+// relevantThreshold 决定“算相关”的分数线：
+// 至少要命中一个实词；如果整句都是“今天/新闻”这类词，则放宽到命中一半即可。
+func relevantThreshold(terms []string) float64 {
+	total := 0.0
+	for _, term := range terms {
+		total += termWeight(term)
+	}
+	half := total / 2
+	if half < 1 {
+		return half
+	}
+	return 1
 }
 
 // isRelevantResult 要求标题/摘要/URL 至少包含一个问题词。
