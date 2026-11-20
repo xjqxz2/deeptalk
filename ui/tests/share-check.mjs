@@ -110,3 +110,64 @@ if (!(await shared.locator('.share-state').innerText()).includes('失效')) thro
 console.log(JSON.stringify({ refsText, refLinks, link, errors }))
 await browser.close()
 if (errors.length) process.exitCode = 1
+
+// 5. 长对话必须能滚动到最底部（body 在桌面端是 overflow:hidden）
+{
+  const longMessages = [
+    ...messages,
+    ...Array.from({ length: 8 }, (_, i) => ({
+      id: 100 + i,
+      role: 'assistant',
+      content: `这是第 ${i + 1} 段很长的回答。`.repeat(30),
+      reasoning: '',
+      status: 'complete',
+      model_name: 'DeepSeek-V4',
+      input_tokens: 1,
+      output_tokens: 1,
+      duration_ms: 1000,
+      feedback: '',
+      sources: [],
+      attachments: [],
+      created_at: '2026-11-20T10:00:02+08:00',
+    })),
+  ]
+  const scrollBrowser = await chromium.launch({ executablePath, args: ['--no-sandbox'] })
+  const scrollContext = await scrollBrowser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'zh-CN' })
+  await scrollContext.route('**/api/v1/**', async (route) => {
+    const p = new URL(route.request().url()).pathname
+    if (p.includes('/c/public/shares/')) {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ code: 0, msg: 'ok', data: { title: '很长的分享', owner: '分享者', shared_at: '2026-11-20T10:05:00+08:00', messages: longMessages } }),
+      })
+    }
+    return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ code: 1002, msg: 'login required', data: null }) })
+  })
+  const scrollPage = await scrollContext.newPage()
+  await scrollPage.goto(`${base}/s/long`, { waitUntil: 'networkidle' })
+  await scrollPage.waitForSelector('.share-title-block')
+  const metrics = await scrollPage.evaluate(() => {
+    const el = document.querySelector('.share-page')
+    if (!el) return null
+    return { scrollHeight: el.scrollHeight, clientHeight: el.clientHeight, canScroll: el.scrollHeight > el.clientHeight }
+  })
+  if (!metrics || !metrics.canScroll) throw new Error(`share page should be scrollable: ${JSON.stringify(metrics)}`)
+
+  await scrollPage.evaluate(() => {
+    const el = document.querySelector('.share-page')
+    if (el) el.scrollTop = el.scrollHeight
+  })
+  await scrollPage.waitForTimeout(300)
+  const footVisible = await scrollPage.evaluate(() => {
+    const el = document.querySelector('.share-page')
+    const foot = document.querySelector('.share-foot')
+    if (!el || !foot) return false
+    const box = foot.getBoundingClientRect()
+    return box.bottom <= window.innerHeight + 2 && box.top >= 0
+  })
+  if (!footVisible) throw new Error('share footer should be reachable by scrolling')
+  console.log(JSON.stringify({ scroll: metrics, footVisible }))
+  await scrollContext.close()
+  await scrollBrowser.close()
+}

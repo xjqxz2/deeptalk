@@ -91,8 +91,13 @@ onMounted(async () => {
 .share-page {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
+  /* body 在桌面端是 overflow:hidden，分享页必须自己成为滚动容器，
+     否则消息超过一屏后无法继续向下滚动 */
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
   background: #fff;
 }
 
@@ -126,7 +131,7 @@ onMounted(async () => {
 }
 
 .share-main {
-  flex: 1;
+  flex: 0 0 auto;
   width: 100%;
   max-width: 780px;
   margin: 0 auto;

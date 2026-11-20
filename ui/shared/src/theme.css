@@ -429,10 +429,18 @@ a:hover {
   }
 }
 
-/* 品牌标记容器：SVG 自带圆角，这里只负责裁切与阴影 */
+/* 品牌标记：图标本身是白底圆角位图，容器只负责尺寸，不再二次裁切 */
 .dt-brand-mark {
   display: inline-flex;
   flex: 0 0 auto;
-  overflow: hidden;
-  box-shadow: 0 4px 10px rgba(77, 107, 254, 0.22);
+}
+
+.dt-brand-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 24%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
 }

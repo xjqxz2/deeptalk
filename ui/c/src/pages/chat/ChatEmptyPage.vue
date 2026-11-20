@@ -104,10 +104,6 @@ onMounted(() => {
 
 .hero-mark {
   display: inline-flex;
-  padding: 5px;
-  border-radius: 20px;
-  background: #fff;
-  box-shadow: 0 10px 24px rgba(77, 107, 254, 0.16);
   margin-bottom: 24px;
 }
 
