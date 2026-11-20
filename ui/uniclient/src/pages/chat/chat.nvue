@@ -27,6 +27,7 @@
         <text class="empty-hint">可以问问题、读文档，也能一起头脑风暴。</text>
       </view>
 
+      <view class="list-inner">
       <view v-for="(item, index) in chat.messages" :id="`msg-${index}`" :key="item.id || index">
         <MessageItem
           :message="item"
@@ -37,9 +38,11 @@
         />
       </view>
       <view id="msg-end" class="list-end" />
+      </view>
     </scroll-view>
 
     <!-- 输入框 -->
+    <view class="composer-wrap">
     <Composer
       v-model="draft"
       :generating="chat.generating"
@@ -49,6 +52,7 @@
       @attach="pickImage"
       @pick-model="pickModel"
     />
+    </view>
 
     <!-- H5 端模型选择：Vant Popup + Picker（小程序与 APP 用原生 ActionSheet） -->
     <!-- #ifdef H5 -->
@@ -458,6 +462,19 @@ onShow(() => {
 }
 .list-end {
   height: 24rpx;
+}
+/* 宽屏（H5 桌面浏览器调试）下收窄成手机列宽，避免整行拉满 */
+.list-inner {
+  width: 100%;
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.composer-wrap {
+  width: 100%;
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
 }
 .drawer-mask {
   position: fixed;

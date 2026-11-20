@@ -12,6 +12,7 @@
         :adjust-position="true"
         confirm-type="send"
         @input="onInput"
+        @keydown="onKeydown"
         @confirm="$emit('send')"
       />
 
@@ -48,6 +49,17 @@ const canSend = computed(() => Boolean(props.modelValue && props.modelValue.trim
 
 function onInput(event) {
   emit('update:modelValue', event.detail.value)
+}
+
+/**
+ * H5 / 桌面端：Enter 发送，Shift+Enter 换行。
+ * 小程序没有真实键盘事件，走 textarea 的 confirm-type="send"。
+ */
+function onKeydown(event) {
+  const key = event?.key
+  if (key !== 'Enter' || event.shiftKey || event.isComposing) return
+  if (event.preventDefault) event.preventDefault()
+  if (props.modelValue && props.modelValue.trim()) emit('send')
 }
 </script>
 
