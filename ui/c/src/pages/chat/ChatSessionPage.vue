@@ -252,14 +252,14 @@ watch(
 .messages-column {
   flex: 0 0 auto;
   width: 100%;
-  max-width: 752px;
+  max-width: var(--dt-chat-max, 752px);
   /* 消息从顶部开始排布：短对话不再被推到页面底部，长对话仍会按需滚动 */
   margin: 0 auto;
   padding: 22px calc(24px + env(safe-area-inset-right)) 18px calc(24px + env(safe-area-inset-left));
 }
 
 .skeleton-wrap {
-  max-width: 752px;
+  max-width: var(--dt-chat-max, 752px);
   margin: 0 auto;
   padding: 40px 24px;
 }
@@ -342,7 +342,7 @@ watch(
 
 .composer-inner {
   width: 100%;
-  max-width: 752px;
+  max-width: var(--dt-composer-max, 752px);
   margin: 0 auto;
 }
 

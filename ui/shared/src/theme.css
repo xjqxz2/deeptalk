@@ -3,6 +3,11 @@
  * 令牌来源：docs/design/README.md；页面样式一律 scoped，只有这里放全局规则。
  */
 :root {
+  /* 聊天正文与输入框共用的宽度。默认 752，超宽屏按屏幕宽度放大，
+     避免 2560 的显示器上正文只占中间一小条。 */
+  --dt-chat-max: 752px;
+  /* 输入框保持易读宽度，不跟着正文一起放大 */
+  --dt-composer-max: 752px;
   /* 品牌色 */
   --dt-brand: #4d6bfe;
   --dt-brand-hover: #3b5bdb;
@@ -447,4 +452,26 @@ a:hover {
   object-fit: contain;
   user-select: none;
   -webkit-user-drag: none;
+}
+
+/* 大屏适配：屏幕越宽，正文列适度加宽，保持易读的行长又不浪费空间 */
+@media (min-width: 1600px) {
+  :root {
+    --dt-chat-max: 960px;
+    --dt-composer-max: 800px;
+  }
+}
+
+@media (min-width: 2000px) {
+  :root {
+    --dt-chat-max: 1120px;
+    --dt-composer-max: 860px;
+  }
+}
+
+@media (min-width: 2400px) {
+  :root {
+    --dt-chat-max: 1280px;
+    --dt-composer-max: 900px;
+  }
 }

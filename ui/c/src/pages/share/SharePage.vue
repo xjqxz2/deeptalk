@@ -133,7 +133,7 @@ onMounted(async () => {
 .share-main {
   flex: 0 0 auto;
   width: 100%;
-  max-width: 780px;
+  max-width: min(var(--dt-chat-max, 780px), 90vw);
   margin: 0 auto;
   padding: 28px calc(20px + env(safe-area-inset-right)) calc(40px + env(safe-area-inset-bottom))
     calc(20px + env(safe-area-inset-left));

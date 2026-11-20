@@ -99,7 +99,7 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: 752px;
+  max-width: var(--dt-chat-max, 752px);
 }
 
 .hero-mark {
@@ -119,7 +119,7 @@ onMounted(() => {
 
 .empty-composer {
   width: 100%;
-  max-width: 752px;
+  max-width: var(--dt-composer-max, 752px);
 }
 
 @media (max-width: 900px) {
