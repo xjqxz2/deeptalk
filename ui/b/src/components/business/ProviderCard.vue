@@ -92,6 +92,8 @@ function onToggle(checked: boolean): void {
 .provider-card {
   flex: 1 1 260px;
   min-width: 240px;
+  /* 只有一个厂商时不要被拉成一整行那么宽 */
+  max-width: 420px;
   display: flex;
   flex-direction: column;
   height: 158px;

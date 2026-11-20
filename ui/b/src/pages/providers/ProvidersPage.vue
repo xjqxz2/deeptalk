@@ -729,18 +729,37 @@ onBeforeUnmount(() => {
 }
 
 .provider-row {
-  /* 卡片按可用宽度均分，只有厂商很多时才横向滚动 */
+  /* 卡片按可用宽度均分；厂商多到一行放不下时横向滚动，
+     不再限制最大宽度，否则宽屏右侧会空出一大块 */
   display: flex;
   gap: 16px;
   overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  padding-bottom: 2px;
+  scroll-snap-type: x proximity;
+  padding-bottom: 6px;
   margin-bottom: 16px;
-  max-width: 884px;
+}
+
+/* 保留一条细滚动条：鼠标用户可以拖动，也能看出这一行可以横向滚动 */
+.provider-row {
+  scrollbar-width: thin;
+  scrollbar-color: #d7dce7 transparent;
 }
 
 .provider-row::-webkit-scrollbar {
-  height: 0;
+  height: 6px;
+}
+
+.provider-row::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.provider-row::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: #d7dce7;
+}
+
+.provider-row::-webkit-scrollbar-thumb:hover {
+  background: #c2c9d8;
 }
 
 .empty-panel {
