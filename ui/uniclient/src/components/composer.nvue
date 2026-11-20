@@ -1,17 +1,18 @@
 <template>
   <view class="composer">
-    <view class="composer-box">
+    <view class="composer-box" @click="focusInput">
       <textarea
         class="composer-input"
         :value="modelValue"
-        :disabled="generating"
-        placeholder="继续追问，或让 DeepTalk 补充更多细节…"
+        :focus="focused"
+        :placeholder="generating ? '正在生成，可以先继续输入…' : '继续追问，或让 DeepTalk 补充更多细节…'"
         placeholder-class="composer-placeholder"
         :maxlength="8000"
         auto-height
         :adjust-position="true"
         confirm-type="send"
         @input="onInput"
+        @blur="focused = false"
         @keydown="onKeydown"
         @confirm="$emit('send')"
       />
@@ -36,7 +37,7 @@
 
 <script setup>
 /** 输入框：自动增高、附件、模型选择、圆形发送/停止按钮，样式对齐 Web 端手机视口。 */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -46,6 +47,16 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'send', 'stop', 'attach', 'pick-model'])
 
 const canSend = computed(() => Boolean(props.modelValue && props.modelValue.trim()))
+
+// 整块输入区可点：点空白处也能聚焦到输入框（否则只有文字那一行能点）
+const focused = ref(false)
+
+function focusInput() {
+  focused.value = false
+  setTimeout(() => {
+    focused.value = true
+  }, 0)
+}
 
 function onInput(event) {
   emit('update:modelValue', event.detail.value)
@@ -78,7 +89,7 @@ function onKeydown(event) {
 }
 .composer-input {
   width: 100%;
-  min-height: 72rpx;
+  min-height: 96rpx;
   max-height: 320rpx;
   color: #101828;
   font-size: 30rpx;

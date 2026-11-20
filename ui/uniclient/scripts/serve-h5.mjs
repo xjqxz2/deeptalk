@@ -74,7 +74,12 @@ const server = http.createServer((req, res) => {
     filePath = path.join(ROOT, 'index.html')
   }
   const ext = path.extname(filePath).toLowerCase()
-  res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' })
+  const isHtml = ext === '.html'
+  res.writeHead(200, {
+    'Content-Type': MIME[ext] || 'application/octet-stream',
+    // HTML 不缓存，避免浏览器继续用旧 bundle；带 hash 的静态资源可以长缓存
+    'Cache-Control': isHtml ? 'no-store, must-revalidate' : 'public, max-age=31536000, immutable',
+  })
   createReadStream(filePath).pipe(res)
 })
 

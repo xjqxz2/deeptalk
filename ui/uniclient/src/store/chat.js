@@ -7,6 +7,28 @@ import { chatSocket } from '@/utils/ws'
 import * as chatApi from '@/api/chat'
 
 let currentKey = 0
+let generationTimer = null
+
+/** 生成开始：启动看门狗，超时自动解锁，避免输入框被永久禁用。 */
+function startGenerationWatchdog() {
+  clearTimeout(generationTimer)
+  generationTimer = setTimeout(() => {
+    if (!chat.generating) return
+    const assistant = streamingMessage()
+    if (assistant) {
+      assistant.status = 'error'
+      assistant.error = '生成超时，请重试'
+    }
+    chat.generating = false
+    chat.activity = null
+  }, 90000)
+}
+
+/** 生成结束：清掉看门狗。 */
+function stopGenerationWatchdog() {
+  clearTimeout(generationTimer)
+  generationTimer = null
+}
 
 export const chat = reactive({
   conversations: [],
@@ -159,6 +181,7 @@ chatSocket.on('usage', (payload) => {
 })
 
 chatSocket.on('error', (payload) => {
+  stopGenerationWatchdog()
   const assistant = streamingMessage() || chat.messages[chat.messages.length - 1]
   if (assistant && assistant.role === 'assistant') {
     assistant.status = 'error'
@@ -169,6 +192,7 @@ chatSocket.on('error', (payload) => {
 })
 
 chatSocket.on('done', (payload) => {
+  stopGenerationWatchdog()
   const assistant = streamingMessage()
   if (assistant) {
     assistant.status = payload.status || 'complete'
@@ -183,6 +207,7 @@ chatSocket.onStatus((status) => {
   chat.connection = status
   // 生成中断线时立刻告诉用户，避免界面一直停在「正在生成…」
   if (status !== 'open' && chat.generating) {
+    stopGenerationWatchdog()
     const assistant = streamingMessage()
     if (assistant) {
       assistant.status = 'error'
@@ -235,6 +260,7 @@ export async function send(content, attachmentIds = []) {
   })
   chat.generating = true
   chat.activity = null
+  startGenerationWatchdog()
   chatSocket.send({
     type: 'stream',
     conversation_id: conversation.public_id,
@@ -246,6 +272,7 @@ export async function send(content, attachmentIds = []) {
 
 /** 停止生成。 */
 export function stop() {
+  stopGenerationWatchdog()
   chatSocket.send({ type: 'stop' })
   const assistant = streamingMessage()
   if (assistant) assistant.status = 'stopped'
@@ -271,6 +298,7 @@ export function regenerate() {
     created_at: new Date().toISOString(),
   })
   chat.generating = true
+  startGenerationWatchdog()
   chatSocket.send({
     type: 'stream',
     conversation_id: chat.current.public_id,
