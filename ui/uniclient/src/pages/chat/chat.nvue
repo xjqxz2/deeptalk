@@ -13,6 +13,12 @@
       </view>
     </view>
 
+    <!-- 运行错误提示：出现未捕获异常时不要只留白屏 -->
+    <view v-if="errorState.message" class="err-bar">
+      <text class="err-text">{{ errorState.message }}</text>
+      <text class="err-close" @click="clearError">关闭</text>
+    </view>
+
     <!-- 消息列表 -->
     <scroll-view
       class="messages"
@@ -181,6 +187,7 @@ import {
 import { chatSocket } from '@/utils/ws'
 import { uploadFile } from '@/api/http'
 import { session, clearSession } from '@/store/session'
+import { errorState, clearError } from '@/utils/errors'
 import { toast, confirm } from '@/utils/ui'
 import { logout as logoutApi } from '@/api/auth'
 
@@ -479,6 +486,25 @@ onShow(() => {
   flex-shrink: 0;
   margin-left: auto;
   margin-right: auto;
+}
+.err-bar {
+  flex-direction: row;
+  align-items: center;
+  padding: 14rpx 24rpx;
+  background-color: #fef3f2;
+  border-bottom-width: 1rpx;
+  border-bottom-style: solid;
+  border-bottom-color: #fecdca;
+}
+.err-text {
+  flex: 1;
+  color: #b42318;
+  font-size: 24rpx;
+}
+.err-close {
+  margin-left: 16rpx;
+  color: #b42318;
+  font-size: 24rpx;
 }
 .drawer-mask {
   position: fixed;

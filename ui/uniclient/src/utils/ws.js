@@ -54,6 +54,8 @@ class ChatSocket {
     this.handlers = new Map()
     this.listeners = new Set()
     this.manualClose = false
+    this.connectPending = false
+    this.stableTimer = null
   }
 
   /** 注册事件回调；返回取消函数。 */
@@ -75,28 +77,38 @@ class ChatSocket {
 
   /** 建立连接；已连接时直接返回。 */
   connect() {
-    if (this.status === 'open' || this.status === 'connecting') return
+    if (this.status === 'open' || this.status === 'connecting' || this.connectPending) return
     const token = getToken()
     if (!token) return
     this.manualClose = false
     this.status = 'connecting'
+    this.connectPending = true
     this.emitStatus()
     const task = openSocket(wsURL(token))
     this.task = task
     task.onOpen(() => {
+      this.connectPending = false
       this.status = 'open'
-      this.retry = 0
       this.emitStatus()
       this.startHeartbeat()
+      // 连接稳定 5 秒后才把重试次数清零，避免「连上就断」时退避被反复重置
+      clearTimeout(this.stableTimer)
+      this.stableTimer = setTimeout(() => {
+        this.retry = 0
+      }, 5000)
     })
     task.onMessage((res) => this.handleMessage(res.data))
-    task.onClose((event) => {
+    task.onClose(() => {
+      this.connectPending = false
+      clearTimeout(this.stableTimer)
       this.stopHeartbeat()
       this.status = 'idle'
       this.emitStatus()
       if (!this.manualClose) this.scheduleReconnect()
     })
-    task.onError((event) => {
+    task.onError(() => {
+      this.connectPending = false
+      clearTimeout(this.stableTimer)
       this.stopHeartbeat()
       this.status = 'idle'
       this.emitStatus()

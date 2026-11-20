@@ -43,6 +43,9 @@ export const chat = reactive({
   connection: 'idle',
 })
 
+/** 最多渲染最近多少条消息，避免超长会话把页面 DOM 撑爆。 */
+const MAX_RENDERED_MESSAGES = 120
+
 /** 当前会话的展示标题。 */
 export const currentTitle = computed(() => chat.current?.title || '新对话')
 
@@ -88,7 +91,8 @@ export async function openConversation(id) {
     const data = await chatApi.getConversation(id)
     if (key !== currentKey) return
     chat.current = data.conversation
-    chat.messages = (data.messages || []).map(normalizeMessage)
+    const all = (data.messages || []).map(normalizeMessage)
+    chat.messages = all.slice(-MAX_RENDERED_MESSAGES)
   } finally {
     if (key === currentKey) chat.loading = false
   }
@@ -125,6 +129,9 @@ async function ensureConversation() {
 /** 追加一条本地消息。 */
 function pushMessage(message) {
   chat.messages.push(message)
+  if (chat.messages.length > MAX_RENDERED_MESSAGES) {
+    chat.messages.splice(0, chat.messages.length - MAX_RENDERED_MESSAGES)
+  }
   return chat.messages[chat.messages.length - 1]
 }
 
