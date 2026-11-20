@@ -8,8 +8,6 @@ import {
   CheckOutlined,
   CopyOutlined,
   DislikeOutlined,
-  DownOutlined,
-  GlobalOutlined,
   LikeOutlined,
   ReloadOutlined,
   WarningOutlined,
@@ -43,8 +41,6 @@ const copied = ref(false)
 const sources = computed(() => props.message.sources ?? [])
 /** 模型实际打开过的网页；没有打开过正文时不展示面板，避免噪音。 */
 const viewedSources = computed(() => sources.value.filter((item) => item.viewed))
-/** 参考资料是否展开。 */
-const refsOpen = ref(false)
 /** 正在搜索但没有收到新活动时，用旧 search 事件兜底，避免只显示省略号。 */
 const thinkingActivity = computed<SearchActivity | null>(() => {
   if (props.message.activity) return props.message.activity
@@ -130,11 +126,12 @@ watch(html, () => {
         </div>
 
         <ThinkingPanel
-          v-if="message.reasoning || thinkingActivity"
+          v-if="message.reasoning || thinkingActivity || viewedSources.length"
           :reasoning="message.reasoning"
           :streaming="streaming"
           :duration-ms="message.duration_ms"
           :activity="thinkingActivity"
+          :sources="sources"
         />
 
         <div v-if="message.notice" class="dt-inline-notice notice">
@@ -155,22 +152,6 @@ watch(html, () => {
           <span class="error-text">{{ message.error }}</span>
           <a-button size="small" :disabled="busy" @click="emit('regenerate')">重试</a-button>
         </div>
-
-        <section v-if="viewedSources.length" class="refs">
-          <button type="button" class="refs-head" :aria-expanded="refsOpen" @click="refsOpen = !refsOpen">
-            <GlobalOutlined />
-            <span>查看了 {{ viewedSources.length }} 个网页</span>
-            <DownOutlined class="refs-chevron" :class="{ open: refsOpen }" />
-          </button>
-          <ol v-show="refsOpen" class="refs-list">
-            <li v-for="(source, index) in viewedSources" :key="source.url">
-              <span class="refs-index">{{ index + 1 }}</span>
-              <a :href="source.url" target="_blank" rel="noopener noreferrer">
-                {{ source.title || source.url }}
-              </a>
-            </li>
-          </ol>
-        </section>
 
         <div v-if="hasActions" class="message-actions">
           <button v-if="message.content" type="button" class="action" @click="onCopy">
@@ -312,78 +293,6 @@ watch(html, () => {
 
 .prose {
   min-width: 0;
-}
-
-.refs {
-  margin: 10px 0 2px;
-}
-
-.refs-head {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px 4px 2px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--dt-text-muted);
-  font-size: 11.4px;
-  cursor: pointer;
-}
-
-.refs-head:hover {
-  color: var(--dt-brand-hover);
-}
-
-.refs-chevron {
-  font-size: 8px;
-  transition: transform 0.16s ease;
-}
-
-.refs-chevron.open {
-  transform: rotate(180deg);
-}
-
-.refs-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 4px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.refs-list li {
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
-  min-width: 0;
-  padding: 3px 0;
-}
-
-.refs-index {
-  flex: 0 0 auto;
-  min-width: 14px;
-  color: var(--dt-brand);
-  font-size: 10px;
-  font-weight: 650;
-  text-align: center;
-}
-
-.refs-list a {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--dt-text-secondary);
-  font-size: 11.6px;
-  line-height: 18px;
-  text-decoration: none;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.refs-list a:hover {
-  color: var(--dt-brand-hover);
-  text-decoration: underline;
 }
 
 .typing {

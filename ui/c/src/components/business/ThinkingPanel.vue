@@ -1,14 +1,21 @@
 <script setup lang="ts">
 /** 深度思考折叠区：默认收起只显示耗时，展开可查看 reasoning。 */
 import { computed, nextTick, ref, watch } from 'vue'
-import { CheckCircleOutlined, DownOutlined, LoadingOutlined } from '@ant-design/icons-vue'
-import type { SearchActivity } from '@deeptalk/shared'
+import {
+  CheckCircleOutlined,
+  DownOutlined,
+  GlobalOutlined,
+  LoadingOutlined,
+} from '@ant-design/icons-vue'
+import type { SearchActivity, SearchSource } from '@deeptalk/shared'
 
 const props = defineProps<{
   reasoning: string
   streaming: boolean
   durationMs: number
   activity?: SearchActivity | null
+  /** 模型实际打开过的网页，作为思考过程的一部分展示 */
+  sources?: SearchSource[]
 }>()
 
 /** 是否展开推理正文。 */
@@ -56,6 +63,12 @@ const label = computed(() => {
 
 /** 只有流式期间展示工具活动；完成后不再占用思考面板。 */
 const liveActivity = computed(() => (props.streaming ? props.activity : null))
+
+/** 看过的网页作为思考过程保留，不再单独占用回答下方空间。 */
+const viewedSources = computed(() => (props.sources ?? []).filter((item) => item.viewed))
+
+/** 面板是否有可展开的内容。 */
+const hasBody = computed(() => Boolean(props.reasoning) || viewedSources.value.length > 0)
 </script>
 
 <template>
@@ -101,8 +114,22 @@ const liveActivity = computed(() => (props.streaming ? props.activity : null))
       </span>
     </div>
 
-    <div v-if="expanded && reasoning" class="thinking-body">
-      <div ref="bodyRef" class="thinking-content">{{ reasoning }}</div>
+    <div v-if="expanded && hasBody" class="thinking-body">
+      <div v-if="reasoning" ref="bodyRef" class="thinking-content">{{ reasoning }}</div>
+      <div v-if="viewedSources.length" class="thinking-sources" :class="{ divided: Boolean(reasoning) }">
+        <a
+          v-for="source in viewedSources"
+          :key="source.url"
+          class="thinking-source"
+          :href="source.url"
+          target="_blank"
+          rel="noopener noreferrer"
+          :title="source.title || source.url"
+        >
+          <GlobalOutlined class="thinking-source-icon" />
+          <span class="thinking-source-title">{{ source.title || source.url }}</span>
+        </a>
+      </div>
     </div>
   </div>
 </template>
@@ -228,5 +255,52 @@ const liveActivity = computed(() => (props.streaming ? props.activity : null))
   line-height: 20px;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.thinking-sources {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 0;
+}
+
+.thinking-sources.divided {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--dt-line-soft);
+}
+
+.thinking-source {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 3px 0;
+  color: var(--dt-text-muted);
+  font-size: 11.6px;
+  line-height: 18px;
+  text-decoration: none;
+}
+
+.thinking-source:hover {
+  color: var(--dt-brand-hover);
+  text-decoration: underline;
+}
+
+.thinking-source-icon {
+  flex: 0 0 auto;
+  color: var(--dt-text-faint);
+  font-size: 10.4px;
+}
+
+.thinking-source:hover .thinking-source-icon {
+  color: var(--dt-brand);
+}
+
+.thinking-source-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

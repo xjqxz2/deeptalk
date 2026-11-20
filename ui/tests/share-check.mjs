@@ -73,14 +73,19 @@ const page = await context.newPage()
 page.on('pageerror', (e) => errors.push(e.message))
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
 
-// 1. 查看的网页被保留
+// 1. 看过的网页融合进思维链，且不再显示数量
 await page.goto(`${base}/chat/share-55`, { waitUntil: 'networkidle' })
-await page.waitForSelector('.refs-head')
-const refsText = await page.locator('.refs-head').innerText()
-if (!refsText.includes('查看了 1 个网页')) throw new Error(`unexpected refs head: ${refsText}`)
-await page.locator('.refs-head').click()
-const refLinks = await page.locator('.refs-list a').allInnerTexts()
+await page.waitForSelector('.thinking')
+const thinkingText = await page.locator('.thinking').innerText()
+if (thinkingText.includes('查看了')) throw new Error(`should not show viewed count: ${thinkingText}`)
+if (!(await page.locator('.thinking').evaluate((el) => el.classList.contains('expanded')))) {
+  await page.locator('.thinking-head').click()
+}
+await page.waitForSelector('.thinking-source')
+const refLinks = await page.locator('.thinking-source-title').allInnerTexts()
 if (refLinks.length !== 1 || refLinks[0] !== '今日头条') throw new Error(`viewed links wrong: ${refLinks}`)
+if ((await page.locator('.refs').count()) !== 0) throw new Error('standalone refs block should be gone')
+const refsText = 'thinking'
 
 // 2. 创建分享
 await page.locator('button[aria-label="分享对话"]').click()
