@@ -181,6 +181,16 @@ chatSocket.on('done', (payload) => {
 
 chatSocket.onStatus((status) => {
   chat.connection = status
+  // 生成中断线时立刻告诉用户，避免界面一直停在「正在生成…」
+  if (status !== 'open' && chat.generating) {
+    const assistant = streamingMessage()
+    if (assistant) {
+      assistant.status = 'error'
+      assistant.error = '连接已断开，请重试'
+    }
+    chat.generating = false
+    chat.activity = null
+  }
 })
 
 /** 更新会话标题（列表与当前会话）。 */

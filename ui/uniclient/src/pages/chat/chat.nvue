@@ -153,7 +153,7 @@
  * 聊天主页面：消息流、输入框、历史会话抽屉。
  * 生成走 WebSocket；与 Web 端共享同一套后端接口与事件。
  */
-import { computed, ref, nextTick, onMounted, onUnmounted } from 'vue'
+import { computed, ref, nextTick, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import MessageItem from '@/components/message-item.nvue'
 import Composer from '@/components/composer.nvue'
@@ -380,10 +380,6 @@ onMounted(async () => {
 
 onShow(() => {
   chatSocket.connect()
-})
-
-onUnmounted(() => {
-  chatSocket.close()
 })
 </script>
 

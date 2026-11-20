@@ -13,6 +13,37 @@ import { wsURL } from '@/config/env'
 const HEARTBEAT_MS = 25000
 const RECONNECT_MAX = 30000
 
+/**
+ * 建连：H5 直接用浏览器原生 WebSocket，其它端用 uni.connectSocket。
+ * （uni-app 的 H5 产物里 connectSocket 不是稳定可用的全局 API，直接用原生实现更可靠）
+ */
+function openSocket(url) {
+  // #ifdef H5
+  const native = new WebSocket(url)
+  return {
+    raw: native,
+    send: (data) => native.send(data),
+    close: () => native.close(),
+    onOpen: (fn) => native.addEventListener('open', fn),
+    onMessage: (fn) => native.addEventListener('message', (event) => fn({ data: event.data })),
+    onClose: (fn) => native.addEventListener('close', fn),
+    onError: (fn) => native.addEventListener('error', fn),
+  }
+  // #endif
+  // #ifndef H5
+  const task = uni.connectSocket({ url, complete: () => {} })
+  return {
+    raw: task,
+    send: (data) => task.send({ data }),
+    close: () => task.close({}),
+    onOpen: (fn) => task.onOpen(fn),
+    onMessage: (fn) => task.onMessage(fn),
+    onClose: (fn) => task.onClose(fn),
+    onError: (fn) => task.onError(fn),
+  }
+  // #endif
+}
+
 class ChatSocket {
   constructor() {
     this.task = null
@@ -50,7 +81,7 @@ class ChatSocket {
     this.manualClose = false
     this.status = 'connecting'
     this.emitStatus()
-    const task = uni.connectSocket({ url: wsURL(token), complete: () => {} })
+    const task = openSocket(wsURL(token))
     this.task = task
     task.onOpen(() => {
       this.status = 'open'
@@ -59,13 +90,13 @@ class ChatSocket {
       this.startHeartbeat()
     })
     task.onMessage((res) => this.handleMessage(res.data))
-    task.onClose(() => {
+    task.onClose((event) => {
       this.stopHeartbeat()
       this.status = 'idle'
       this.emitStatus()
       if (!this.manualClose) this.scheduleReconnect()
     })
-    task.onError(() => {
+    task.onError((event) => {
       this.stopHeartbeat()
       this.status = 'idle'
       this.emitStatus()
@@ -113,7 +144,7 @@ class ChatSocket {
   send(frame) {
     const payload = JSON.stringify(frame)
     if (this.status === 'open' && this.task) {
-      this.task.send({ data: payload })
+      this.task.send(payload)
       return true
     }
     this.connect()
@@ -122,7 +153,7 @@ class ChatSocket {
     const timer = setInterval(() => {
       if (this.status === 'open' && this.task) {
         clearInterval(timer)
-        this.task.send({ data: payload })
+        this.task.send(payload)
         return
       }
       if (Date.now() - startedAt > 3000) clearInterval(timer)
