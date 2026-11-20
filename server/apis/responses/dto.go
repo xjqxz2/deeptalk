@@ -263,6 +263,7 @@ type ProviderResponse struct {
 	ModelCount     int                  `json:"model_count"`     // 模型数
 	LastLatencyMS  int                  `json:"last_latency_ms"` // 最近延迟
 	LastError      string               `json:"last_error"`      // 最近失败原因
+	Headers        map[string]string    `json:"headers"`         // 自定义请求头
 	Models         []AdminModelResponse `json:"models"`          // 模型列表
 }
 
@@ -291,6 +292,7 @@ func NewProvider(p provider.Provider, status string) ProviderResponse {
 		ModelCount:     len(p.Models),
 		LastLatencyMS:  p.LastLatencyMS,
 		LastError:      p.LastError,
+		Headers:        provider.ProviderHeaders(&p),
 		Models:         models,
 	}
 }

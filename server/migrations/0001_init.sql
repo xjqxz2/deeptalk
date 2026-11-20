@@ -122,6 +122,7 @@ CREATE TABLE IF NOT EXISTS providers (
   base_url        TEXT    NOT NULL,
   api_key_enc     TEXT    NOT NULL DEFAULT '',
   api_key_masked  TEXT    NOT NULL DEFAULT '',
+  headers_json    TEXT    NOT NULL DEFAULT '',
   timeout_sec     INTEGER NOT NULL DEFAULT 60,
   max_concurrency INTEGER NOT NULL DEFAULT 4,
   enabled         INTEGER NOT NULL DEFAULT 0,

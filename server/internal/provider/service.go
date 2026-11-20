@@ -106,6 +106,10 @@ func (s *Service) Create(ctx context.Context, in SaveInput) (*Provider, error) {
 	if err != nil {
 		return nil, err
 	}
+	headers, err := marshalHeaders(in.Headers)
+	if err != nil {
+		return nil, err
+	}
 	code := s.uniqueCode(ctx, name)
 	p := &Provider{
 		Name:           name,
@@ -114,6 +118,7 @@ func (s *Service) Create(ctx context.Context, in SaveInput) (*Provider, error) {
 		BaseURL:        baseURL,
 		APIKeyEnc:      enc,
 		APIKeyMasked:   MaskAPIKey(in.APIKey),
+		HeadersJSON:    headers,
 		TimeoutSec:     clampInt(timeout, 5, 300),
 		MaxConcurrency: clampInt(concurrency, 1, 10000),
 		Enabled:        in.Enabled,
@@ -188,6 +193,13 @@ func (s *Service) Update(ctx context.Context, id uint, in SaveInput) (*Provider,
 	}
 	p.Enabled = in.Enabled
 	p.IsDefault = in.IsDefault
+	if in.Headers != nil {
+		headers, headerErr := marshalHeaders(in.Headers)
+		if headerErr != nil {
+			return nil, headerErr
+		}
+		p.HeadersJSON = headers
+	}
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if p.IsDefault {
 			if err := tx.Model(&Provider{}).Where("id <> ? AND is_default = ?", p.ID, true).Update("is_default", false).Error; err != nil {
@@ -507,7 +519,7 @@ func (s *Service) Test(ctx context.Context, id uint) (TestResult, error) {
 	if err != nil {
 		return TestResult{}, errors.New("密钥解密失败，请重新填写 API Key")
 	}
-	result := testEndpoint(ctx, p.BaseURL, key)
+	result := testEndpoint(ctx, p.BaseURL, key, ProviderHeaders(p))
 	now := time.Now()
 	p.LastTestedAt = &now
 	p.LastLatencyMS = result.LatencyMS
@@ -539,7 +551,13 @@ func (s *Service) TestDraft(ctx context.Context, id uint, in SaveInput) (TestRes
 			key, _ = DecryptAPIKey(s.secret, existing.APIKeyEnc)
 		}
 	}
-	return testEndpoint(ctx, baseURL, key), nil
+	headers := in.Headers
+	if headers == nil && id > 0 {
+		if existing, err := dalFindProvider(ctx, s.db, id); err == nil {
+			headers = ProviderHeaders(existing)
+		}
+	}
+	return testEndpoint(ctx, baseURL, key, headers), nil
 }
 
 // ValidateBaseURL 校验 Base URL 并做基础 SSRF 防护。
@@ -640,7 +658,7 @@ func (s *Service) uniqueCode(ctx context.Context, name string) string {
 
 // testEndpoint 调用 OpenAI 兼容的 GET /models 做连通性测试。
 // 返回结果不包含 Key；失败时给出可读原因。
-func testEndpoint(ctx context.Context, baseURL, apiKey string) TestResult {
+func testEndpoint(ctx context.Context, baseURL, apiKey string, headers map[string]string) TestResult {
 	start := time.Now()
 	if strings.TrimSpace(apiKey) == "" {
 		return TestResult{OK: false, Message: "未配置 API Key，无法完成连接测试"}
@@ -654,6 +672,9 @@ func testEndpoint(ctx context.Context, baseURL, apiKey string) TestResult {
 	}
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 	req.Header.Set("Accept", "application/json")
+	for name, value := range headers {
+		req.Header.Set(name, value)
+	}
 	resp, err := (&http.Client{Timeout: 10 * time.Second}).Do(req)
 	latency := int(time.Since(start).Milliseconds())
 	if err != nil {
@@ -790,4 +811,68 @@ func truncate(s string, max int) string {
 		return s
 	}
 	return string(runes[:max])
+}
+
+// ProviderHeaders 解析厂商的自定义请求头；数据损坏时返回空，不影响调用。
+func ProviderHeaders(p *Provider) map[string]string {
+	if p == nil || strings.TrimSpace(p.HeadersJSON) == "" {
+		return nil
+	}
+	var headers map[string]string
+	if err := json.Unmarshal([]byte(p.HeadersJSON), &headers); err != nil {
+		return nil
+	}
+	return headers
+}
+
+// marshalHeaders 校验并序列化自定义请求头。
+// 名字必须是合法的 HTTP 头字段名，值里禁止换行，避免请求头注入。
+func marshalHeaders(headers map[string]string) (string, error) {
+	clean := make(map[string]string, len(headers))
+	for name, value := range headers {
+		key := strings.TrimSpace(name)
+		if key == "" {
+			continue
+		}
+		if !validHeaderName(key) {
+			return "", fmt.Errorf("非法的请求头名称: %s", key)
+		}
+		if strings.ContainsAny(value, "\r\n") {
+			return "", fmt.Errorf("请求头 %s 的值不能包含换行", key)
+		}
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		// 这些头由 HTTP 客户端自己管理，交给用户填会直接把请求写坏
+		switch strings.ToLower(key) {
+		case "content-length", "transfer-encoding", "connection", "host":
+			continue
+		}
+		clean[key] = trimmed
+	}
+	if len(clean) == 0 {
+		return "", nil
+	}
+	raw, err := json.Marshal(clean)
+	if err != nil {
+		return "", err
+	}
+	return string(raw), nil
+}
+
+// validHeaderName 按 RFC 7230 的 token 规则校验头名称。
+func validHeaderName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for _, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+		case strings.ContainsRune("!#$%&'*+-.^_`|~", r):
+		default:
+			return false
+		}
+	}
+	return true
 }

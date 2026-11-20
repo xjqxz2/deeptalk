@@ -167,6 +167,8 @@ export interface ProviderInfo {
   model_count: number
   last_latency_ms: number
   last_error: string
+  /** 自定义请求头（仅后台可见） */
+  headers: Record<string, string>
   models: AdminModel[]
 }
 
@@ -307,6 +309,8 @@ export interface ProviderPayload {
   max_concurrency: number
   enabled: boolean
   is_default: boolean
+  /** 自定义请求头；不传表示保持不变 */
+  headers?: Record<string, string>
   models?: Array<{
     model_id: string
     display_name: string

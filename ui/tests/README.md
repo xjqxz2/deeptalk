@@ -39,6 +39,7 @@ BASE_URL=http://127.0.0.1:9821 PW_CHROMIUM=/path/to/chrome-headless-shell node t
 | `sidebar-title-check.mjs` | 长标题在侧栏显示省略号且悬停可见全文 |
 | `ui-smoke-pages.mjs` | 登录/注册/空态/会话/404 逐页渲染与 antd 按需加载 |
 | `mobile-layout.mjs` | 390px 手机端正文与输入框是否水平居中、有无横向溢出 |
+| `admin-headers.mjs` | 后台厂商卡片铺满一行、自定义请求头可添加多行 |
 
 `pwa-check` / `a2ui-check` / `citations-check` 默认访问 `pnpm --filter @deeptalk/c preview` 的
 `http://127.0.0.1:4173`；`parallel-check` 还需要先启动慢速 SSE 服务：

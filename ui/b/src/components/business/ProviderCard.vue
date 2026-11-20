@@ -90,6 +90,8 @@ function onToggle(checked: boolean): void {
 
 <style scoped>
 .provider-card {
+  flex: 1 1 260px;
+  min-width: 240px;
   display: flex;
   flex-direction: column;
   height: 158px;

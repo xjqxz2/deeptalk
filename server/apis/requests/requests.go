@@ -99,6 +99,7 @@ type ProviderSaveRequest struct {
 	MaxConcurrency int                    `json:"max_concurrency"`                     // 并发
 	Enabled        bool                   `json:"enabled"`                             // 是否启用
 	IsDefault      bool                   `json:"is_default"`                          // 平台默认
+	Headers        map[string]string      `json:"headers"`                             // 自定义请求头；nil 表示保持不变
 	Models         *[]provider.ModelInput `json:"models"`                              // 模型列表
 }
 
@@ -116,6 +117,7 @@ func (r *ProviderSaveRequest) ToInput() provider.SaveInput {
 		APIKey:         r.APIKey,
 		TimeoutSec:     r.TimeoutSec,
 		MaxConcurrency: r.MaxConcurrency,
+		Headers:        r.Headers,
 		Enabled:        r.Enabled,
 		IsDefault:      r.IsDefault,
 		Models:         r.Models,

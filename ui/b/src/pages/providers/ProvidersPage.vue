@@ -729,9 +729,8 @@ onBeforeUnmount(() => {
 }
 
 .provider-row {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 284px;
+  /* 卡片按可用宽度均分，只有厂商很多时才横向滚动 */
+  display: flex;
   gap: 16px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;

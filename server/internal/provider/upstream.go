@@ -145,6 +145,10 @@ func (s *Service) StreamCompletionWithTools(
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "text/event-stream")
 	req.Header.Set("Authorization", "Bearer "+key)
+	// 自定义请求头：部分网关需要 HTTP-Referer / X-Title 之类的标识
+	for name, value := range ProviderHeaders(p) {
+		req.Header.Set(name, value)
+	}
 	client := &http.Client{Timeout: 5 * time.Minute}
 	resp, err := client.Do(req)
 	if err != nil {

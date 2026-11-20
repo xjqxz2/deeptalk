@@ -24,6 +24,12 @@ interface ModelDraft {
   enabled: boolean
 }
 
+/** 请求头草稿：可添加多行。 */
+interface HeaderDraft {
+  name: string
+  value: string
+}
+
 /** 预置厂商模板。 */
 const PRESETS: Array<{ kind: ProviderInfo['kind']; name: string; base_url: string; models: string[] }> = [
   { kind: 'deepseek', name: 'DeepSeek', base_url: 'https://api.deepseek.com', models: ['deepseek-flash'] },
@@ -47,6 +53,7 @@ const form = reactive({
   max_concurrency: 4,
   enabled: true,
   is_default: false,
+  headers: [] as HeaderDraft[],
   models: [] as ModelDraft[],
 })
 
@@ -97,6 +104,7 @@ function reset(): void {
     form.max_concurrency = provider.max_concurrency
     form.enabled = provider.enabled
     form.is_default = provider.is_default
+    form.headers = Object.entries(provider.headers ?? {}).map(([name, value]) => ({ name, value }))
     form.models = provider.models.map((item) => ({
       model_id: item.model_id,
       display_name: item.display_name,
@@ -116,6 +124,7 @@ function reset(): void {
     form.max_concurrency = 4
     form.enabled = true
     form.is_default = false
+    form.headers = []
     form.models = []
     mode.value = 'custom'
     presetCode.value = 'deepseek'
@@ -155,6 +164,28 @@ function addModel(): void {
     enabled: true,
   })
   newModelId.value = ''
+}
+
+/** 追加一行请求头。 */
+function addHeader(): void {
+  form.headers.push({ name: '', value: '' })
+}
+
+/** 删除一行请求头。 */
+function removeHeader(index: number): void {
+  form.headers.splice(index, 1)
+}
+
+/** 把请求头行整理成对象；空行与重复名以最后一行 WIN。 */
+function headersPayload(): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const item of form.headers) {
+    const name = item.name.trim()
+    const value = item.value.trim()
+    if (!name || !value) continue
+    out[name] = value
+  }
+  return out
 }
 
 /** 移除模型 chip。 */
@@ -219,6 +250,15 @@ function validate(): string {
   if (!isEditing.value && !form.api_key.trim()) return '新建厂商必须填写 API Key'
   if (form.timeout_sec < 5 || form.timeout_sec > 300) return '超时需在 5–300 秒之间'
   if (form.max_concurrency < 1 || form.max_concurrency > 10000) return '并发需在 1–10000 之间'
+  for (const item of form.headers) {
+    const name = item.name.trim()
+    const value = item.value.trim()
+    if (!name && !value) continue
+    if (!name) return '请求头名称不能为空'
+    if (!/^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/.test(name)) return `请求头名称不合法：${name}`
+    if (!value) return `请求头 ${name} 的值不能为空`
+    if (/[\r\n]/.test(value)) return `请求头 ${name} 的值不能包含换行`
+  }
   return ''
 }
 
@@ -233,6 +273,7 @@ function payload(): ProviderPayload {
     max_concurrency: form.max_concurrency,
     enabled: isEditing.value ? form.enabled : true,
     is_default: form.is_default,
+    headers: headersPayload(),
     models: form.models.map((item) => ({
       model_id: item.model_id,
       display_name: item.display_name || item.model_id,
@@ -423,6 +464,27 @@ function close(): void {
           <a-switch v-model:checked="form.is_default" />
         </div>
 
+        <a-form-item label="自定义请求头">
+          <div class="header-list">
+            <div v-for="(item, index) in form.headers" :key="index" class="header-row">
+              <a-input v-model:value="item.name" size="small" class="header-name" placeholder="Header 名，如 HTTP-Referer" />
+              <span class="header-sep">:</span>
+              <a-input v-model:value="item.value" size="small" class="header-value" placeholder="值，例如 https://deeptalk.peon.top" />
+              <a-button size="small" type="text" danger class="header-remove" aria-label="删除该请求头" @click="removeHeader(index)">
+                <DeleteOutlined />
+              </a-button>
+            </div>
+            <p v-if="!form.headers.length" class="header-empty">未添加请求头</p>
+            <a-button size="small" class="header-add" @click="addHeader">
+              <PlusOutlined />
+              添加请求头
+            </a-button>
+          </div>
+          <p class="field-hint">
+            调用该厂商时随请求一起发送，可添加多个；常用于网关要求的 HTTP-Referer、X-Title 等标识。留空表示不附加。
+          </p>
+        </a-form-item>
+
         <div class="test-box" :class="{ ok: testResult?.ok, fail: testResult && !testResult.ok }">
           <div class="test-head">
             <div>
@@ -508,6 +570,46 @@ function close(): void {
   grid-template-columns: 1fr 1fr;
   gap: 14px;
   align-items: start;
+}
+
+.header-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-name {
+  flex: 0 0 38%;
+}
+
+.header-sep {
+  color: var(--dt-text-faint);
+  font-size: 11px;
+}
+
+.header-value {
+  flex: 1;
+  min-width: 0;
+}
+
+.header-remove {
+  flex: 0 0 auto;
+}
+
+.header-empty {
+  margin: 0;
+  color: var(--dt-text-faint);
+  font-size: 11.4px;
+}
+
+.header-add {
+  align-self: flex-start;
 }
 
 .field-hint {

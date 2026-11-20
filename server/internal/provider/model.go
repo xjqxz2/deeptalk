@@ -45,6 +45,7 @@ type Provider struct {
 	BaseURL        string     `gorm:"size:255;not null"`                 // 上游 Base URL
 	APIKeyEnc      string     `gorm:"size:512;not null;default:''"`      // AES-GCM 密文
 	APIKeyMasked   string     `gorm:"size:64;not null;default:''"`       // 掩码，前端只读
+	HeadersJSON    string     `gorm:"type:text;not null;default:''"`     // 自定义请求头 JSON，空表示不附加
 	TimeoutSec     int        `gorm:"not null;default:60"`               // 调用超时（秒）
 	MaxConcurrency int        `gorm:"not null;default:4"`                // 最大并发
 	Enabled        bool       `gorm:"not null;default:false;index"`      // 是否启用
@@ -129,15 +130,16 @@ type ModelInput struct {
 
 // SaveInput 是新建 / 编辑厂商的输入。
 type SaveInput struct {
-	Name           string        `json:"name"`            // 显示名称
-	Kind           string        `json:"kind"`            // 厂商类型
-	BaseURL        string        `json:"base_url"`        // Base URL
-	APIKey         string        `json:"api_key"`         // 明文 Key；编辑时为空表示保留
-	TimeoutSec     int           `json:"timeout_sec"`     // 超时秒数
-	MaxConcurrency int           `json:"max_concurrency"` // 最大并发
-	Enabled        bool          `json:"enabled"`         // 是否启用
-	IsDefault      bool          `json:"is_default"`      // 是否平台默认
-	Models         *[]ModelInput `json:"models"`          // 全量模型列表；nil 表示不变
+	Name           string            `json:"name"`            // 显示名称
+	Kind           string            `json:"kind"`            // 厂商类型
+	BaseURL        string            `json:"base_url"`        // Base URL
+	APIKey         string            `json:"api_key"`         // 明文 Key；编辑时为空表示保留
+	Headers        map[string]string `json:"headers"`         // 自定义请求头；nil 表示保持不变
+	TimeoutSec     int               `json:"timeout_sec"`     // 超时秒数
+	MaxConcurrency int               `json:"max_concurrency"` // 最大并发
+	Enabled        bool              `json:"enabled"`         // 是否启用
+	IsDefault      bool              `json:"is_default"`      // 是否平台默认
+	Models         *[]ModelInput     `json:"models"`          // 全量模型列表；nil 表示不变
 }
 
 // Routing 是默认与兜底模型路由。

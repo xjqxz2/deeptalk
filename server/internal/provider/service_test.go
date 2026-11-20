@@ -29,7 +29,7 @@ func TestTestEndpointLargeModelList(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	result := testEndpoint(context.Background(), srv.URL, "sk-test")
+	result := testEndpoint(context.Background(), srv.URL, "sk-test", nil)
 	if !result.OK {
 		t.Fatalf("expected ok, got %+v", result)
 	}
