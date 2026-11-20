@@ -43,12 +43,8 @@ function onKeydown(event: KeyboardEvent): void {
   }
 }
 
-/** 新建对话，生成中禁止切换。 */
+/** 新建对话；原会话的生成会在后台继续。 */
 async function newChat(): Promise<void> {
-  if (chat.generating) {
-    message.warning('正在生成回答，请先停止生成')
-    return
-  }
   chat.startNewDraft()
   app.closeMobileSidebar()
   await router.push({ name: 'chat-empty' })

@@ -13,7 +13,8 @@ import {
   WarningOutlined,
 } from '@ant-design/icons-vue'
 import { BrandMark, copyText, enhanceMarkdown, formatNumber, formatTime, renderMarkdown } from '@deeptalk/shared'
-import type { ChatMessage } from '@deeptalk/shared'
+import type { ChatMessage, SearchActivity } from '@deeptalk/shared'
+import A2uiRenderer from './A2uiRenderer.vue'
 import ThinkingPanel from './ThinkingPanel.vue'
 
 const props = defineProps<{ message: ChatMessage; busy: boolean }>()
@@ -30,6 +31,12 @@ const copied = ref(false)
 
 /** 联网检索来源。 */
 const sources = computed(() => props.message.sources ?? [])
+/** 正在搜索但没有收到新活动时，用旧 search 事件兜底，避免只显示省略号。 */
+const thinkingActivity = computed<SearchActivity | null>(() => {
+  if (props.message.activity) return props.message.activity
+  if (props.message.searching) return { status: 'searching', label: '正在搜索资料…' }
+  return null
+})
 /** 渲染后的安全 HTML；正文里的 [1] 会按来源列表变成可点击上标。 */
 const html = computed(() => renderMarkdown(props.message.content, sources.value))
 /** 是否处于生成中。 */
@@ -109,16 +116,19 @@ watch(html, () => {
         </div>
 
         <ThinkingPanel
-          v-if="message.reasoning"
+          v-if="message.reasoning || thinkingActivity"
           :reasoning="message.reasoning"
           :streaming="streaming"
           :duration-ms="message.duration_ms"
+          :activity="thinkingActivity"
         />
 
         <div v-if="message.notice" class="dt-inline-notice notice">
           <WarningOutlined />
           {{ message.notice }}
         </div>
+
+        <A2uiRenderer v-if="message.a2ui?.length" :messages="message.a2ui" />
 
         <div v-if="message.content" ref="proseRef" class="dt-prose prose" v-html="html" />
         <div v-else-if="streaming" class="typing" aria-label="正在生成回答">

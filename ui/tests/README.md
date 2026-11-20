@@ -25,6 +25,27 @@ BASE_URL=http://127.0.0.1:9821 PW_CHROMIUM=/path/to/chrome-headless-shell node t
 `.browser-deps` 的 `LD_LIBRARY_PATH` 与 `FONTCONFIG_FILE` 注入子进程，以便在缺少
 系统字体 / 依赖的 Linux 环境里运行；正常的开发机无需这部分配置。
 
+## 其余检查脚本
+
+这些脚本用 Playwright 拦截接口，不需要后端与真实模型：
+
+| 脚本 | 覆盖内容 |
+| --- | --- |
+| `pwa-check.mjs` | manifest、图标、Service Worker、离线页、iOS 安装说明 |
+| `citations-check.mjs` | 正文 `[1]` 引用上标、来源卡片已移除、思考文案 |
+| `parallel-check.mjs` | 生成中可新建/切换会话、侧栏生成徽标、检索活动提示 |
+| `a2ui-check.mjs` | A2UI 消息经官方 Lit Renderer 渲染成组件 |
+
+`pwa-check` / `a2ui-check` / `citations-check` 默认访问 `pnpm --filter @deeptalk/c preview` 的
+`http://127.0.0.1:4173`；`parallel-check` 还需要先启动慢速 SSE 服务：
+
+```bash
+cd ui
+pnpm --filter @deeptalk/c preview --port 4173 &
+node tests/sse-mock-server.mjs &
+node tests/parallel-check.mjs
+```
+
 ## 约定
 
 - 测试会创建并删除一段对话，不会修改种子账号的密码或额度。

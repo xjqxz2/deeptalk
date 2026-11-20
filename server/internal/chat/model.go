@@ -77,6 +77,7 @@ type Message struct {
 	DurationMS      int       `gorm:"not null;default:0"`                  // 生成耗时（毫秒）
 	Feedback        string    `gorm:"size:8;not null;default:''"`          // up / down / 空
 	SourcesJSON     string    `gorm:"type:text;not null;default:''"`       // 联网来源 JSON，空表示未联网
+	UIJSON          string    `gorm:"type:text;not null;default:''"`       // A2UI 消息 JSON，空表示未生成界面
 	AttachmentsJSON string    `gorm:"type:text;not null;default:''"`       // 图片附件 JSON，空表示无附件
 	CreatedAt       time.Time `gorm:"index"`                               // 创建时间
 	UpdatedAt       time.Time // 更新时间

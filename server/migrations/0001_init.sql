@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS messages (
   duration_ms     INTEGER NOT NULL DEFAULT 0,
   feedback        TEXT    NOT NULL DEFAULT '',
   sources_json    TEXT    NOT NULL DEFAULT '',
+  ui_json         TEXT    NOT NULL DEFAULT '',
   attachments_json TEXT   NOT NULL DEFAULT '',
   created_at      DATETIME NOT NULL,
   updated_at      DATETIME NOT NULL

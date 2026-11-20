@@ -86,6 +86,19 @@ export interface SearchSource {
   snippet: string
 }
 
+/** A2UI v0.9 envelope，前端交给官方 Lit Renderer 处理。 */
+export type A2UIMessage = Record<string, unknown>
+
+/** 思考/检索过程中的实时状态，仅当前流式消息使用。 */
+export type SearchActivityStatus = 'thinking' | 'searching' | 'opening' | 'reading' | 'found'
+
+export interface SearchActivity {
+  status: SearchActivityStatus
+  label: string
+  detail?: string
+  url?: string
+}
+
 /** 消息结构（后端返回的持久化字段）。 */
 export interface ChatMessage {
   id: number
@@ -100,6 +113,8 @@ export interface ChatMessage {
   feedback: '' | 'up' | 'down'
   sources?: SearchSource[]
   searching?: boolean
+  activity?: SearchActivity
+  a2ui?: A2UIMessage[]
   attachments?: Attachment[]
   created_at: string
   created_at_label?: string

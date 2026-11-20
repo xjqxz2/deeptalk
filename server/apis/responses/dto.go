@@ -106,19 +106,20 @@ func NewConversationDetail(conv *chat.Conversation) ConversationResponse {
 
 // MessageResponse 是消息展示结构。
 type MessageResponse struct {
-	ID           uint              `json:"id"`            // 消息 ID
-	Role         string            `json:"role"`          // user / assistant
-	Content      string            `json:"content"`       // 正文
-	Reasoning    string            `json:"reasoning"`     // 深度思考
-	Status       string            `json:"status"`        // complete / streaming / stopped / error
-	ModelName    string            `json:"model_name"`    // 模型名
-	InputTokens  int               `json:"input_tokens"`  // 输入 tokens
-	OutputTokens int               `json:"output_tokens"` // 输出 tokens
-	DurationMS   int               `json:"duration_ms"`   // 生成耗时
-	Feedback     string            `json:"feedback"`      // up / down
-	Sources      []search.Result   `json:"sources"`       // 联网检索来源
-	Attachments  []attachment.Info `json:"attachments"`   // 图片附件
-	CreatedAt    time.Time         `json:"created_at"`    // 发送时间
+	ID           uint              `json:"id"`             // 消息 ID
+	Role         string            `json:"role"`           // user / assistant
+	Content      string            `json:"content"`        // 正文
+	Reasoning    string            `json:"reasoning"`      // 深度思考
+	Status       string            `json:"status"`         // complete / streaming / stopped / error
+	ModelName    string            `json:"model_name"`     // 模型名
+	InputTokens  int               `json:"input_tokens"`   // 输入 tokens
+	OutputTokens int               `json:"output_tokens"`  // 输出 tokens
+	DurationMS   int               `json:"duration_ms"`    // 生成耗时
+	Feedback     string            `json:"feedback"`       // up / down
+	Sources      []search.Result   `json:"sources"`        // 联网检索来源
+	A2UI         []json.RawMessage `json:"a2ui,omitempty"` // A2UI v0.9 界面消息
+	Attachments  []attachment.Info `json:"attachments"`    // 图片附件
+	CreatedAt    time.Time         `json:"created_at"`     // 发送时间
 }
 
 // NewMessage 构造消息响应。
@@ -135,6 +136,7 @@ func NewMessage(m chat.Message) MessageResponse {
 		DurationMS:   m.DurationMS,
 		Feedback:     m.Feedback,
 		Sources:      decodeSources(m.SourcesJSON),
+		A2UI:         decodeA2UI(m.UIJSON),
 		Attachments:  decodeAttachments(m.AttachmentsJSON),
 		CreatedAt:    m.CreatedAt,
 	}
@@ -150,6 +152,18 @@ func decodeSources(raw string) []search.Result {
 		return []search.Result{}
 	}
 	return items
+}
+
+// decodeA2UI 解析消息里的 A2UI envelope；损坏数据不影响整条消息。
+func decodeA2UI(raw string) []json.RawMessage {
+	if raw == "" {
+		return nil
+	}
+	var messages []json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &messages); err != nil {
+		return nil
+	}
+	return messages
 }
 
 // decodeAttachments 解析消息里的附件快照；历史消息或损坏数据返回空数组。

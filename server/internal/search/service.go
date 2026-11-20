@@ -170,6 +170,12 @@ func (s *Service) SearchWithEngines(ctx context.Context, query string, names []s
 
 // FetchPages 抓取模型明确指定的公开 URL，返回正文供主模型阅读。
 func (s *Service) FetchPages(ctx context.Context, rawURLs []string) ([]Page, error) {
+	return s.FetchPagesWithProgress(ctx, rawURLs, nil)
+}
+
+// FetchPagesWithProgress 在每抓完一个页面时回调，供 SSE 展示“正在阅读哪个网页”。
+// 回调在汇总协程中串行执行，调用方无需再加锁。
+func (s *Service) FetchPagesWithProgress(ctx context.Context, rawURLs []string, onPage func(Page)) ([]Page, error) {
 	if !s.Enabled() {
 		return nil, ErrDisabled
 	}
@@ -238,6 +244,9 @@ func (s *Service) FetchPages(ctx context.Context, rawURLs []string) ([]Page, err
 			continue
 		}
 		pages = append(pages, item.page)
+		if onPage != nil {
+			onPage(item.page)
+		}
 	}
 	if len(pages) == 0 {
 		if firstErr != nil {

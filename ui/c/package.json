@@ -11,6 +11,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@a2ui/lit": "0.15.0",
+    "@a2ui/web_core": "0.15.0",
     "@ant-design/icons-vue": "^7.0.1",
     "@deeptalk/shared": "workspace:*",
     "ant-design-vue": "^4.2.6",

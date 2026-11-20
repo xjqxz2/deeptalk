@@ -12,6 +12,7 @@ import {
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  LoadingOutlined,
   MessageOutlined,
   MobileOutlined,
   MoreOutlined,
@@ -54,9 +55,6 @@ const user = computed(() => userStore.user)
 const usage = computed(() => userStore.usage)
 const currentId = computed(() => chat.current?.id ?? 0)
 
-/** 生成中禁止切换会话，与设计约定一致。 */
-const navigationLocked = computed(() => chat.generating)
-
 watch(keyword, (value) => {
   if (searchTimer) clearTimeout(searchTimer)
   searchTimer = setTimeout(() => {
@@ -78,21 +76,13 @@ onBeforeUnmount(() => {
 
 /** 新建对话并进入会话页。 */
 async function newChat(): Promise<void> {
-  if (navigationLocked.value) {
-    message.warning('正在生成回答，请先停止生成')
-    return
-  }
   chat.startNewDraft()
   app.closeMobileSidebar()
   await router.push({ name: 'chat-empty' })
 }
 
-/** 打开历史会话。 */
+/** 打开历史会话；其他会话的后台生成不会被打断。 */
 async function openConversation(item: Conversation): Promise<void> {
-  if (navigationLocked.value) {
-    message.warning('正在生成回答，请先停止生成')
-    return
-  }
   app.closeMobileSidebar()
   const ref = item.public_id || String(item.id)
   if (String(route.params.id) === ref) return
@@ -209,7 +199,7 @@ function conversationTime(item: Conversation): string {
 
     <template v-if="!collapsed">
       <div class="sidebar-body">
-        <button type="button" class="new-chat" :class="{ locked: navigationLocked }" @click="newChat">
+        <button type="button" class="new-chat" @click="newChat">
           <PlusOutlined />
           <span class="new-label">新建对话</span>
           <kbd>Ctrl K</kbd>
@@ -236,13 +226,14 @@ function conversationTime(item: Conversation): string {
                 v-for="item in group.items"
                 :key="item.id"
                 class="history-item"
-                :class="{ active: currentId === item.id, locked: navigationLocked }"
+                :class="{ active: currentId === item.id }"
                 role="button"
                 tabindex="0"
                 @click="openConversation(item)"
                 @keydown.enter="openConversation(item)"
               >
-                <MessageOutlined class="item-icon" />
+                <LoadingOutlined v-if="chat.generatingIds.includes(item.id)" class="item-icon" spin />
+                <MessageOutlined v-else class="item-icon" />
                 <span class="item-title" :title="item.title">{{ item.title }}</span>
                 <a-dropdown :trigger="['click']" placement="bottomRight">
                   <button type="button" class="more" aria-label="会话操作" @click.stop>

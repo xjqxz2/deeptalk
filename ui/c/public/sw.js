@@ -13,6 +13,7 @@ const PRECACHE_URLS = [
   OFFLINE_URL,
   '/manifest.webmanifest',
   '/icons/favicon-64.png',
+  '/icons/favicon-192.png',
   '/icons/icon-192.png',
   '/icons/shark-icon.png',
   '/icons/icon-maskable-192.png',

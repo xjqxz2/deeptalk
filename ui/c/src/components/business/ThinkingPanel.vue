@@ -1,12 +1,14 @@
 <script setup lang="ts">
 /** 深度思考折叠区：默认收起只显示耗时，展开可查看 reasoning。 */
 import { computed, nextTick, ref, watch } from 'vue'
-import { DownOutlined, LoadingOutlined } from '@ant-design/icons-vue'
+import { CheckCircleOutlined, DownOutlined, LoadingOutlined } from '@ant-design/icons-vue'
+import type { SearchActivity } from '@deeptalk/shared'
 
 const props = defineProps<{
   reasoning: string
   streaming: boolean
   durationMs: number
+  activity?: SearchActivity | null
 }>()
 
 /** 是否展开推理正文。 */
@@ -51,6 +53,9 @@ const label = computed(() => {
   if (props.streaming) return '正在思考…'
   return `已思考 ${seconds.value} 秒`
 })
+
+/** 只有流式期间展示工具活动；完成后不再占用思考面板。 */
+const liveActivity = computed(() => (props.streaming ? props.activity : null))
 </script>
 
 <template>
@@ -76,7 +81,27 @@ const label = computed(() => {
       <span class="action">{{ expanded ? '收起' : '展开' }}</span>
       <DownOutlined class="chevron" :class="{ rotated: expanded }" />
     </button>
-    <div v-if="expanded" class="thinking-body">
+
+    <div v-if="liveActivity" class="thinking-activity" role="status" aria-live="polite">
+      <CheckCircleOutlined v-if="liveActivity.status === 'found'" class="activity-icon done" />
+      <LoadingOutlined v-else class="activity-icon" spin />
+      <span class="activity-label">{{ liveActivity.label }}</span>
+      <a
+        v-if="liveActivity.url"
+        class="activity-detail"
+        :href="liveActivity.url"
+        target="_blank"
+        rel="noopener noreferrer"
+        :title="liveActivity.detail || liveActivity.url"
+      >
+        {{ liveActivity.detail || liveActivity.url }}
+      </a>
+      <span v-else-if="liveActivity.detail" class="activity-detail" :title="liveActivity.detail">
+        {{ liveActivity.detail }}
+      </span>
+    </div>
+
+    <div v-if="expanded && reasoning" class="thinking-body">
       <div ref="bodyRef" class="thinking-content">{{ reasoning }}</div>
     </div>
   </div>
@@ -149,6 +174,45 @@ const label = computed(() => {
 
 .chevron.rotated {
   transform: rotate(180deg);
+}
+
+.thinking-activity {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 0 14px 10px;
+  color: var(--dt-text-muted);
+  font-size: 11.4px;
+  line-height: 17px;
+}
+
+.activity-icon {
+  flex: 0 0 auto;
+  color: var(--dt-brand);
+  font-size: 11px;
+}
+
+.activity-icon.done {
+  color: var(--dt-success);
+}
+
+.activity-label {
+  flex: 0 0 auto;
+  color: var(--dt-text-secondary);
+}
+
+.activity-detail {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dt-brand-hover);
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-detail:hover {
+  text-decoration: underline;
 }
 
 .thinking-body {

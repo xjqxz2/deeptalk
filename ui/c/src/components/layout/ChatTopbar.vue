@@ -2,7 +2,6 @@
 /** 对话顶栏：标题、保存态、新建、模型选择、连接状态与账号菜单。 */
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
 import {
   LogoutOutlined,
   MenuOutlined,
@@ -32,15 +31,10 @@ const title = computed(() => {
   return chat.current?.title || '对话'
 })
 
-const connected = computed(() => chat.models.length > 0)
 const initial = computed(() => userStore.user?.avatar_text ?? 'U')
 
 /** 新建对话；生成中禁止切换。 */
 async function newChat(): Promise<void> {
-  if (chat.generating) {
-    message.warning('正在生成回答，请先停止生成')
-    return
-  }
   chat.startNewDraft()
   await router.push({ name: 'chat-empty' })
 }
@@ -85,10 +79,6 @@ async function logout(): Promise<void> {
     </div>
 
     <div class="topbar-right">
-      <span class="connection" :class="{ warning: !connected }">
-        <span class="dot" />
-        {{ connected ? '已连接' : '未配置模型' }}
-      </span>
       <a-dropdown :trigger="['click']" placement="bottomRight">
         <button type="button" class="avatar" aria-label="账号菜单">{{ initial }}</button>
         <template #overlay>
@@ -206,36 +196,6 @@ async function logout(): Promise<void> {
   flex: 0 0 auto;
 }
 
-.connection {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 26px;
-  padding: 0 10px;
-  border-radius: 999px;
-  background: #f2fbf6;
-  color: var(--dt-success-text);
-  font-size: 10.2px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.connection.warning {
-  background: var(--dt-warning-soft);
-  color: var(--dt-warning-text);
-}
-
-.dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--dt-success);
-}
-
-.connection.warning .dot {
-  background: var(--dt-warning);
-}
-
 .avatar {
   display: inline-flex;
   align-items: center;
@@ -306,10 +266,6 @@ async function logout(): Promise<void> {
 }
 
 @media (max-width: 900px) {
-  .connection {
-    display: none;
-  }
-
   .title {
     max-width: 180px;
   }
