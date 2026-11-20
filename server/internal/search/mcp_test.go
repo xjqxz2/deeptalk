@@ -3,6 +3,7 @@ package search
 import (
 	"context"
 	"errors"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -14,24 +15,35 @@ type fakeMCP struct {
 	evaluate    int
 	navigateErr error
 	evaluateErr error
+	host        string // 最近一次导航目标的 host，用于回答 location.host
 }
 
 func (f *fakeMCP) HasTool(name string) bool {
 	return name == "browser_navigate" || name == "browser_evaluate"
 }
 
-func (f *fakeMCP) CallTool(_ context.Context, name string, _ any) (string, error) {
+func (f *fakeMCP) CallTool(_ context.Context, name string, args any) (string, error) {
 	switch name {
 	case "browser_navigate":
 		f.navigate++
 		if f.navigateErr != nil {
 			return "", f.navigateErr
 		}
+		if values, ok := args.(map[string]any); ok {
+			if raw, ok := values["url"].(string); ok {
+				if parsed, err := url.Parse(raw); err == nil {
+					f.host = parsed.Host
+				}
+			}
+		}
 		return "Navigated to search results", nil
 	case "browser_evaluate":
 		f.evaluate++
 		if f.evaluateErr != nil {
 			return "", f.evaluateErr
+		}
+		if values, ok := args.(map[string]any); ok && values["expression"] == "location.host" {
+			return f.host, nil
 		}
 		return f.html, nil
 	default:
@@ -66,8 +78,8 @@ func TestFetchWithMCPUsesNavigateAndEvaluate(t *testing.T) {
 	if string(raw) != bingFixture {
 		t.Fatalf("unexpected html")
 	}
-	if mcp.navigate != 1 || mcp.evaluate != 1 {
-		t.Fatalf("navigate/evaluate = %d/%d, want 1/1", mcp.navigate, mcp.evaluate)
+	if mcp.navigate != 1 || mcp.evaluate != 2 {
+		t.Fatalf("navigate/evaluate = %d/%d, want 1/2", mcp.navigate, mcp.evaluate)
 	}
 }
 
@@ -89,8 +101,8 @@ func TestSearchUsesMCPRenderedHTML(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Search: %v", err)
 	}
-	if mcp.navigate != 1 || mcp.evaluate != 1 {
-		t.Fatalf("navigate/evaluate = %d/%d, want 1/1", mcp.navigate, mcp.evaluate)
+	if mcp.navigate != 1 || mcp.evaluate != 2 {
+		t.Fatalf("navigate/evaluate = %d/%d, want 1/2", mcp.navigate, mcp.evaluate)
 	}
 	if len(items) != 1 || items[0].URL != "https://example.com/deepseek-v4" {
 		t.Fatalf("unexpected items: %+v", items)

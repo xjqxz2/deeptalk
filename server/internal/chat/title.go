@@ -50,7 +50,7 @@ func (s *Service) startTitleSummary(ctx context.Context, prov *provider.Provider
 	out := make(chan string, 1)
 	go func() {
 		// 生成标题不应该被用户点“停止生成”打断：标题仍然有意义
-		runCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		runCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
 		defer cancel()
 
 		// 模型偶尔只吐两三个字，重试一次通常就正常；两次都不行就让调用方用兜底标题
@@ -74,7 +74,9 @@ func (s *Service) requestTitle(ctx context.Context, prov *provider.Provider, mod
 	_, err := s.providers.StreamCompletion(ctx, prov, modelID, []provider.ChatMessage{
 		{Role: "system", Content: titlePrompt},
 		{Role: "user", Content: seed},
-	}, false, "", 64, 8*time.Second, func(ev provider.StreamEvent) error {
+		// 预算要给够：思考型模型会先消耗 reasoning tokens，
+		// 只给 64 个 token 时常常一个字正文都没输出就到上限了。
+	}, false, "", 512, 10*time.Second, func(ev provider.StreamEvent) error {
 		if ev.Kind != "content" {
 			return nil
 		}

@@ -6,6 +6,7 @@ package search
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -543,6 +544,11 @@ func (s *Service) fetchWithMCPUnlocked(ctx context.Context, target string) ([]by
 	}); err != nil {
 		return nil, err
 	}
+	// navigate 是异步的：立刻读 outerHTML 可能读到上一个引擎的页面，
+	// 那样会把别的搜索结果当成这次查询的结果。这里等到地址真的切过去再抓正文。
+	if err := s.waitForMCPLocation(ctx, target); err != nil {
+		return nil, err
+	}
 	raw, err := s.cfg.MCP.CallTool(ctx, "browser_evaluate", map[string]any{
 		"expression": "document.documentElement.outerHTML",
 		"timeoutMs":  8000,
@@ -550,22 +556,75 @@ func (s *Service) fetchWithMCPUnlocked(ctx context.Context, target string) ([]by
 	if err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(raw) == "" {
+	html := mcpStringValue(raw)
+	if strings.TrimSpace(html) == "" {
 		return nil, ErrNoResult
 	}
-	return []byte(raw), nil
+	return []byte(html), nil
+}
+
+// waitForMCPLocation 轮询当前页面地址，直到导航目标生效，避免读到过期页面。
+func (s *Service) waitForMCPLocation(ctx context.Context, target string) error {
+	want, err := url.Parse(strings.TrimSpace(target))
+	if err != nil || want.Host == "" {
+		return nil
+	}
+	deadline := time.Now().Add(mcpNavigateTimeout)
+	for {
+		raw, evalErr := s.cfg.MCP.CallTool(ctx, "browser_evaluate", map[string]any{
+			"expression": "location.host",
+			"timeoutMs":  3000,
+		})
+		if evalErr == nil {
+			host := strings.TrimSpace(mcpStringValue(raw))
+			if strings.EqualFold(host, want.Host) {
+				return nil
+			}
+		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("mcp 页面未切换到 %s", want.Host)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(120 * time.Millisecond):
+		}
+	}
+}
+
+// mcpNavigateTimeout 是等待页面地址切换的上限；超时后交给 CLI/HTTP 兜底。
+const mcpNavigateTimeout = 5 * time.Second
+
+// mcpStringValue 处理 MCP 工具返回：可能是裸字符串，也可能是 JSON 字符串字面量。
+func mcpStringValue(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if strings.HasPrefix(trimmed, `"`) && strings.HasSuffix(trimmed, `"`) {
+		var unquoted string
+		if err := json.Unmarshal([]byte(trimmed), &unquoted); err == nil {
+			return unquoted
+		}
+	}
+	return trimmed
 }
 
 // normalizeQuery 去掉“联网查一下关于”等口语前缀，避免搜索引擎把整句话当成关键词。
 func normalizeQuery(query string) string {
 	query = strings.TrimSpace(query)
+	// 动作词开头会让搜索引擎把动词本身当成主题（"列举几个股票" → 列举网），
+	// 所以先剥掉这些引导语，只留真正想查的名词短语。
 	prefixes := []string{
 		"联网查一下关于", "联网查一下", "帮我联网查一下",
 		"帮我查一下关于", "帮我查一下", "帮我搜索一下", "帮我搜一下",
 		"搜索一下关于", "搜索一下", "查一下关于", "查一下",
 		"联网搜索一下", "联网搜索", "搜索关于", "搜索",
 		"我想知道", "想知道", "查一查", "搜一搜", "找一下", "看一下",
-		"请问", "帮我", "帮忙", "麻烦",
+		"列举几个", "列举一下", "列举", "列出几个", "列出",
+		"推荐几个", "推荐一下", "推荐", "介绍几个", "介绍",
+		"说说", "讲讲", "讲一下", "说一下", "告诉我",
+		"请问", "帮我", "帮忙", "麻烦", "给我",
 	}
 	for _, prefix := range prefixes {
 		if strings.HasPrefix(query, prefix) {
@@ -575,6 +634,9 @@ func normalizeQuery(query string) string {
 	}
 	query = strings.TrimSpace(strings.TrimLeft(query, "：:，,。！？!? "))
 	query = stripQueryFillers(query)
+	// 去掉开头的数量词（"几个/一些/哪些"），它们不是检索主题
+	query = strings.TrimLeft(query, " 　几个些")
+	query = strings.TrimSpace(query)
 	return query
 }
 
