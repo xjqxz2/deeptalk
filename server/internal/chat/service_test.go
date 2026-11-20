@@ -8,13 +8,14 @@ import (
 	"deeptalk/internal/search"
 )
 
-// TestGenerateTitle 校验自动标题的长度与口语前缀清理。
+// TestGenerateTitle 校验兜底标题的前缀清理与长度上限。
+// 正常情况下会用模型生成的语义标题覆盖它，这里只保证不会被生硬截断得太短。
 func TestGenerateTitle(t *testing.T) {
 	cases := []struct {
 		input string
 		want  string
 	}{
-		{"帮我把这段 SSE 代理的超时与重连逻辑改成可配置的", "这段 SSE 代理的超时与重连逻"},
+		{"帮我把这段 SSE 代理的超时与重连逻辑改成可配置的", "这段 SSE 代理的超时与重连逻辑改成可配置的"},
 		{"请帮我设计一个 Go JWT 中间件", "设计一个 Go JWT 中间件"},
 		{"", "新对话"},
 	}
@@ -23,7 +24,7 @@ func TestGenerateTitle(t *testing.T) {
 		if got != item.want {
 			t.Fatalf("GenerateTitle(%q) = %q, want %q", item.input, got, item.want)
 		}
-		if len([]rune(got)) > 16 {
+		if len([]rune(got)) > 24 {
 			t.Fatalf("title too long: %d runes", len([]rune(got)))
 		}
 	}

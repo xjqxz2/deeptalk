@@ -279,6 +279,11 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 	if err := s.db.WithContext(ctx).Create(assistant).Error; err != nil {
 		return err
 	}
+	// 首轮对话在问答的同时并行生成短标题，回答结束时通常已经就绪
+	var titleCh <-chan string
+	if isDefaultTitle(conv.Title) {
+		titleCh = s.startTitleSummary(ctx, prov, model.ModelID, defaultTitleSeed(userMsg.Content, len(assets) > 0))
+	}
 	// 先发送 meta，前端据此挂载占位消息
 	if err := emit("meta", map[string]any{
 		"conversation_id":      conv.ID,
@@ -623,12 +628,19 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 	duration := time.Since(start)
 	finishCtx := context.WithoutCancel(ctx)
 	title := conv.Title
-	if strings.TrimSpace(title) == "" || title == "新对话" {
-		titleSeed := userMsg.Content
-		if strings.TrimSpace(titleSeed) == "" && len(assets) > 0 {
-			titleSeed = "图片对话"
+	if isDefaultTitle(title) {
+		// 先用本地启发式标题兜底，再尝试取并行生成的模型标题
+		title = GenerateTitle(defaultTitleSeed(userMsg.Content, len(assets) > 0))
+		if titleCh != nil {
+			select {
+			case generated := <-titleCh:
+				if strings.TrimSpace(generated) != "" {
+					title = generated
+				}
+			case <-time.After(1200 * time.Millisecond):
+				// 标题不值得让用户等，超时就用本地标题，后续轮次不会再改
+			}
 		}
-		title = GenerateTitle(titleSeed)
 	}
 	status := StatusComplete
 	if genErr != nil {
@@ -1544,8 +1556,8 @@ func (s *Service) UsageTimeline(ctx context.Context, days int) ([]DailyUsage, er
 	return out, nil
 }
 
-// GenerateTitle 从首轮用户输入生成 ≤16 字标题。
-// 说明：去除常见口语前缀与标点，保留语义主干；真正的语义标题由模型生成属于 P1。
+// GenerateTitle 从首轮用户输入生成兜底标题（≤24 字）。
+// 说明：去除常见口语前缀与标点，保留语义主干；正常情况下会用模型生成的标题覆盖它。
 func GenerateTitle(content string) string {
 	text := strings.TrimSpace(content)
 	text = strings.TrimLeft(text, "请帮我一下能否可以麻烦")
@@ -1559,8 +1571,9 @@ func GenerateTitle(content string) string {
 	if len(runes) == 0 {
 		return "新对话"
 	}
-	if len(runes) > 16 {
-		runes = runes[:16]
+	// 这里只做上限保护，具体显示由前端的省略号处理，避免标题在句子中间生硬截断
+	if len(runes) > 24 {
+		runes = runes[:24]
 	}
 	return strings.TrimSpace(string(runes))
 }
