@@ -70,6 +70,14 @@ cd ui && node uniclient/tests/uniclient-smoke.mjs
 用例覆盖：登录页渲染 → 登录跳转 → 历史消息（Markdown 列表/代码/思维链）渲染 →
 发送消息（WebSocket 帧）→ 历史会话抽屉。
 
+## 设计与还原对照
+
+- 设计图（四屏线框 + 落地要点）：[`docs/design/07-uniclient-mobile.svg`](../../docs/design/07-uniclient-mobile.svg)
+- 逐屏截图对照（上排 PWA、下排小程序端，390×844）：[`docs/design/uniclient-mobile-compare.svg`](../../docs/design/uniclient-mobile-compare.svg)
+- 截图脚本：`ui/tests/mobile-shots.mjs`（PWA）、`ui/uniclient/tests/shots.mjs`（小程序端）
+
+新增页面时先用这两个脚本各截一次，对比尺寸、字号、间距后再改样式，避免凭感觉调整。
+
 ## 设计取舍
 
 - **nvue 优先**：`.nvue` 在 H5 / 小程序端会被编译为普通 vue 页面，因此一套代码可以三端复用；

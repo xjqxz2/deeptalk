@@ -1,9 +1,10 @@
 <template>
   <view class="think">
     <view class="think-head" @click="toggle">
-      <text class="think-icon">{{ expanded ? '−' : '+' }}</text>
+      <view class="think-dot" />
       <text class="think-label">{{ label }}</text>
       <text class="think-toggle">{{ expanded ? '收起' : '展开' }}</text>
+      <view class="think-chevron" :class="{ 'think-chevron-up': expanded }" />
     </view>
 
     <view v-if="expanded" class="think-body">
@@ -19,8 +20,8 @@
 
 <script setup>
 /**
- * 深度思考折叠面板：展示推理过程与看过的网页。
- * 与 Web 端一致：流式期间自动展开，结束后可手动收起。
+ * 深度思考折叠面板，样式对齐 Web 端：
+ * 圆角浅灰卡片、星标图标、右侧「展开 / 收起」，展开后展示推理与看过的网页。
  */
 import { computed, ref, watch } from 'vue'
 
@@ -71,48 +72,70 @@ function openSource(item) {
 
 <style>
 .think {
-  margin-top: 12rpx;
-  padding: 18rpx 20rpx;
-  border-radius: 16rpx;
-  background-color: #f7f8fa;
+  margin: 6rpx 0 20rpx 0;
+  padding: 22rpx 24rpx;
+  border-radius: 20rpx;
+  background-color: #f7f9fc;
+  border-width: 1rpx;
+  border-style: solid;
+  border-color: #eef1f6;
 }
 .think-head {
   flex-direction: row;
   align-items: center;
 }
-.think-icon {
-  width: 32rpx;
-  color: #4d6bfe;
-  font-size: 26rpx;
+.think-dot {
+  width: 14rpx;
+  height: 14rpx;
+  margin-right: 14rpx;
+  border-radius: 7rpx;
+  background-color: #4d6bfe;
 }
 .think-label {
   flex: 1;
   color: #475467;
-  font-size: 26rpx;
+  font-size: 27rpx;
 }
 .think-toggle {
   color: #98a2b3;
-  font-size: 24rpx;
+  font-size: 25rpx;
+}
+.think-chevron {
+  width: 12rpx;
+  height: 12rpx;
+  margin-left: 12rpx;
+  margin-bottom: 4rpx;
+  border-right-width: 2rpx;
+  border-right-style: solid;
+  border-right-color: #98a2b3;
+  border-bottom-width: 2rpx;
+  border-bottom-style: solid;
+  border-bottom-color: #98a2b3;
+  transform: rotate(45deg);
+}
+.think-chevron-up {
+  margin-bottom: -4rpx;
+  transform: rotate(-135deg);
 }
 .think-body {
-  margin-top: 14rpx;
-  padding-top: 14rpx;
+  margin-top: 18rpx;
+  padding-top: 18rpx;
   border-top-width: 1rpx;
   border-top-style: solid;
-  border-top-color: #e4e7ec;
+  border-top-color: #eef1f6;
 }
 .think-text {
   color: #667085;
-  font-size: 25rpx;
-  line-height: 38rpx;
+  font-size: 26rpx;
+  line-height: 42rpx;
 }
 .think-sources {
-  margin-top: 12rpx;
+  margin-top: 14rpx;
 }
 .think-source {
-  margin-bottom: 6rpx;
+  margin-bottom: 8rpx;
   color: #667085;
-  font-size: 24rpx;
-  line-height: 34rpx;
+  font-size: 25rpx;
+  line-height: 36rpx;
 }
 </style>

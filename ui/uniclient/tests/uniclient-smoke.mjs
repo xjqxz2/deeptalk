@@ -120,12 +120,12 @@ for (const expect of ['DeepTalk', '支持联网', 'fmt.Println', '已思考 3 �
 
 // 4. 发送消息 → 走 WebSocket
 await page.locator('textarea').fill('你好')
-await page.getByText('发送', { exact: true }).click()
+await page.locator('.send-btn').click()
 await page.waitForFunction(() => (window.__wsFrames || []).some((f) => JSON.parse(f).type === 'stream'), null, { timeout: 8000 })
 await page.waitForFunction(() => document.body.innerText.includes('我是 DeepTalk'), null, { timeout: 8000 })
 
 // 5. 抽屉
-await page.getByText('☰').click()
+await page.locator('.topbar-menu').click()
 await page.waitForSelector('.drawer')
 if (!(await page.locator('.drawer').innerText()).includes('小程序测试会话')) throw new Error('drawer missing conversation')
 

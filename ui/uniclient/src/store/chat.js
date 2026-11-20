@@ -17,6 +17,7 @@ export const chat = reactive({
   loading: false,
   generating: false,
   activity: null, // { status, label, detail }
+  usage: null, // 本月用量卡片数据
   connection: 'idle',
 })
 
@@ -28,6 +29,17 @@ export async function loadConversations(keyword = '') {
   const data = await chatApi.listConversations(keyword)
   chat.conversations = data.items || []
   return chat.conversations
+}
+
+/** 拉取用量（底部卡片）。 */
+export async function loadUsage() {
+  const { fetchUsage } = await import('@/api/auth')
+  try {
+    chat.usage = await fetchUsage()
+  } catch {
+    chat.usage = null
+  }
+  return chat.usage
 }
 
 /** 拉取模型列表，恢复上次选择。 */

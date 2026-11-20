@@ -1,27 +1,40 @@
 <template>
   <view class="page">
-    <view class="brand">
-      <image class="brand-logo" src="/static/shark.png" mode="aspectFit" />
-      <text class="brand-name">DeepTalk</text>
+    <!-- 顶部：品牌 + 注册入口 -->
+    <view class="topbar">
+      <view class="brand">
+        <image class="brand-logo" src="/static/shark.png" mode="aspectFit" />
+        <text class="brand-name">DeepTalk</text>
+      </view>
+      <text class="topbar-link" @click="toggleMode">
+        {{ mode === 'login' ? '还没有账号？立即注册' : '已有账号？去登录' }}
+      </text>
     </view>
 
     <view class="form">
+      <text class="eyebrow">ACCOUNT ACCESS</text>
       <text class="title">{{ mode === 'login' ? '欢迎回来' : '创建账号' }}</text>
-      <text class="subtitle">{{ mode === 'login' ? '登录后继续你的 DeepTalk 对话' : '注册后自动登录' }}</text>
+      <text class="subtitle">{{ mode === 'login' ? '登录后继续你的 DeepTalk 工作台。' : '注册后自动登录，立即开始对话。' }}</text>
 
+      <text class="field-label">邮箱</text>
       <input
         v-model="email"
         class="field"
         type="text"
-        :placeholder="'邮箱'"
+        placeholder="you@company.com"
         placeholder-class="field-placeholder"
         :adjust-position="true"
       />
+
+      <view class="field-head">
+        <text class="field-label">密码</text>
+        <text class="field-link">忘记密码？</text>
+      </view>
       <input
         v-model="password"
         class="field"
         type="password"
-        :placeholder="'密码（至少 8 位）'"
+        :placeholder="mode === 'login' ? '请输入密码' : '至少 8 位，建议含字母与数字'"
         placeholder-class="field-placeholder"
         :adjust-position="true"
       />
@@ -32,17 +45,30 @@
         <text class="submit-text">{{ loading ? '请稍候…' : mode === 'login' ? '登录' : '注册并登录' }}</text>
       </view>
 
-      <text class="switch" @click="toggleMode">
-        {{ mode === 'login' ? '还没有账号？立即注册' : '已有账号？去登录' }}
-      </text>
+      <view class="hint-row">
+        <view class="hint-dot" />
+        <text class="hint-text">{{ mode === 'login' ? '登录后进入你的对话空间' : '注册后自动登录' }}</text>
+      </view>
+
+      <text class="terms">登录即表示同意《服务条款》与《隐私政策》</text>
+
+      <view class="notes">
+        <text class="note">· 无需验证邮件，忘记密码可由管理员重置</text>
+        <text class="note">· 全程 HTTPS，会话保存在本地，可随时退出</text>
+      </view>
+    </view>
+
+    <view class="foot">
+      <text class="foot-text">© 2026 DeepTalk</text>
+      <text class="foot-text">隐私 · 条款</text>
     </view>
   </view>
 </template>
 
 <script setup>
 /**
- * 登录 / 注册页。
- * H5 调试与小程序共用同一套逻辑：拿到 token 后写入本地存储。
+ * 登录 / 注册页，布局对齐 PWA 手机端：
+ * 左上品牌、右上注册入口、左对齐标题、带标签的输入框与底部说明。
  */
 import { ref, computed } from 'vue'
 import { login, register } from '@/api/auth'
@@ -81,63 +107,96 @@ async function submit() {
 .page {
   flex: 1;
   height: 100%;
-  padding: 120rpx 56rpx 60rpx 56rpx;
+  padding: 0 48rpx;
   background-color: #ffffff;
+}
+.topbar {
+  height: 128rpx;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
 }
 .brand {
   flex-direction: row;
   align-items: center;
-  margin-bottom: 80rpx;
 }
 .brand-logo {
-  width: 64rpx;
-  height: 64rpx;
-  margin-right: 16rpx;
+  width: 56rpx;
+  height: 56rpx;
+  margin-right: 14rpx;
 }
 .brand-name {
   color: #101828;
-  font-size: 38rpx;
+  font-size: 34rpx;
   font-weight: bold;
+}
+.topbar-link {
+  color: #4d6bfe;
+  font-size: 25rpx;
 }
 .form {
   flex: 1;
+  padding-top: 120rpx;
+}
+.eyebrow {
+  color: #98a2b3;
+  font-size: 22rpx;
+  letter-spacing: 4rpx;
 }
 .title {
+  margin-top: 16rpx;
   color: #101828;
-  font-size: 52rpx;
+  font-size: 58rpx;
   font-weight: bold;
 }
 .subtitle {
-  margin-top: 16rpx;
+  margin-top: 14rpx;
   margin-bottom: 56rpx;
   color: #667085;
   font-size: 28rpx;
 }
+.field-label {
+  margin-bottom: 12rpx;
+  color: #344054;
+  font-size: 25rpx;
+  font-weight: bold;
+}
+.field-head {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8rpx;
+}
+.field-link {
+  color: #4d6bfe;
+  font-size: 24rpx;
+}
 .field {
-  height: 96rpx;
+  height: 100rpx;
   margin-bottom: 24rpx;
   padding: 0 28rpx;
   border-radius: 18rpx;
   border-width: 1rpx;
   border-style: solid;
   border-color: #e4e7ec;
-  background-color: #f9fafc;
+  background-color: #ffffff;
   color: #101828;
-  font-size: 30rpx;
+  font-size: 29rpx;
 }
 .field-placeholder {
   color: #98a2b3;
 }
 .error {
-  margin-bottom: 20rpx;
+  margin-bottom: 18rpx;
   color: #d92d20;
-  font-size: 26rpx;
+  font-size: 25rpx;
 }
 .submit {
-  height: 96rpx;
+  height: 100rpx;
+  margin-top: 12rpx;
   align-items: center;
   justify-content: center;
-  border-radius: 20rpx;
+  border-radius: 18rpx;
   background-color: #4d6bfe;
 }
 .submit-off {
@@ -148,10 +207,47 @@ async function submit() {
   font-size: 30rpx;
   font-weight: bold;
 }
-.switch {
-  margin-top: 32rpx;
-  text-align: center;
-  color: #4d6bfe;
-  font-size: 26rpx;
+.hint-row {
+  flex-direction: row;
+  align-items: center;
+  margin-top: 24rpx;
+}
+.hint-dot {
+  width: 12rpx;
+  height: 12rpx;
+  margin-right: 10rpx;
+  border-radius: 6rpx;
+  background-color: #12b76a;
+}
+.hint-text {
+  color: #475467;
+  font-size: 24rpx;
+}
+.terms {
+  margin-top: 18rpx;
+  color: #98a2b3;
+  font-size: 23rpx;
+}
+.notes {
+  margin-top: 28rpx;
+  padding-top: 24rpx;
+  border-top-width: 1rpx;
+  border-top-style: solid;
+  border-top-color: #f0f2f5;
+}
+.note {
+  margin-bottom: 10rpx;
+  color: #98a2b3;
+  font-size: 23rpx;
+}
+.foot {
+  height: 96rpx;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+.foot-text {
+  color: #c0c5d0;
+  font-size: 22rpx;
 }
 </style>

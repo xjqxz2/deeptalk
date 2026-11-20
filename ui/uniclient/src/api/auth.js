@@ -26,7 +26,7 @@ export function fetchConfig() {
   return request({ url: '/api/v1/c/auth/config', silent: true })
 }
 
-/** 用量。 */
+/** 用量（底部用量卡片）。 */
 export function fetchUsage() {
   return request({ url: '/api/v1/c/usage', silent: true })
 }

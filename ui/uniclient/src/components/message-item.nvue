@@ -1,6 +1,6 @@
 <template>
   <view class="msg" :class="message.role === 'user' ? 'msg-user' : 'msg-assistant'">
-    <!-- 用户消息 -->
+    <!-- 用户消息：右侧气泡 + 时间 -->
     <block v-if="message.role === 'user'">
       <view v-if="message.attachments && message.attachments.length" class="user-images">
         <image
@@ -14,6 +14,7 @@
       <view v-if="message.content" class="bubble">
         <text class="bubble-text">{{ message.content }}</text>
       </view>
+      <text class="msg-time">{{ time }}</text>
     </block>
 
     <!-- 助手消息 -->
@@ -37,20 +38,21 @@
         <text class="notice-text">{{ message.notice }}</text>
       </view>
 
-      <!-- 正文：Markdown 解析成块，逐块渲染（nvue 不支持 v-html） -->
       <view v-if="blocks.length" class="blocks">
         <view v-for="(block, index) in blocks" :key="index" class="block">
-          <text v-if="block.type === 'heading'" class="h1">{{ block.spans[0].text }}</text>
+          <text v-if="block.type === 'heading'" class="h1">
+            <text v-for="(span, si) in block.spans" :key="si" :class="spanClass(span)">{{ span.text }}</text>
+          </text>
 
           <text v-else-if="block.type === 'quote'" class="quote">
-            <text v-for="(span, si) in block.spans" :key="si" :class="spanClass(span)">{{ span.text }}</text>
+            <text v-for="(span, si) in block.spans" :key="si" :class="spanClass(span)">{{ spanText(span) }}</text>
           </text>
 
           <view v-else-if="block.type === 'list'" class="list">
             <view v-for="(item, li) in block.items" :key="li" class="list-item">
-              <text class="list-bullet">{{ block.ordered ? `${li + 1}.` : '·' }}</text>
+              <text class="list-bullet">{{ block.ordered ? `${li + 1}.` : '•' }}</text>
               <text class="list-text">
-                <text v-for="(span, si) in item.spans" :key="si" :class="spanClass(span)">{{ span.text }}</text>
+                <text v-for="(span, si) in item.spans" :key="si" :class="spanClass(span)">{{ spanText(span) }}</text>
               </text>
             </view>
           </view>
@@ -66,7 +68,7 @@
           </view>
 
           <text v-else class="paragraph">
-            <text v-for="(span, si) in block.spans" :key="si" :class="spanClass(span)">{{ span.text }}</text>
+            <text v-for="(span, si) in block.spans" :key="si" :class="spanClass(span)">{{ spanText(span) }}</text>
           </text>
         </view>
       </view>
@@ -83,7 +85,7 @@
         <text v-if="showRegenerate" class="action" @click="$emit('regenerate')">重新生成</text>
         <text class="action" :class="{ 'action-on': message.feedback === 'up' }" @click="$emit('rate', 'up')">赞</text>
         <text class="action" :class="{ 'action-on': message.feedback === 'down' }" @click="$emit('rate', 'down')">踩</text>
-        <text v-if="message.output_tokens" class="action-meta">{{ message.output_tokens }} tokens</text>
+        <text class="action-meta">{{ meta }}</text>
       </view>
     </block>
   </view>
@@ -91,8 +93,8 @@
 
 <script setup>
 /**
- * 单条消息。用户消息是右侧气泡，助手消息是整块正文。
- * 正文用 parseMarkdown 拆成块，避免 nvue 无法渲染 HTML 的限制。
+ * 单条消息，样式与 Web 端手机视口保持一致：
+ * 用户右侧气泡 + 时间；助手为整块正文，含思维链、Markdown 块与操作栏。
  */
 import { computed } from 'vue'
 import ThinkingPanel from './thinking-panel.nvue'
@@ -110,12 +112,38 @@ const blocks = computed(() => (props.message.content ? parseMarkdown(props.messa
 const viewedSources = computed(() => (props.message.sources || []).filter((item) => item.viewed))
 const hasActions = computed(() => Boolean(props.message.content))
 
-/** 行内样式：加粗、行内代码、引用标号。 */
+/** 用户消息时间，形如 10:00。 */
+const time = computed(() => {
+  const raw = props.message.created_at
+  if (!raw) return ''
+  const date = new Date(raw)
+  if (Number.isNaN(date.getTime())) return ''
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+})
+
+/** 生成信息：已生成 N 字 · N tok/s，与 Web 端一致。 */
+const meta = computed(() => {
+  const chars = (props.message.content || '').replace(/\s/g, '').length
+  if (!chars) return ''
+  const tokens = props.message.output_tokens || 0
+  const duration = props.message.duration_ms || 0
+  const speed = tokens && duration ? Math.max(1, Math.round(tokens / (duration / 1000))) : 0
+  return speed ? `已生成 ${chars} 字 · ${speed} tok/s` : `已生成 ${chars} 字`
+})
+
 function spanClass(span) {
   if (span.bold) return 'span-bold'
   if (span.code) return 'span-code'
   if (span.cite) return 'span-cite'
   return 'span'
+}
+
+const SUPERSCRIPT = { 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹' }
+
+/** 引用标号渲染成上标数字（nvue 不支持 vertical-align，用上标字符实现）。 */
+function spanText(span) {
+  if (!span.cite) return span.text
+  return span.text.replace(/[[\]]/g, '').replace(/[0-9]/g, (digit) => SUPERSCRIPT[digit] || digit)
 }
 
 function copy(text) {
@@ -126,8 +154,7 @@ function copy(text) {
 
 <style>
 .msg {
-  width: 750rpx;
-  padding: 20rpx 32rpx;
+  padding: 22rpx 32rpx;
 }
 .msg-user {
   align-items: flex-end;
@@ -148,45 +175,50 @@ function copy(text) {
 }
 .bubble {
   max-width: 580rpx;
-  padding: 20rpx 26rpx;
-  border-radius: 22rpx;
-  background-color: #f2f4f8;
+  padding: 22rpx 30rpx;
+  border-radius: 24rpx;
+  background-color: #f3f5fa;
 }
 .bubble-text {
   color: #101828;
-  font-size: 30rpx;
-  line-height: 44rpx;
+  font-size: 32rpx;
+  line-height: 46rpx;
+}
+.msg-time {
+  margin-top: 10rpx;
+  color: #98a2b3;
+  font-size: 24rpx;
 }
 .head {
   flex-direction: row;
   align-items: center;
-  margin-bottom: 12rpx;
+  margin-bottom: 18rpx;
 }
 .head-logo {
-  width: 40rpx;
-  height: 40rpx;
-  margin-right: 12rpx;
+  width: 44rpx;
+  height: 44rpx;
+  margin-right: 14rpx;
 }
 .head-name {
   color: #101828;
-  font-size: 27rpx;
+  font-size: 30rpx;
   font-weight: bold;
 }
 .head-model {
-  margin-left: 12rpx;
+  margin-left: 14rpx;
   color: #98a2b3;
-  font-size: 24rpx;
+  font-size: 25rpx;
 }
 .blocks {
-  margin-top: 8rpx;
+  margin-top: 6rpx;
 }
 .block {
-  margin-bottom: 16rpx;
+  margin-bottom: 18rpx;
 }
 .paragraph {
-  color: #101828;
+  color: #1d2939;
   font-size: 30rpx;
-  line-height: 48rpx;
+  line-height: 50rpx;
 }
 .h1 {
   color: #101828;
@@ -200,69 +232,66 @@ function copy(text) {
   border-left-style: solid;
   border-left-color: #d0d5dd;
   color: #475467;
-  font-size: 28rpx;
-  line-height: 44rpx;
+  font-size: 29rpx;
+  line-height: 46rpx;
 }
 .list {
-  margin-top: 6rpx;
+  margin-top: 4rpx;
 }
 .list-item {
   flex-direction: row;
   align-items: flex-start;
-  margin-bottom: 8rpx;
+  margin-bottom: 12rpx;
 }
 .list-bullet {
-  width: 34rpx;
-  color: #4d6bfe;
-  font-size: 28rpx;
-  line-height: 44rpx;
+  width: 38rpx;
+  color: #1d2939;
+  font-size: 30rpx;
+  line-height: 50rpx;
 }
 .list-text {
   flex: 1;
-  color: #101828;
+  color: #1d2939;
   font-size: 30rpx;
-  line-height: 44rpx;
+  line-height: 50rpx;
 }
 .code {
-  margin-top: 12rpx;
-  border-radius: 16rpx;
-  background-color: #0f172a;
+  margin-top: 8rpx;
+  border-radius: 18rpx;
+  background-color: #14161c;
 }
 .code-head {
   flex-direction: row;
   justify-content: space-between;
-  padding: 14rpx 20rpx;
-  border-bottom-width: 1rpx;
-  border-bottom-style: solid;
-  border-bottom-color: #1e293b;
+  padding: 18rpx 24rpx;
 }
 .code-lang {
-  color: #94a3b8;
-  font-size: 22rpx;
+  color: #e4e7ec;
+  font-size: 26rpx;
 }
 .code-copy {
-  color: #94a3b8;
-  font-size: 22rpx;
+  color: #c0c5d0;
+  font-size: 26rpx;
 }
 .code-body {
-  padding: 16rpx 20rpx;
+  padding: 0 24rpx 20rpx 24rpx;
 }
 .code-text {
-  color: #e2e8f0;
-  font-size: 24rpx;
-  line-height: 36rpx;
+  color: #e6e8ee;
+  font-size: 26rpx;
+  line-height: 40rpx;
   font-family: Menlo, monospace;
 }
 .span {
-  color: #101828;
+  color: #1d2939;
   font-size: 30rpx;
-  line-height: 48rpx;
+  line-height: 50rpx;
 }
 .span-bold {
   color: #101828;
   font-size: 30rpx;
   font-weight: bold;
-  line-height: 48rpx;
+  line-height: 50rpx;
 }
 .span-code {
   color: #b42318;
@@ -271,55 +300,57 @@ function copy(text) {
 }
 .span-cite {
   color: #4d6bfe;
-  font-size: 24rpx;
+  font-size: 22rpx;
 }
 .typing {
   color: #98a2b3;
-  font-size: 26rpx;
+  font-size: 27rpx;
 }
 .notice {
   margin-top: 12rpx;
-  padding: 14rpx 18rpx;
-  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  border-radius: 14rpx;
   background-color: #fffaeb;
 }
 .notice-text {
   color: #b54708;
-  font-size: 24rpx;
+  font-size: 25rpx;
 }
 .error {
   flex-direction: row;
   align-items: center;
   margin-top: 12rpx;
-  padding: 14rpx 18rpx;
-  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  border-radius: 14rpx;
   background-color: #fef3f2;
 }
 .error-text {
   flex: 1;
   color: #b42318;
-  font-size: 25rpx;
+  font-size: 26rpx;
 }
 .error-retry {
   margin-left: 16rpx;
   color: #b42318;
-  font-size: 25rpx;
+  font-size: 26rpx;
 }
 .actions {
   flex-direction: row;
   align-items: center;
-  margin-top: 16rpx;
+  margin-top: 22rpx;
 }
 .action {
-  margin-right: 28rpx;
+  margin-right: 30rpx;
   color: #98a2b3;
-  font-size: 24rpx;
+  font-size: 25rpx;
 }
 .action-on {
   color: #4d6bfe;
 }
 .action-meta {
+  flex: 1;
+  text-align: right;
   color: #d0d5dd;
-  font-size: 22rpx;
+  font-size: 23rpx;
 }
 </style>

@@ -2,9 +2,15 @@
   <view class="page">
     <!-- 顶栏 -->
     <view class="topbar">
-      <text class="topbar-menu" @click="drawerOpen = true">☰</text>
+      <view class="topbar-menu" @click="drawerOpen = true">
+        <view class="bar" />
+        <view class="bar" />
+        <view class="bar" />
+      </view>
       <text class="topbar-title">{{ currentTitle }}</text>
-      <text class="topbar-action" @click="onShare">分享</text>
+      <view class="topbar-avatar" @click="onAvatar">
+        <text class="topbar-avatar-text">{{ avatarText }}</text>
+      </view>
     </view>
 
     <!-- 消息列表 -->
@@ -60,10 +66,36 @@
     <view v-if="drawerOpen" class="drawer-mask" @click="drawerOpen = false">
       <view class="drawer" @click.stop>
         <view class="drawer-head">
-          <text class="drawer-title">历史对话</text>
-          <text class="drawer-new" @click="newChat">＋ 新建</text>
+          <image class="drawer-logo" src="/static/shark.png" mode="aspectFit" />
+          <text class="drawer-brand">DeepTalk</text>
+          <view class="drawer-collapse" @click="drawerOpen = false">
+            <view class="bar" />
+            <view class="bar" />
+          </view>
         </view>
+
+        <view class="drawer-new" @click="newChat">
+          <text class="drawer-new-plus">＋</text>
+          <text class="drawer-new-text">新建对话</text>
+        </view>
+
+        <view class="drawer-search">
+          <view class="drawer-search-icon">
+            <view class="search-ring" />
+            <view class="search-handle" />
+          </view>
+          <input
+            v-model="keyword"
+            class="drawer-search-input"
+            placeholder="搜索对话"
+            placeholder-class="drawer-search-placeholder"
+            confirm-type="search"
+            @confirm="onSearch"
+          />
+        </view>
+
         <scroll-view class="drawer-list" scroll-y>
+          <text v-if="chat.conversations.length" class="drawer-group">今天</text>
           <view
             v-for="item in chat.conversations"
             :key="item.id"
@@ -72,12 +104,44 @@
             @click="openItem(item)"
             @longpress="onItemLongPress(item)"
           >
+            <view class="drawer-item-dot" />
             <text class="drawer-item-title">{{ item.title }}</text>
+            <view class="dots" @click.stop="onItemLongPress(item)">
+              <view class="dot" />
+              <view class="dot" />
+              <view class="dot" />
+            </view>
           </view>
           <text v-if="!chat.conversations.length" class="drawer-empty">还没有对话</text>
         </scroll-view>
-        <view class="drawer-foot" @click="logout">
-          <text class="drawer-foot-text">退出登录</text>
+
+        <view class="drawer-usage">
+          <view class="drawer-usage-head">
+            <text class="drawer-usage-title">本月用量</text>
+            <text class="drawer-usage-percent">{{ usageLabel }}</text>
+          </view>
+          <view class="drawer-usage-track">
+            <view class="drawer-usage-fill" :style="{ width: `${usagePercent}%` }" />
+          </view>
+          <view class="drawer-usage-meta">
+            <text class="drawer-usage-tokens">{{ usageTokens }}</text>
+            <text class="drawer-usage-reset">{{ usageReset }}</text>
+          </view>
+        </view>
+
+        <view class="drawer-account" @click="onAvatar">
+          <view class="drawer-avatar">
+            <text class="drawer-avatar-text">{{ avatarText }}</text>
+          </view>
+          <view class="drawer-account-main">
+            <text class="drawer-account-name">{{ accountName }}</text>
+            <text class="drawer-account-mail">{{ accountMail }}</text>
+          </view>
+          <view class="dots">
+            <view class="dot" />
+            <view class="dot" />
+            <view class="dot" />
+          </view>
         </view>
       </view>
     </view>
@@ -98,6 +162,7 @@ import {
   currentTitle,
   loadConversations,
   loadModels,
+  loadUsage,
   openConversation,
   startDraft,
   send,
@@ -111,11 +176,12 @@ import {
 } from '@/store/chat'
 import { chatSocket } from '@/utils/ws'
 import { uploadFile } from '@/api/http'
-import { clearSession } from '@/store/session'
+import { session, clearSession } from '@/store/session'
 import { toast, confirm } from '@/utils/ui'
 import { logout as logoutApi } from '@/api/auth'
 
 const draft = ref('')
+const keyword = ref('')
 const drawerOpen = ref(false)
 const scrollTarget = ref('')
 const attachments = ref([])
@@ -123,6 +189,24 @@ const attachments = ref([])
 const modelName = computed(() => chat.models.find((item) => item.id === chat.modelId)?.display_name || '选择模型')
 const modelPickerOpen = ref(false)
 const modelColumns = computed(() => chat.models.map((item) => ({ text: item.display_name, value: item.id })))
+
+const avatarText = computed(() => session.user?.avatar_text || session.user?.nickname?.slice(0, 1) || 'U')
+const accountName = computed(() => session.user?.nickname || '用户')
+const accountMail = computed(() => session.user?.email || '')
+const usagePercent = computed(() => {
+  const usage = chat.usage
+  if (!usage) return 0
+  if (usage.quota_tokens > 0) return Math.min(100, Math.round((usage.used_tokens / usage.quota_tokens) * 100))
+  return Math.min(100, usage.used_percent || 0)
+})
+const usageLabel = computed(() => (chat.usage?.quota_tokens ? `${usagePercent.value}%` : '不限'))
+const usageTokens = computed(() => {
+  const usage = chat.usage
+  if (!usage) return '—'
+  const fmt = (n) => (n >= 1000000 ? `${(n / 1000000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}K` : String(n))
+  return usage.quota_tokens ? `${fmt(usage.used_tokens)} / ${fmt(usage.quota_tokens)} tokens` : `${fmt(usage.used_tokens)} tokens`
+})
+const usageReset = computed(() => (chat.usage?.reset_days ? `重置 ${chat.usage.reset_days} 天` : '不设月度上限'))
 
 function scrollToBottom() {
   nextTick(() => {
@@ -162,6 +246,22 @@ async function onRate(message, rating) {
   } catch {
     toast('操作失败')
   }
+}
+
+/** 侧栏搜索。 */
+function onSearch() {
+  loadConversations(keyword.value.trim()).catch(() => {})
+}
+
+/** 顶栏头像 / 侧栏账号行：分享、退出登录。 */
+function onAvatar() {
+  uni.showActionSheet({
+    itemList: ['分享当前对话', '退出登录'],
+    success: (res) => {
+      if (res.tapIndex === 0) onShare()
+      if (res.tapIndex === 1) logout()
+    },
+  })
 }
 
 function newChat() {
@@ -272,7 +372,7 @@ function loadMore() {
 
 onMounted(async () => {
   chatSocket.connect()
-  await Promise.all([loadModels(), loadConversations()])
+  await Promise.all([loadModels(), loadConversations(), loadUsage()])
   if (chat.conversations.length) {
     await openItem(chat.conversations[0])
   }
@@ -294,54 +394,68 @@ onUnmounted(() => {
   background-color: #ffffff;
 }
 .topbar {
-  height: 100rpx;
+  height: 96rpx;
   flex-direction: row;
   align-items: center;
-  padding: 0 28rpx;
+  padding: 0 24rpx;
   border-bottom-width: 1rpx;
   border-bottom-style: solid;
   border-bottom-color: #f0f2f5;
   background-color: #ffffff;
 }
 .topbar-menu {
-  width: 60rpx;
-  color: #475467;
-  font-size: 34rpx;
+  width: 56rpx;
+  padding: 8rpx 0;
+}
+.bar {
+  width: 34rpx;
+  height: 3rpx;
+  margin: 5rpx 0;
+  border-radius: 2rpx;
+  background-color: #475467;
 }
 .topbar-title {
   flex: 1;
   color: #101828;
-  font-size: 30rpx;
+  font-size: 32rpx;
   font-weight: bold;
   lines: 1;
   text-overflow: ellipsis;
 }
-.topbar-action {
-  margin-left: 20rpx;
+.topbar-avatar {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 32rpx;
+  align-items: center;
+  justify-content: center;
+  background-color: #eef2ff;
+}
+.topbar-avatar-text {
   color: #4d6bfe;
-  font-size: 26rpx;
+  font-size: 28rpx;
+  font-weight: bold;
 }
 .messages {
   flex: 1;
   background-color: #ffffff;
 }
 .empty {
-  padding: 140rpx 60rpx;
+  padding: 160rpx 60rpx;
   align-items: center;
 }
 .empty-logo {
-  width: 96rpx;
-  height: 96rpx;
-  margin-bottom: 28rpx;
+  width: 108rpx;
+  height: 108rpx;
+  margin-bottom: 32rpx;
 }
 .empty-title {
   color: #101828;
-  font-size: 38rpx;
+  font-size: 40rpx;
   font-weight: bold;
   text-align: center;
 }
 .empty-hint {
-  margin-top: 16rpx;
+  margin-top: 18rpx;
   color: #98a2b3;
   font-size: 26rpx;
   text-align: center;
@@ -358,62 +472,230 @@ onUnmounted(() => {
   background-color: rgba(16, 24, 40, 0.35);
 }
 .drawer {
-  width: 560rpx;
+  width: 606rpx;
   height: 100%;
   background-color: #ffffff;
+  border-right-width: 1rpx;
+  border-right-style: solid;
+  border-right-color: #f0f2f5;
 }
 .drawer-head {
-  height: 120rpx;
+  height: 128rpx;
   flex-direction: row;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 28rpx;
-  border-bottom-width: 1rpx;
-  border-bottom-style: solid;
-  border-bottom-color: #f0f2f5;
+  padding: 0 24rpx;
 }
-.drawer-title {
+.drawer-logo {
+  width: 56rpx;
+  height: 56rpx;
+  margin-right: 16rpx;
+}
+.drawer-brand {
+  flex: 1;
   color: #101828;
-  font-size: 30rpx;
+  font-size: 32rpx;
   font-weight: bold;
 }
+.drawer-collapse {
+  width: 44rpx;
+  padding: 10rpx 0;
+  align-items: flex-end;
+}
 .drawer-new {
-  color: #4d6bfe;
-  font-size: 26rpx;
+  height: 84rpx;
+  flex-direction: row;
+  align-items: center;
+  margin: 8rpx 24rpx 0 24rpx;
+  padding: 0 24rpx;
+  border-radius: 18rpx;
+  border-width: 1rpx;
+  border-style: solid;
+  border-color: #e4e7ec;
+}
+.drawer-new-plus {
+  margin-right: 12rpx;
+  color: #475467;
+  font-size: 30rpx;
+}
+.drawer-new-text {
+  color: #101828;
+  font-size: 28rpx;
+}
+.drawer-search {
+  height: 84rpx;
+  flex-direction: row;
+  align-items: center;
+  margin: 16rpx 24rpx 0 24rpx;
+  padding: 0 24rpx;
+  border-radius: 18rpx;
+  border-width: 1rpx;
+  border-style: solid;
+  border-color: #e4e7ec;
+}
+.drawer-search-icon {
+  width: 30rpx;
+  height: 30rpx;
+  margin-right: 14rpx;
+}
+.search-ring {
+  width: 20rpx;
+  height: 20rpx;
+  border-radius: 10rpx;
+  border-width: 2rpx;
+  border-style: solid;
+  border-color: #98a2b3;
+}
+.search-handle {
+  position: absolute;
+  right: 0;
+  bottom: 4rpx;
+  width: 10rpx;
+  height: 2rpx;
+  background-color: #98a2b3;
+  transform: rotate(45deg);
+}
+.drawer-search-input {
+  flex: 1;
+  color: #101828;
+  font-size: 28rpx;
+}
+.drawer-search-placeholder {
+  color: #98a2b3;
 }
 .drawer-list {
   flex: 1;
+  padding: 0 12rpx;
+}
+.drawer-group {
+  padding: 24rpx 16rpx 12rpx 16rpx;
+  color: #98a2b3;
+  font-size: 24rpx;
 }
 .drawer-item {
-  padding: 26rpx 28rpx;
-  border-bottom-width: 1rpx;
-  border-bottom-style: solid;
-  border-bottom-color: #f7f8fa;
+  height: 76rpx;
+  flex-direction: row;
+  align-items: center;
+  padding: 0 16rpx;
+  border-radius: 14rpx;
 }
 .drawer-item-on {
   background-color: #eef2ff;
 }
+.drawer-item-dot {
+  width: 22rpx;
+  height: 22rpx;
+  margin-right: 16rpx;
+  border-radius: 11rpx;
+  border-width: 2rpx;
+  border-style: solid;
+  border-color: #98a2b3;
+}
 .drawer-item-title {
-  color: #101828;
+  flex: 1;
+  color: #344054;
   font-size: 27rpx;
   lines: 1;
   text-overflow: ellipsis;
 }
+.dots {
+  width: 24rpx;
+  align-items: center;
+}
+.dot {
+  width: 6rpx;
+  height: 6rpx;
+  margin: 3rpx 0;
+  border-radius: 3rpx;
+  background-color: #c0c5d0;
+}
 .drawer-empty {
-  padding: 40rpx 28rpx;
+  padding: 60rpx 24rpx;
   color: #98a2b3;
   font-size: 26rpx;
 }
-.drawer-foot {
-  height: 100rpx;
+.drawer-usage {
+  margin: 0 20rpx 16rpx 20rpx;
+  padding: 20rpx 22rpx;
+  border-radius: 18rpx;
+  border-width: 1rpx;
+  border-style: solid;
+  border-color: #eef1f6;
+  background-color: #fcfcfd;
+}
+.drawer-usage-head {
+  flex-direction: row;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+}
+.drawer-usage-title {
+  color: #344054;
+  font-size: 25rpx;
+}
+.drawer-usage-percent {
+  color: #4d6bfe;
+  font-size: 25rpx;
+  font-weight: bold;
+}
+.drawer-usage-track {
+  height: 8rpx;
+  margin-top: 14rpx;
+  border-radius: 4rpx;
+  background-color: #edf0f5;
+}
+.drawer-usage-fill {
+  height: 8rpx;
+  border-radius: 4rpx;
+  background-color: #4d6bfe;
+}
+.drawer-usage-meta {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14rpx;
+}
+.drawer-usage-tokens {
+  color: #667085;
+  font-size: 23rpx;
+}
+.drawer-usage-reset {
+  color: #98a2b3;
+  font-size: 23rpx;
+}
+.drawer-account {
+  height: 116rpx;
+  flex-direction: row;
+  align-items: center;
+  padding: 0 24rpx;
   border-top-width: 1rpx;
   border-top-style: solid;
   border-top-color: #f0f2f5;
 }
-.drawer-foot-text {
-  color: #d92d20;
-  font-size: 27rpx;
+.drawer-avatar {
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 30rpx;
+  align-items: center;
+  justify-content: center;
+  background-color: #eef2ff;
 }
+.drawer-avatar-text {
+  color: #4d6bfe;
+  font-size: 26rpx;
+  font-weight: bold;
+}
+.drawer-account-main {
+  flex: 1;
+  margin-left: 16rpx;
+}
+.drawer-account-name {
+  color: #101828;
+  font-size: 27rpx;
+  font-weight: bold;
+}
+.drawer-account-mail {
+  margin-top: 4rpx;
+  color: #98a2b3;
+  font-size: 23rpx;
+}
+
 </style>
