@@ -198,7 +198,8 @@ func (s *Service) FetchPagesWithProgress(ctx context.Context, rawURLs []string, 
 		}
 		seen[normalized] = struct{}{}
 		urls = append(urls, normalized)
-		if len(urls) >= 5 {
+		// 单次调用最多展开 25 个页面；真正的“每次回答看多少站”由上层预算控制。
+		if len(urls) >= 25 {
 			break
 		}
 	}

@@ -39,7 +39,16 @@ type Config struct {
 	IdleMinTokens    int           // 空闲压缩的最小 token 数
 	Location         string        // IP 定位失败时的位置兜底
 	Timezone         string        // IP 定位失败时的时区兜底
+	MaxSitesPerTurn  int           // 单次回答最多打开多少个网页
+	MaxToolRounds    int           // 单次回答最多多少轮工具调用（安全阀）
 }
+
+// 默认预算：一轮回答里模型可以反复搜索、反复打开网页，共 25 个站；
+// 抓取仍然每次并发 5 个，避免一次性打爆目标站点。
+const (
+	defaultMaxSitesPerTurn = 25
+	defaultMaxToolRounds   = 40
+)
 
 // Service 提供会话与消息的业务能力。
 type Service struct {
@@ -67,6 +76,12 @@ func NewService(db *gorm.DB, providers *provider.Service, users *user.Service, s
 	}
 	if cfg.CompactRatio <= 0 || cfg.CompactRatio >= 1 {
 		cfg.CompactRatio = 0.85
+	}
+	if cfg.MaxSitesPerTurn <= 0 {
+		cfg.MaxSitesPerTurn = defaultMaxSitesPerTurn
+	}
+	if cfg.MaxToolRounds <= 0 {
+		cfg.MaxToolRounds = defaultMaxToolRounds
 	}
 	if cfg.KeepRatio <= 0 || cfg.KeepRatio >= cfg.CompactRatio {
 		cfg.KeepRatio = 0.30
@@ -332,6 +347,8 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 	// 联网由模型通过 web_search 工具按需调用；不在这里预先搜索。
 	var toolSources []search.Result
 	var uiMessages []map[string]any
+	// 一次回答内的网页预算：模型可以多轮打开，但总数有上限
+	sitesLeft := s.cfg.MaxSitesPerTurn
 	emitActivity := func(status, label, detail, rawURL string) {
 		_ = emit("activity", map[string]any{
 			"status": status,
@@ -436,6 +453,10 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 		}
 		// 模型可以直接给出它想读的 URL；否则用 query + 指定/默认引擎搜索。
 		if len(args.URLs) > 0 {
+			if sitesLeft <= 0 {
+				return fmt.Sprintf(`{"error":"本次回答已打开 %d 个网页，达到上限；请基于已有资料作答，或直接说明还需要哪些信息。"}`, s.cfg.MaxSitesPerTurn), nil
+			}
+			args.URLs, sitesLeft = claimSites(args.URLs, sitesLeft)
 			label := "正在打开网页…"
 			if len(args.URLs) > 1 {
 				label = fmt.Sprintf("正在打开 %d 个网页…", len(args.URLs))
@@ -475,7 +496,7 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 					}
 					continue
 				}
-				if len(toolSources) >= 10 {
+				if len(toolSources) >= s.cfg.MaxSitesPerTurn {
 					break
 				}
 				known[page.URL] = struct{}{}
@@ -692,6 +713,18 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 	return nil
 }
 
+// claimSites 按剩余额度截断本次要打开的 URL，并返回新的余额。
+// 额度在一次回答内共享，模型可以分多轮把 25 个站看完，但不会超支。
+func claimSites(urls []string, remaining int) ([]string, int) {
+	if remaining <= 0 || len(urls) == 0 {
+		return nil, remaining
+	}
+	if len(urls) > remaining {
+		return urls[:remaining], 0
+	}
+	return urls, remaining - len(urls)
+}
+
 // generate 执行一次上游或演示生成。
 // 返回 produced 表示是否已经向客户端输出过内容，用于判断能否安全切换兜底模型。
 func (s *Service) generate(
@@ -709,10 +742,11 @@ func (s *Service) generate(
 	usage := provider.CompletionUsage{}
 	produced := false
 	if strings.TrimSpace(prov.APIKeyEnc) != "" {
-		// 最多两轮工具调用，第二轮完成后去掉工具，强制模型给出最终回答。
-		for round := 0; round < 3; round++ {
+		// 模型可以在一轮回答里反复搜索/打开网页，直到用完网页预算或不再调用工具。
+		// 最后再留一轮不带工具，强制它给出最终回答，防止死循环。
+		for round := 0; round < s.cfg.MaxToolRounds; round++ {
 			roundTools := tools
-			if round == 2 {
+			if round == s.cfg.MaxToolRounds-1 {
 				roundTools = nil
 			}
 			var calls []provider.ToolCall
@@ -1283,7 +1317,7 @@ query 必须是检索关键词，不是问句：
 				},
 				"urls": map[string]any{
 					"type":        "array",
-					"description": "模型已知的具体网页 URL，可直接抓取正文；与 query 二选一，最多 5 个",
+					"description": "模型已知的具体网页 URL，可直接抓取正文；与 query 二选一，单次建议 3–5 个，一次回答累计最多 25 个",
 					"items":       map[string]any{"type": "string"},
 				},
 				"engines": map[string]any{
@@ -1354,6 +1388,7 @@ const systemPrompt = `你是 DeepTalk，一个真诚、自然、乐于助人的 
 10. 你可以调用 web_search 工具检索公开网页；涉及新闻、价格、版本发布、实时数据或用户明确要求联网时必须调用。不要声称自己没有联网能力。
 11. 如果没有提供联网来源，不要声称“没有联网工具”或“无法联网”；基于已有知识回答，并简要说明未实时核验即可。
 12. 先判断是否需要搜索；需要时通常先调用一次 web_search 获取候选来源，再选择最相关的 1–3 个页面用 urls 打开；不要反复搜索同一问题。搜索的 query 要用关键词而非问句（如「沪深股市 涨幅榜」，不要写「现在股市在涨的股票」）。
+13. 一次回答里可以多次调用工具：先用 web_search 拿候选，再用 urls 打开真正需要读的页面；网页总量上限 25 个，抓取并发 5 个。资料够了就停止调用并给出结论，不要为了凑数反复打开无关页面。
 13. 当用户要求卡片、对比表、表单、步骤、清单、数据面板或图文布局时，可以调用 render_ui 生成 A2UI 界面；不要在简单问答中滥用。界面已经表达的内容，正文只做简短补充。`
 
 // buildHistory 组装完整上下文：系统提示 + 历史摘要 + 摘要边界之后的原始消息。
