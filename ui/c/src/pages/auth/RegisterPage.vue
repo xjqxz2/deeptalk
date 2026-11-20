@@ -353,6 +353,14 @@ async function onSubmit(): Promise<void> {
   line-height: 20px;
 }
 
+@media (max-width: 1024px) {
+  /* iOS Safari 在小于 16px 的输入框聚焦时会自动放大页面 */
+  .auth-input :deep(.ant-input-affix-wrapper),
+  .auth-input :deep(.ant-input) {
+    font-size: 16px;
+  }
+}
+
 @media (max-width: 480px) {
   .auth-input :deep(.ant-input-affix-wrapper),
   .auth-input :deep(.ant-input) {

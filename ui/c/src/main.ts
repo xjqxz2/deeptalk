@@ -7,9 +7,13 @@ import '@deeptalk/shared/style.css'
 import './styles/global.css'
 import App from './App.vue'
 import router from './router'
+import { registerServiceWorker } from './utils/pwa'
 
 const app = createApp(App)
 app.use(createPinia())
 app.use(router)
 app.use(Antd)
 app.mount('#app')
+
+// 只在生产构建注册；开发期不缓存，避免热更新被 Service Worker 拦截
+registerServiceWorker()

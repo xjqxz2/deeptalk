@@ -6,12 +6,14 @@ import { message } from 'ant-design-vue'
 import {
   LogoutOutlined,
   MenuOutlined,
+  MobileOutlined,
   MoreOutlined,
   UserOutlined,
   WarningOutlined,
 } from '@ant-design/icons-vue'
 import { useAppStore } from '@/stores/app'
 import { useChatStore } from '@/stores/chat'
+import { usePwaInstall } from '@/composables/usePwaInstall'
 import { useUserStore } from '@/stores/user'
 import AccountSettingsModal from '@/components/business/AccountSettingsModal.vue'
 
@@ -20,6 +22,7 @@ const chat = useChatStore()
 const userStore = useUserStore()
 const router = useRouter()
 const route = useRoute()
+const { available: installAvailable, install: installApp } = usePwaInstall()
 
 const accountOpen = ref(false)
 const shortcutsOpen = ref(false)
@@ -44,12 +47,14 @@ async function newChat(): Promise<void> {
 
 /** 头像菜单。 */
 function onUserMenu(info: { key: string }): void {
+  if (info.key === 'install') void installApp()
   if (info.key === 'account') accountOpen.value = true
   if (info.key === 'logout') void logout()
 }
 
 /** 更多菜单。 */
 function onMoreMenu(info: { key: string }): void {
+  if (info.key === 'install') void installApp()
   if (info.key === 'shortcuts') shortcutsOpen.value = true
   if (info.key === 'new') void newChat()
   if (info.key === 'account') accountOpen.value = true
@@ -88,6 +93,10 @@ async function logout(): Promise<void> {
         <button type="button" class="avatar" aria-label="账号菜单">{{ initial }}</button>
         <template #overlay>
           <a-menu @click="onUserMenu">
+            <a-menu-item v-if="installAvailable" key="install">
+              <MobileOutlined />
+              安装到桌面
+            </a-menu-item>
             <a-menu-item key="account">
               <UserOutlined />
               账号与密码
@@ -105,6 +114,10 @@ async function logout(): Promise<void> {
         </button>
         <template #overlay>
           <a-menu @click="onMoreMenu">
+            <a-menu-item v-if="installAvailable" key="install">
+              <MobileOutlined />
+              安装到桌面
+            </a-menu-item>
             <a-menu-item key="shortcuts">键盘快捷键</a-menu-item>
             <a-menu-item key="new">新建对话</a-menu-item>
             <a-menu-divider />
@@ -141,9 +154,10 @@ async function logout(): Promise<void> {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  height: var(--dt-chat-topbar);
-  flex: 0 0 var(--dt-chat-topbar);
-  padding: 0 18px 0 20px;
+  height: calc(var(--dt-chat-topbar) + env(safe-area-inset-top));
+  flex: 0 0 calc(var(--dt-chat-topbar) + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) calc(18px + env(safe-area-inset-right)) 0
+    calc(20px + env(safe-area-inset-left));
   border-bottom: 1px solid var(--dt-line);
   background: #fff;
 }

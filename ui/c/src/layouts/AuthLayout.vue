@@ -77,6 +77,7 @@ withDefaults(
   display: grid;
   grid-template-columns: 620px minmax(0, 1fr);
   min-height: 100vh;
+  min-height: 100dvh;
   background: #fff;
 }
 
@@ -189,7 +190,9 @@ withDefaults(
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  padding: 30px 54px 36px;
+  min-height: 100dvh;
+  padding: calc(30px + env(safe-area-inset-top)) calc(54px + env(safe-area-inset-right))
+    calc(36px + env(safe-area-inset-bottom)) calc(54px + env(safe-area-inset-left));
 }
 
 .panel-top {
@@ -283,7 +286,8 @@ withDefaults(
   }
 
   .auth-panel {
-    padding: 24px 24px 32px;
+    padding: calc(24px + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right))
+      calc(32px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left));
     background: linear-gradient(180deg, #f7f9ff 0%, #ffffff 38%);
   }
 
@@ -298,7 +302,8 @@ withDefaults(
 
 @media (max-width: 480px) {
   .auth-panel {
-    padding: 20px 18px 28px;
+    padding: calc(20px + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right))
+      calc(28px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left));
   }
 
   .form-inner h1 {

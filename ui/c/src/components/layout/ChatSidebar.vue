@@ -13,6 +13,7 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   MessageOutlined,
+  MobileOutlined,
   MoreOutlined,
   PlusOutlined,
   SearchOutlined,
@@ -22,6 +23,7 @@ import { BrandMark, formatDate, planLabel } from '@deeptalk/shared'
 import type { Conversation } from '@deeptalk/shared'
 import { useAppStore } from '@/stores/app'
 import { useChatStore } from '@/stores/chat'
+import { usePwaInstall } from '@/composables/usePwaInstall'
 import { useUserStore } from '@/stores/user'
 import BrandBlock from '@/components/base/BrandBlock.vue'
 import UsageCard from '@/components/business/UsageCard.vue'
@@ -32,6 +34,7 @@ const chat = useChatStore()
 const userStore = useUserStore()
 const router = useRouter()
 const route = useRoute()
+const { available: installAvailable, install: installApp } = usePwaInstall()
 
 /** 搜索关键词，300ms 防抖后请求服务端。 */
 const keyword = ref(chat.searchKeyword)
@@ -157,6 +160,7 @@ function onItemMenu(info: { key: string }, item: Conversation): void {
 
 /** 账号菜单。 */
 function onUserMenu(info: { key: string }): void {
+  if (info.key === 'install') void installApp()
   if (info.key === 'account') accountOpen.value = true
   if (info.key === 'logout') void logout()
 }
@@ -286,6 +290,10 @@ function conversationTime(item: Conversation): string {
                 <span class="user-menu-plan">{{ planLabel(user?.plan ?? 'free') }}</span>
               </div>
               <a-menu-divider />
+              <a-menu-item v-if="installAvailable" key="install">
+                <MobileOutlined />
+                安装到桌面
+              </a-menu-item>
               <a-menu-item key="account">
                 <UserOutlined />
                 账号与密码
@@ -377,14 +385,15 @@ function conversationTime(item: Conversation): string {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  height: 64px;
-  padding: 0 14px 0 18px;
-  flex: 0 0 64px;
+  height: calc(64px + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) calc(14px + env(safe-area-inset-right)) 0
+    calc(18px + env(safe-area-inset-left));
+  flex: 0 0 calc(64px + env(safe-area-inset-top));
 }
 
 .collapsed .sidebar-head {
   justify-content: center;
-  padding: 0;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
 }
 
 .brand-mini {
@@ -585,7 +594,7 @@ function conversationTime(item: Conversation): string {
 
 .sidebar-foot {
   flex: 0 0 auto;
-  padding: 10px 12px 12px;
+  padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -743,7 +752,7 @@ function conversationTime(item: Conversation): string {
 .collapsed-foot {
   display: flex;
   justify-content: center;
-  padding: 10px 0 12px;
+  padding: 10px 0 calc(12px + env(safe-area-inset-bottom));
   flex: 0 0 auto;
 }
 
@@ -752,14 +761,28 @@ function conversationTime(item: Conversation): string {
   cursor: pointer;
 }
 
+@media (max-width: 768px) {
+  /* 避免 iOS Safari 聚焦搜索框时放大整页 */
+  .search-input :deep(input) {
+    font-size: 16px;
+  }
+}
+
+.chat-sidebar.mobile .sidebar-head {
+  /* 抽屉本身已经有 padding-left 安全区，头部不再重复叠加 */
+  padding-left: 18px;
+  padding-right: 14px;
+}
+
 .chat-sidebar.mobile {
   position: fixed;
   inset: 0 auto 0 0;
   height: 100vh;
   height: 100svh;
   height: 100dvh;
-  width: 280px;
-  flex-basis: 280px;
+  width: calc(280px + env(safe-area-inset-left));
+  flex-basis: calc(280px + env(safe-area-inset-left));
+  padding-left: env(safe-area-inset-left);
   transform: translateX(-100%);
   box-shadow: 0 18px 40px rgba(16, 24, 40, 0.18);
 }

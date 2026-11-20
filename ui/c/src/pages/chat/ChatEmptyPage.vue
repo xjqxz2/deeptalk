@@ -60,7 +60,6 @@ onMounted(() => {
           <BrandMark :size="52" :radius="15" />
         </div>
         <h1>我是 DeepTalk，很高兴见到你！</h1>
-        <p class="hero-sub">我可以帮你写代码、读文档、做分析，也能陪你一起头脑风暴。</p>
       </div>
 
       <div class="empty-composer">
@@ -92,7 +91,7 @@ onMounted(() => {
   justify-content: center;
   gap: 42px;
   min-height: 100%;
-  padding: 48px 40px 112px;
+  padding: 48px 40px calc(112px + env(safe-area-inset-bottom));
 }
 
 .empty-hero {
@@ -122,14 +121,6 @@ onMounted(() => {
   text-align: center;
 }
 
-.hero-sub {
-  margin: 12px 0 0;
-  color: var(--dt-text-muted);
-  font-size: 13.6px;
-  line-height: 22px;
-  text-align: center;
-}
-
 .empty-composer {
   width: 100%;
   max-width: 752px;
@@ -138,22 +129,18 @@ onMounted(() => {
 @media (max-width: 900px) {
   .empty-scroll {
     justify-content: flex-start;
-    padding: 40px 24px 24px;
+    padding: 40px 24px calc(24px + env(safe-area-inset-bottom));
     gap: 30px;
   }
 }
 
 @media (max-width: 600px) {
   .empty-scroll {
-    padding: 28px 16px 16px;
+    padding: 28px 16px calc(16px + env(safe-area-inset-bottom));
   }
 
   .empty-hero h1 {
     font-size: 24px;
-  }
-
-  .hero-sub {
-    font-size: 13px;
   }
 }
 </style>

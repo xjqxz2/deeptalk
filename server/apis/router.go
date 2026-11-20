@@ -163,8 +163,7 @@ func mountFrontend(router *gin.Engine) {
 	router.GET("/admin/*path", func(c *gin.Context) {
 		relative := strings.TrimPrefix(c.Param("path"), "/")
 		if relative != "" && fileExistsIn(bFS, relative) {
-			c.Header("Cache-Control", "public, max-age=31536000, immutable")
-			c.FileFromFS(relative, http.FS(bFS))
+			serveFrontendFile(c, bFS, relative, false)
 			return
 		}
 		serveIndex(c, bFS)
@@ -177,12 +176,43 @@ func mountFrontend(router *gin.Engine) {
 		}
 		relative := strings.TrimPrefix(path, "/")
 		if relative != "" && fileExistsIn(cFS, relative) {
-			c.Header("Cache-Control", "public, max-age=31536000, immutable")
-			c.FileFromFS(relative, http.FS(cFS))
+			serveFrontendFile(c, cFS, relative, true)
 			return
 		}
 		serveIndex(c, cFS)
 	})
+}
+
+// serveFrontendFile 输出前端静态文件。
+// Service Worker、manifest 与离线页必须短缓存或禁缓存，否则发版后会继续使用旧版本；
+// 带内容哈希的 /assets 才能长期 immutable。admin 端没有 PWA 文件，沿用长期缓存。
+func serveFrontendFile(c *gin.Context, fsys fs.FS, relative string, pwa bool) {
+	if !pwa {
+		c.Header("Cache-Control", "public, max-age=31536000, immutable")
+		c.FileFromFS(relative, http.FS(fsys))
+		return
+	}
+
+	switch relative {
+	case "sw.js":
+		c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+		c.Header("Service-Worker-Allowed", "/")
+		c.Header("Content-Type", "text/javascript; charset=utf-8")
+		c.Header("X-Content-Type-Options", "nosniff")
+	case "manifest.webmanifest":
+		c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+		c.Header("Content-Type", "application/manifest+json; charset=utf-8")
+	case "offline.html":
+		c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+		c.Header("Content-Type", "text/html; charset=utf-8")
+	default:
+		if strings.HasPrefix(relative, "icons/") {
+			c.Header("Cache-Control", "public, max-age=604800")
+			break
+		}
+		c.Header("Cache-Control", "public, max-age=31536000, immutable")
+	}
+	c.FileFromFS(relative, http.FS(fsys))
 }
 
 // serveIndex 输出 SPA 入口，并禁止 HTML 缓存，保证发版后能立即生效。

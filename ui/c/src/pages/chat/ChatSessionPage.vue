@@ -255,7 +255,7 @@ watch(
   max-width: 752px;
   /* 消息从顶部开始排布：短对话不再被推到页面底部，长对话仍会按需滚动 */
   margin: 0 auto;
-  padding: 22px 24px 18px;
+  padding: 22px calc(24px + env(safe-area-inset-right)) 18px calc(24px + env(safe-area-inset-left));
 }
 
 .skeleton-wrap {
@@ -311,7 +311,7 @@ watch(
 .back-to-bottom {
   position: absolute;
   left: 50%;
-  bottom: 154px;
+  bottom: calc(154px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
@@ -335,7 +335,8 @@ watch(
 
 .composer-dock {
   flex: 0 0 auto;
-  padding: 8px 24px 12px;
+  padding: 8px calc(24px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom))
+    calc(24px + env(safe-area-inset-left));
   background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #ffffff 26%);
 }
 
@@ -347,15 +348,16 @@ watch(
 
 @media (max-width: 768px) {
   .messages-column {
-    padding: 16px 16px 12px;
+    padding: 16px calc(16px + env(safe-area-inset-right)) 12px calc(16px + env(safe-area-inset-left));
   }
 
   .composer-dock {
-    padding: 6px 12px calc(8px + env(safe-area-inset-bottom));
+    padding: 6px calc(12px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom))
+      calc(12px + env(safe-area-inset-left));
   }
 
   .back-to-bottom {
-    bottom: 148px;
+    bottom: calc(148px + env(safe-area-inset-bottom));
   }
 }
 </style>

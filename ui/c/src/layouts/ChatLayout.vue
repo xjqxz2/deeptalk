@@ -8,12 +8,15 @@ import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { useAppStore } from '@/stores/app'
 import { useChatStore } from '@/stores/chat'
+import { usePwaInstall } from '@/composables/usePwaInstall'
 import ChatSidebar from '@/components/layout/ChatSidebar.vue'
 import ChatTopbar from '@/components/layout/ChatTopbar.vue'
+import PwaInstallGuide from '@/components/business/PwaInstallGuide.vue'
 
 const app = useAppStore()
 const chat = useChatStore()
 const router = useRouter()
+const { ios, android, iosSafari, guideOpen } = usePwaInstall()
 
 /** 窗口宽度变化时同步断点。 */
 function onResize(): void {
@@ -84,6 +87,8 @@ onBeforeUnmount(() => {
         <router-view />
       </main>
     </div>
+
+    <PwaInstallGuide v-model:open="guideOpen" :ios="ios" :android="android" :ios-safari="iosSafari" />
   </div>
 </template>
 
