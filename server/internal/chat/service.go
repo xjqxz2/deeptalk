@@ -357,7 +357,48 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 			"url":    rawURL,
 		})
 	}
+	// 浏览器动作一次回答最多 40 步，避免在同一页面里反复点击打转
+	browserLeft := browserActionsPerTurn
 	executeTool := func(call provider.ToolCall) (string, error) {
+		if call.Name == "browser" {
+			if browserLeft <= 0 {
+				return fmt.Sprintf(`{"error":"本次回答的浏览器操作已达上限（%d 次），请基于已看到的页面作答。"}`, browserActionsPerTurn), nil
+			}
+			browserLeft--
+			out, err := s.runBrowserTool(ctx, call, emitActivity)
+			if err != nil {
+				return out, err
+			}
+			// 通过浏览器打开的页面同样计入“看过的网页”，正文可以用 [n] 引用
+			var act struct {
+				Action string `json:"action"`
+				URL    string `json:"url"`
+			}
+			_ = json.Unmarshal([]byte(call.Arguments), &act)
+			if strings.EqualFold(act.Action, "open") && strings.TrimSpace(act.URL) != "" && sitesLeft > 0 {
+				sitesLeft--
+				known := false
+				for _, item := range toolSources {
+					if item.URL == act.URL {
+						known = true
+						break
+					}
+				}
+				if !known && len(toolSources) < s.cfg.MaxSitesPerTurn {
+					toolSources = append(toolSources, search.Result{
+						Title:  act.URL,
+						URL:    act.URL,
+						Viewed: true,
+					})
+					if raw, marshalErr := json.Marshal(toolSources); marshalErr == nil {
+						_ = s.db.WithContext(context.WithoutCancel(ctx)).Model(&Message{}).
+							Where("id = ?", assistant.ID).Update("sources_json", string(raw)).Error
+					}
+					_ = emit("sources", map[string]any{"items": toolSources})
+				}
+			}
+			return out, nil
+		}
 		if call.Name == "render_ui" {
 			var args struct {
 				Components []map[string]any `json:"components"`
@@ -604,7 +645,7 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 	var genErr error
 	producedAny := false
 	for idx, candidate := range candidates {
-		used, produced, gerr := s.generate(ctx, candidate.model, candidate.prov, history, effectiveThinking, reasoningEffort, maxTokens, []provider.Tool{webSearchTool, renderUITool}, executeTool, emitDelta)
+		used, produced, gerr := s.generate(ctx, candidate.model, candidate.prov, history, effectiveThinking, reasoningEffort, maxTokens, s.availableTools(), executeTool, emitDelta)
 		producedAny = producedAny || produced
 		if gerr == nil {
 			usage = used
@@ -723,6 +764,18 @@ func claimSites(urls []string, remaining int) ([]string, int) {
 		return urls[:remaining], 0
 	}
 	return urls, remaining - len(urls)
+}
+
+// availableTools 返回当前环境真正可用的工具，避免把不可用的能力描述给模型。
+func (s *Service) availableTools() []provider.Tool {
+	tools := make([]provider.Tool, 0, 3)
+	if s.search != nil && s.search.Enabled() {
+		tools = append(tools, webSearchTool)
+	}
+	if s.search != nil && s.search.BrowserAvailable() {
+		tools = append(tools, browserTool)
+	}
+	return append(tools, renderUITool)
 }
 
 // generate 执行一次上游或演示生成。
@@ -1331,6 +1384,38 @@ query 必须是检索关键词，不是问句：
 	},
 }
 
+// browserTool 让模型真正操作浏览器：打开、点击、填表、回车、滚动、返回。
+// 每一步都会返回最新页面快照（含可点击元素的 ref），模型据此决定下一步。
+var browserTool = provider.Tool{
+	Type: "function",
+	Function: provider.ToolFunction{
+		Name: "browser",
+		Description: `操作真实浏览器。当目标页面需要点击、翻页、展开、填表单才能看到内容时使用；只是读一篇静态文章请用 web_search 的 urls。
+action 取值：
+- open：打开指定 url，返回页面快照；
+- click：点击元素，用 ref（如 e3）或 selector；
+- fill：向输入框写入 text，配合 press 提交；
+- press：按键，默认 Enter；
+- scroll：滚动页面，direction 取 down/up/top/bottom；
+- back：返回上一页；
+- read：只读取当前页面，direction 取 links（列链接）或 markdown（正文）。
+每次动作后都会返回当前页面的文本与可交互元素引用，请用返回的 ref 继续操作，不要凭空猜 selector。`,
+		Parameters: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"action":    map[string]any{"type": "string", "enum": []string{"open", "click", "fill", "press", "scroll", "back", "read"}, "description": "要执行的浏览器动作"},
+				"url":       map[string]any{"type": "string", "description": "open 时打开的地址"},
+				"ref":       map[string]any{"type": "string", "description": "页面快照里的元素引用，如 e3"},
+				"selector":  map[string]any{"type": "string", "description": "CSS 选择器，缺少 ref 时使用"},
+				"text":      map[string]any{"type": "string", "description": "fill 要写入的内容"},
+				"key":       map[string]any{"type": "string", "description": "press 的按键，默认 Enter"},
+				"direction": map[string]any{"type": "string", "description": "scroll 方向（down/up/top/bottom），或 read 的模式（links/markdown）"},
+			},
+			"required": []string{"action"},
+		},
+	},
+}
+
 // renderUITool 暴露 A2UI v0.9 的基础布局能力；模型只生成组件树，不生成 HTML。
 var renderUITool = provider.Tool{
 	Type: "function",
@@ -1389,6 +1474,7 @@ const systemPrompt = `你是 DeepTalk，一个真诚、自然、乐于助人的 
 11. 如果没有提供联网来源，不要声称“没有联网工具”或“无法联网”；基于已有知识回答，并简要说明未实时核验即可。
 12. 先判断是否需要搜索；需要时通常先调用一次 web_search 获取候选来源，再选择最相关的 1–3 个页面用 urls 打开；不要反复搜索同一问题。搜索的 query 要用关键词而非问句（如「沪深股市 涨幅榜」，不要写「现在股市在涨的股票」）。
 13. 一次回答里可以多次调用工具：先用 web_search 拿候选，再用 urls 打开真正需要读的页面；网页总量上限 25 个，抓取并发 5 个。资料够了就停止调用并给出结论，不要为了凑数反复打开无关页面。
+14. 需要点击才能看到的内容（翻页、展开、详情页、搜索框、表单）用 browser 工具操作：open 打开页面后，用返回快照里的 ref 点击或填写，再看新快照。不要凭空猜 selector，也不要用 browser 重复打开静态文章。
 13. 当用户要求卡片、对比表、表单、步骤、清单、数据面板或图文布局时，可以调用 render_ui 生成 A2UI 界面；不要在简单问答中滥用。界面已经表达的内容，正文只做简短补充。`
 
 // buildHistory 组装完整上下文：系统提示 + 历史摘要 + 摘要边界之后的原始消息。
