@@ -36,7 +36,7 @@ type Result struct {
 	Title   string `json:"title"`
 	URL     string `json:"url"`
 	Snippet string `json:"snippet"`
-	Viewed  bool   `json:"viewed,omitempty"`
+	Viewed  bool   `json:"viewed"`
 }
 
 // Page 是模型指定 URL 后抓取到的正文。

@@ -2,6 +2,8 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 import vue from '@vitejs/plugin-vue'
+import Components from 'unplugin-vue-components/vite'
+import { AntDesignVueResolver } from 'unplugin-vue-components/resolvers'
 import { defineConfig, type Plugin } from 'vite'
 
 /**
@@ -33,9 +35,22 @@ function pwaServiceWorker(): Plugin {
 }
 
 /** 创建应用共用的 Vite 配置；adminBase 决定 B 端构建后的 /admin/ 前缀。 */
-export function createViteConfig(options: { port: number; adminBase?: boolean; pwa?: boolean }) {
+export function createViteConfig(options: { port: number; adminBase?: boolean; pwa?: boolean; antdOnDemand?: boolean }) {
   return defineConfig(({ mode }) => ({
-    plugins: options.pwa ? [vue(), pwaServiceWorker()] : [vue()],
+    plugins: [
+      vue(),
+      // 按需注册 antd 组件：整包注册会把全部组件打进首屏，体积翻倍。
+      // antd v4 的样式是 CSS-in-JS，不需要按组件引入样式文件。
+      ...(options.antdOnDemand
+        ? [
+            Components({
+              dts: false,
+              resolvers: [AntDesignVueResolver({ importStyle: false, resolveIcons: false })],
+            }),
+          ]
+        : []),
+      ...(options.pwa ? [pwaServiceWorker()] : []),
+    ],
     // B 端生产构建使用 /admin/，开发期仍从根路径访问，便于本地调试
     base: options.adminBase ? (mode === 'production' ? '/admin/' : '/') : '/',
     resolve: {
@@ -64,6 +79,37 @@ export function createViteConfig(options: { port: number; adminBase?: boolean; p
       outDir: 'dist',
       emptyOutDir: true,
       chunkSizeWarningLimit: 900,
+      rollupOptions: {
+        output: {
+          // 把长期不变的依赖拆成独立 chunk：发版后浏览器只重新下载业务代码，
+          // 同时避免所有依赖挤在一个 2MB+ 的首屏文件里。
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return undefined
+            if (id.includes('highlight.js')) return 'vendor-hljs'
+            // icons 与 antd 有循环依赖，必须进同一个 chunk，否则初始化顺序会导致
+            // 图标组件拿不到主题 token（Cannot read properties of undefined）
+            if (id.includes('ant-design-vue') || id.includes('@ant-design/icons-vue')) return 'vendor-antd'
+            if (
+              id.includes('markdown-it') ||
+              id.includes('dompurify') ||
+              id.includes('linkify-it') ||
+              id.includes('mdurl') ||
+              id.includes('uc.micro')
+            ) {
+              return 'vendor-markdown'
+            }
+            if (
+              id.includes('/vue/') ||
+              id.includes('@vue/') ||
+              id.includes('vue-router') ||
+              id.includes('pinia')
+            ) {
+              return 'vendor-vue'
+            }
+            return undefined
+          },
+        },
+      },
     },
   }))
 }

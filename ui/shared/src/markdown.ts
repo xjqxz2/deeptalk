@@ -4,10 +4,41 @@
  * 保证模型输出（不可信内容）无法注入脚本。
  */
 import DOMPurify from 'dompurify'
-import hljs from 'highlight.js'
+import hljs from 'highlight.js/lib/core'
+import bash from 'highlight.js/lib/languages/bash'
+import css from 'highlight.js/lib/languages/css'
+import go from 'highlight.js/lib/languages/go'
+import javascript from 'highlight.js/lib/languages/javascript'
+import json from 'highlight.js/lib/languages/json'
+import markdown from 'highlight.js/lib/languages/markdown'
+import python from 'highlight.js/lib/languages/python'
+import sql from 'highlight.js/lib/languages/sql'
+import typescript from 'highlight.js/lib/languages/typescript'
+import xml from 'highlight.js/lib/languages/xml'
+import yaml from 'highlight.js/lib/languages/yaml'
 import MarkdownIt from 'markdown-it'
 import 'highlight.js/styles/github-dark.css'
 import type { SearchSource } from './types'
+
+// 只注册对话里实际会出现的语言：完整 highlight.js 会把上百种语言打进首屏包。
+hljs.registerLanguage('bash', bash)
+hljs.registerLanguage('css', css)
+hljs.registerLanguage('go', go)
+hljs.registerLanguage('javascript', javascript)
+hljs.registerLanguage('json', json)
+hljs.registerLanguage('markdown', markdown)
+hljs.registerLanguage('python', python)
+hljs.registerLanguage('sql', sql)
+hljs.registerLanguage('typescript', typescript)
+hljs.registerLanguage('xml', xml)
+hljs.registerLanguage('yaml', yaml)
+// 常见别名：sh / shell、ts、js、html / vue、md、yml
+hljs.registerAliases(['sh', 'shell', 'zsh'], { languageName: 'bash' })
+hljs.registerAliases(['ts', 'tsx'], { languageName: 'typescript' })
+hljs.registerAliases(['js', 'jsx', 'mjs'], { languageName: 'javascript' })
+hljs.registerAliases(['html', 'vue', 'svg'], { languageName: 'xml' })
+hljs.registerAliases(['md'], { languageName: 'markdown' })
+hljs.registerAliases(['yml'], { languageName: 'yaml' })
 
 /** markdown-it 实例；html:false 从源头阻止原始 HTML。 */
 const md = new MarkdownIt({

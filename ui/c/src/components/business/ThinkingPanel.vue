@@ -64,8 +64,16 @@ const label = computed(() => {
 /** 只有流式期间展示工具活动；完成后不再占用思考面板。 */
 const liveActivity = computed(() => (props.streaming ? props.activity : null))
 
-/** 看过的网页作为思考过程保留，不再单独占用回答下方空间。 */
-const viewedSources = computed(() => (props.sources ?? []).filter((item) => item.viewed))
+/**
+ * 看过的网页作为思考过程保留，不再单独占用回答下方空间。
+ * 旧消息没有 viewed 字段（升级前写入），这时把来源全部当作已查看，避免历史对话看不到链接。
+ */
+const viewedSources = computed(() => {
+  const list = props.sources ?? []
+  if (!list.length) return []
+  const legacy = list.every((item) => typeof item.viewed === 'undefined')
+  return legacy ? list : list.filter((item) => item.viewed)
+})
 
 /** 面板是否有可展开的内容。 */
 const hasBody = computed(() => Boolean(props.reasoning) || viewedSources.value.length > 0)
