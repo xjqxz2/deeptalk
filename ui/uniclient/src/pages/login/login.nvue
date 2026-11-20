@@ -1,4 +1,9 @@
 <template>
+  <!-- #ifdef H5 -->
+  <LoginH5 />
+  <!-- #endif -->
+
+  <!-- #ifndef H5 -->
   <view class="page">
     <!-- 顶部：品牌 + 注册入口 -->
     <view class="topbar">
@@ -63,6 +68,7 @@
       <text class="foot-text">隐私 · 条款</text>
     </view>
   </view>
+  <!-- #endif -->
 </template>
 
 <script setup>
@@ -72,6 +78,9 @@
  */
 import { ref, computed } from 'vue'
 import { login, register } from '@/api/auth'
+// #ifdef H5
+import LoginH5 from '@/components/h5/login.vue'
+// #endif
 import { setSession } from '@/store/session'
 
 const mode = ref('login')

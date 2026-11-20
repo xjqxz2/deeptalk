@@ -110,7 +110,7 @@ if (!loginText.includes('欢迎回来')) throw new Error('login page not rendere
 await page.locator('input').nth(0).fill('u@example.com')
 await page.locator('input').nth(1).fill('pass-1234')
 await page.getByText('登录', { exact: true }).click()
-await page.waitForSelector('.msg', { timeout: 15000 })
+await page.waitForSelector('.message', { timeout: 15000 })
 
 // 3. 历史消息渲染（Markdown 块、列表、代码、思维链）
 const body = await page.locator('body').innerText()
@@ -119,15 +119,15 @@ for (const expect of ['DeepTalk', '支持联网', 'fmt.Println', '已思考 3 �
 }
 
 // 4. 发送消息 → 走 WebSocket
-await page.locator('textarea').fill('你好')
+await page.locator('.composer-input').fill('你好')
 await page.locator('.send-btn').click()
 await page.waitForFunction(() => (window.__wsFrames || []).some((f) => JSON.parse(f).type === 'stream'), null, { timeout: 8000 })
 await page.waitForFunction(() => document.body.innerText.includes('我是 DeepTalk'), null, { timeout: 8000 })
 
 // 5. 抽屉
-await page.locator('.topbar-menu').click()
-await page.waitForSelector('.drawer')
-if (!(await page.locator('.drawer').innerText()).includes('小程序测试会话')) throw new Error('drawer missing conversation')
+await page.locator('.menu-btn').click()
+await page.waitForSelector('.chat-sidebar.mobile-open')
+if (!(await page.locator('.chat-sidebar').innerText()).includes('小程序测试会话')) throw new Error('drawer missing conversation')
 
 await page.screenshot({ path: '/tmp/uniclient-chat.png' })
 console.log(JSON.stringify({ ok: true, frames: await page.evaluate(() => window.__wsFrames.length), errors }))

@@ -11,13 +11,17 @@
     "preview:h5": "node scripts/serve-h5.mjs"
   },
   "dependencies": {
+    "@ant-design/icons-vue": "^7.0.1",
     "@dcloudio/uni-app": "3.0.0-5030420261029002",
     "@dcloudio/uni-app-plus": "3.0.0-5030420261029002",
     "@dcloudio/uni-components": "3.0.0-5030420261029002",
     "@dcloudio/uni-h5": "3.0.0-5030420261029002",
     "@dcloudio/uni-mp-weixin": "3.0.0-5030420261029002",
-    "vue": "^3.4.21",
-    "vant": "^4.9.15"
+    "dompurify": "^3.2.4",
+    "highlight.js": "^11.11.1",
+    "markdown-it": "^14.1.0",
+    "vant": "^4.9.15",
+    "vue": "^3.4.21"
   },
   "devDependencies": {
     "@dcloudio/types": "^3.4.8",

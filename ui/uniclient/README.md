@@ -92,6 +92,22 @@ cd ui && node uniclient/tests/uniclient-smoke.mjs
 
 新增页面时先用这两个脚本各截一次，对比尺寸、字号、间距后再改样式，避免凭感觉调整。
 
+## 与 PWA 的视觉一致性
+
+H5 端直接用 PWA 的设计体系，不另起一套：
+
+- `src/styles/pwa.css` 由 `ui/c` 的组件样式脚本抽取生成（消息、思维链、输入框、顶栏、侧栏、用量卡、登录页）
+- `src/main.js` 在 H5 端引入 `ui/shared/src/theme.css`，字体、颜色、圆角、阴影全部同一套令牌
+- 正文用 `src/utils/pwa-markdown.js`（与 `ui/shared/src/markdown.ts` 同步）：markdown-it + highlight.js + DOMPurify，
+  代码块头、表格、引用、`[n]` 上标与 PWA 完全一致
+- 图标用 `@ant-design/icons-vue`，与 PWA 是同一套
+- `src/components/h5/*` 是 H5 专用组件，结构与 class 名对齐 PWA 的 MessageItem / ThinkingPanel / Composer /
+  ChatTopbar / ChatSidebar；`.nvue` 组件继续服务小程序与 APP
+
+注意：uni-app 会把模板里的 `<button>` / `<input>` / `<textarea>` 编译成 `uni-button` / `uni-input` 等自定义元素
+并注入自己的样式，也会把 CSS 里的 `button.primary` 改写成 `uni-button.primary`。所以 H5 组件用渲染函数创建
+原生控件（`h5/btn.vue`、`h5/native-input.vue`、`h5/textarea.vue`），样式一律只用类选择器。
+
 ## 设计取舍
 
 - **nvue 优先**：`.nvue` 在 H5 / 小程序端会被编译为普通 vue 页面，因此一套代码可以三端复用；

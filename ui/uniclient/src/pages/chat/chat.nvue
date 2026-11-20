@@ -1,4 +1,74 @@
 <template>
+  <!-- #ifdef H5 -->
+  <div class="chat-session h5-parity">
+    <ChatTopbarH5 :title="currentTitle" :initial="avatarText" @menu="drawerOpen = true" @account="onAvatar" />
+
+    <div ref="scroller" class="messages-scroll">
+      <div class="messages-column">
+        <div v-if="!chat.messages.length" class="empty-session">
+          <BrandMarkH5 :size="56" :radius="16" />
+          <p>我是 DeepTalk，很高兴见到你！</p>
+          <span>可以问问题、读文档，也能一起头脑风暴。</span>
+        </div>
+        <MessageH5
+          v-for="(item, index) in chat.messages"
+          :key="item.id || index"
+          :message="item"
+          :busy="chat.generating"
+          :activity="chat.activity"
+          @regenerate="onRegenerate"
+          @rate="(rating) => onRate(item, rating)"
+          @retry="onRegenerate"
+        />
+      </div>
+    </div>
+
+    <div class="composer-dock">
+      <div class="composer-inner">
+        <ComposerH5
+          ref="composerRef"
+          v-model="draft"
+          :generating="chat.generating"
+          :model-name="modelName"
+          :attachments="attachments"
+          @send="onSend"
+          @stop="onStop"
+          @attach="pickImage"
+          @pick-model="pickModel"
+          @remove-attachment="removeAttachment"
+        />
+      </div>
+    </div>
+
+    <SidebarH5
+      v-if="drawerOpen"
+      :conversations="chat.conversations"
+      :current-id="chat.current && chat.current.id"
+      :keyword="keyword"
+      :initial="avatarText"
+      :account-name="accountName"
+      :account-mail="accountMail"
+      :usage="chat.usage"
+      @close="drawerOpen = false"
+      @new="newChat"
+      @search="onSearch"
+      @open="openItem"
+      @actions="onItemLongPress"
+      @account="onAvatar"
+    />
+
+    <van-popup v-model:show="modelPickerOpen" position="bottom" round>
+      <van-picker
+        :columns="modelColumns"
+        title="选择模型"
+        @confirm="onModelConfirm"
+        @cancel="modelPickerOpen = false"
+      />
+    </van-popup>
+  </div>
+  <!-- #endif -->
+
+  <!-- #ifndef H5 -->
   <view class="page">
     <!-- 顶栏 -->
     <view class="topbar">
@@ -156,6 +226,7 @@
       </view>
     </view>
   </view>
+  <!-- #endif -->
 </template>
 
 <script setup>
@@ -167,6 +238,14 @@ import { computed, ref, nextTick, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import MessageItem from '@/components/message-item.nvue'
 import Composer from '@/components/composer.nvue'
+
+// #ifdef H5
+import ChatTopbarH5 from '@/components/h5/topbar.vue'
+import MessageH5 from '@/components/h5/message.vue'
+import ComposerH5 from '@/components/h5/composer.vue'
+import SidebarH5 from '@/components/h5/sidebar.vue'
+import BrandMarkH5 from '@/components/h5/brand-mark.vue'
+// #endif
 import {
   chat,
   currentTitle,
@@ -193,6 +272,8 @@ import { logout as logoutApi } from '@/api/auth'
 
 const draft = ref('')
 const keyword = ref('')
+const composerRef = ref(null)
+const scroller = ref(null)
 const drawerOpen = ref(false)
 const scrollTarget = ref('')
 const attachments = ref([])
@@ -220,17 +301,28 @@ const usageTokens = computed(() => {
 const usageReset = computed(() => (chat.usage?.reset_days ? `重置 ${chat.usage.reset_days} 天` : '不设月度上限'))
 
 function scrollToBottom() {
+  // #ifdef H5
+  nextTick(() => {
+    const el = scroller.value
+    if (el) el.scrollTop = el.scrollHeight
+  })
+  // #endif
+  // #ifndef H5
   nextTick(() => {
     scrollTarget.value = ''
     setTimeout(() => {
       scrollTarget.value = 'msg-end'
     }, 30)
   })
+  // #endif
 }
 
 async function onSend(payload) {
   // 输入框会带上当前真实内容；按钮点击没有参数时回退到 draft
   const content = typeof payload === 'string' ? payload : draft.value
+  // #ifdef H5
+  composerRef.value?.clear()
+  // #endif
   if (chat.generating) return
   if (!content.trim() && !attachments.value.length) return
   draft.value = ''
@@ -309,6 +401,10 @@ function onItemLongPress(item) {
       })
     },
   })
+}
+
+function removeAttachment(id) {
+  attachments.value = attachments.value.filter((item) => item.id !== id)
 }
 
 function pickImage() {

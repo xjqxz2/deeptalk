@@ -1,9 +1,11 @@
 import { createSSRApp } from 'vue'
 import App from './App.vue'
 
-// Vant 只在 H5 端引入：小程序与 nvue 端没有 DOM，无法使用 Vant 组件
+// H5 端复用 PWA 的视觉体系：同一个 theme.css、同一套组件样式
 // #ifdef H5
 import 'vant/lib/index.css'
+import '../../shared/src/theme.css'
+import './styles/pwa.css'
 // #endif
 
 export function createApp() {
