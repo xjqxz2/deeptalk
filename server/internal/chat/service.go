@@ -738,7 +738,7 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 		"character_count": len([]rune(answer)),
 	})
 	if genErr != nil {
-		_ = emit("error", map[string]any{"code": 3001, "message": errorMessage(genErr)})
+		_ = emit("error", map[string]any{"code": 3001, "message": modelErrorMessage(genErr, model.DisplayName)})
 		_ = emit("done", map[string]any{
 			"assistant_message_id": assistant.ID,
 			"status":               StatusError,
@@ -1250,7 +1250,7 @@ func (s *Service) finishError(ctx context.Context, conv *Conversation, msg *Mess
 	}).Error
 	_ = s.db.WithContext(ctx).Model(&Conversation{}).Where("id = ?", conv.ID).
 		Update("updated_at", time.Now()).Error
-	_ = emit("error", map[string]any{"code": 3001, "message": errorMessage(err)})
+	_ = emit("error", map[string]any{"code": 3001, "message": modelErrorMessage(err, msg.ModelName)})
 	_ = emit("done", map[string]any{
 		"assistant_message_id": msg.ID,
 		"status":               StatusError,
@@ -1750,6 +1750,8 @@ func historyText(history []provider.ChatMessage) string {
 }
 
 // errorMessage 将内部错误转为可展示文案，避免把堆栈或上游原始响应透给用户。
+// 注意：上游明确给出了原因（模型不存在 / 临时不可用 / 限流）时要保留，否则用户
+// 只会看到“生成失败”，既不知道是自己选错模型还是服务商的问题。
 // retryableUpstream 判断是否值得对同一上游做一次瞬时重试。
 // 鉴权、参数、模型不存在等错误重试也不会成功，直接返回。
 func retryableUpstream(err error) bool {
@@ -1772,7 +1774,11 @@ func errorMessage(err error) string {
 		return "上游模型鉴权失败，请联系管理员检查厂商密钥"
 	case strings.Contains(msg, "限流"), strings.Contains(msg, "429"):
 		return "上游模型限流，请稍后重试"
-	case strings.Contains(strings.ToLower(msg), "upstream error"), strings.Contains(strings.ToLower(msg), "please retry"),
+	case containsAnyFold(msg, "model_unavailable", "temporarily unavailable", "model is not available"):
+		return "上游模型暂时不可用，请稍后重试或切换到其它模型"
+	case containsAnyFold(msg, "model_not_found", "does not exist"):
+		return "上游不存在该模型，请管理员检查模型 ID"
+	case containsAnyFold(msg, "upstream error"), containsAnyFold(msg, "please retry"),
 		strings.Contains(msg, "非流式"), strings.Contains(msg, "未返回任何内容"):
 		return "上游服务暂时不可用，请稍后重试"
 	case strings.Contains(msg, "超时"), strings.Contains(msg, "timeout"), strings.Contains(msg, "deadline"):
@@ -1783,6 +1789,26 @@ func errorMessage(err error) string {
 		return "当前没有可用模型，请联系管理员"
 	}
 	return "生成回答失败，请重试"
+}
+
+// modelErrorMessage 在提示里带上模型名，用户一眼能看出是哪个模型出的问题。
+func modelErrorMessage(err error, modelName string) string {
+	message := errorMessage(err)
+	if strings.TrimSpace(modelName) == "" || message == "" {
+		return message
+	}
+	return modelName + "：" + message
+}
+
+// containsAnyFold 不区分大小写地判断子串，用于匹配上游的英文错误码。
+func containsAnyFold(text string, needles ...string) bool {
+	lower := strings.ToLower(text)
+	for _, needle := range needles {
+		if strings.Contains(lower, strings.ToLower(needle)) {
+			return true
+		}
+	}
+	return false
 }
 
 // ---------------------------------------------------------------------------

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -34,5 +35,17 @@ func TestTestEndpointLargeModelList(t *testing.T) {
 	}
 	if result.ModelsFound != 100 {
 		t.Fatalf("expected 100 models, got %d", result.ModelsFound)
+	}
+}
+
+// TestUpstreamStatusMessageKeepsDetail 校验 5xx 会保留服务商给的原因。
+func TestUpstreamStatusMessageKeepsDetail(t *testing.T) {
+	body := []byte(`{"error":{"message":"This model is temporarily unavailable. Please try again later.","code":"model_unavailable"}}`)
+	got := upstreamStatusMessage(503, body)
+	if !strings.Contains(got, "503") || !strings.Contains(got, "temporarily unavailable") {
+		t.Fatalf("got %q", got)
+	}
+	if strings.Contains(upstreamStatusMessage(500, []byte("oops")), "oops") {
+		t.Fatal("non-JSON body should not be echoed")
 	}
 }

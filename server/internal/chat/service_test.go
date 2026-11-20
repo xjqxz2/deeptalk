@@ -2,6 +2,7 @@ package chat
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 
@@ -100,5 +101,36 @@ func TestSearchToolPayloadKeepsCitationIDsStable(t *testing.T) {
 	}
 	if !strings.Contains(payload.CitationRule, "[1]") {
 		t.Fatalf("missing citation rule: %q", payload.CitationRule)
+	}
+}
+
+// TestModelErrorMessage 校验上游明确原因不会被折叠成“生成失败”。
+func TestModelErrorMessage(t *testing.T) {
+	cases := []struct {
+		err   string
+		model string
+		want  string
+	}{
+		{
+			err:   `upstream request failed: 上游服务异常（HTTP 503）：This model is temporarily unavailable. Please try again later.`,
+			model: "MaikuaiDS41F",
+			want:  "MaikuaiDS41F：上游模型暂时不可用，请稍后重试或切换到其它模型",
+		},
+		{
+			err:   `upstream request failed: 上游返回错误（HTTP 400）：The model 'x' does not exist or is not available.`,
+			model: "TestModel",
+			want:  "TestModel：上游不存在该模型，请管理员检查模型 ID",
+		},
+		{
+			err:   "something unexpected",
+			model: "M",
+			want:  "M：生成回答失败，请重试",
+		},
+	}
+	for _, item := range cases {
+		got := modelErrorMessage(errors.New(item.err), item.model)
+		if got != item.want {
+			t.Fatalf("modelErrorMessage(%q) = %q, want %q", item.err, got, item.want)
+		}
 	}
 }

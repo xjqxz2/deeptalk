@@ -336,7 +336,9 @@ func toUpstreamMessages(messages []ChatMessage) []map[string]any {
 	return out
 }
 
-// upstreamStatusMessage 将上游 HTTP 状态映射为可读提示，避免直接暴露原始响应。
+// upstreamStatusMessage 将上游 HTTP 状态映射为可读提示。
+// 5xx 会带上服务商返回的具体原因：聚合网关常用 503 + model_unavailable 说明模型临时不可用，
+// 这比一句“上游异常”对排查更有用。
 // upstreamBodyError 解析 HTTP 200 响应里的 OpenAI 兼容错误体。
 func upstreamBodyError(body []byte) string {
 	var payload struct {
@@ -362,6 +364,9 @@ func upstreamStatusMessage(status int, body []byte) string {
 	case status == http.StatusTooManyRequests:
 		return "上游限流，请稍后再试（HTTP 429）"
 	case status >= 500:
+		if detail := upstreamBodyError(body); detail != "" {
+			return fmt.Sprintf("上游服务异常（HTTP %d）：%s", status, detail)
+		}
 		return fmt.Sprintf("上游服务异常（HTTP %d）", status)
 	default:
 		return fmt.Sprintf("上游返回错误（HTTP %d）：%s", status, sanitizeBody(body))
