@@ -49,6 +49,20 @@ npm run dev:h5              # http://localhost:5273
 VITE_PROXY_TARGET=http://127.0.0.1:9821 npm run dev:h5
 ```
 
+## 预览构建产物（给手机 / 同事看效果）
+
+```bash
+VITE_API_BASE='' npm run build:h5   # 走同源代理，不写死域名
+npm run preview:h5                  # 0.0.0.0:5274，静态文件 + /api + WebSocket 代理
+```
+
+`scripts/serve-h5.mjs` 会把 `/api` 与 WebSocket 升级一起代理到 `PROXY_TARGET`
+（默认生产环境），所以预览页可以直接用线上账号登录、真正流式出字：
+
+```bash
+PORT=5275 PROXY_TARGET=http://127.0.0.1:9821 npm run preview:h5   # 指向本地后端
+```
+
 ## 构建
 
 ```bash
