@@ -1,0 +1,120 @@
+<template>
+  <view class="composer">
+    <view class="composer-box">
+      <textarea
+        class="composer-input"
+        :value="modelValue"
+        :disabled="generating"
+        placeholder="继续追问，或让 DeepTalk 补充更多细节…"
+        placeholder-class="composer-placeholder"
+        :maxlength="8000"
+        auto-height
+        :adjust-position="true"
+        confirm-type="send"
+        @input="onInput"
+        @confirm="$emit('send')"
+      />
+
+      <view class="composer-tools">
+        <view class="tool-left">
+          <text class="tool-icon" @click="$emit('attach')">＋</text>
+          <text class="tool-model" @click="$emit('pick-model')">{{ modelName }}</text>
+        </view>
+        <view v-if="generating" class="send-btn send-btn-stop" @click="$emit('stop')">
+          <text class="send-text">停止</text>
+        </view>
+        <view v-else class="send-btn" :class="{ 'send-btn-off': !canSend }" @click="$emit('send')">
+          <text class="send-text">发送</text>
+        </view>
+      </view>
+    </view>
+    <text class="composer-tip">内容由 AI 生成，请仔细甄别</text>
+  </view>
+</template>
+
+<script setup>
+/** 输入框：自动增高、模型选择、附件、发送 / 停止。 */
+import { computed } from 'vue'
+
+const props = defineProps({
+  modelValue: { type: String, default: '' },
+  generating: { type: Boolean, default: false },
+  modelName: { type: String, default: '选择模型' },
+})
+const emit = defineEmits(['update:modelValue', 'send', 'stop', 'attach', 'pick-model'])
+
+const canSend = computed(() => Boolean(props.modelValue && props.modelValue.trim()))
+
+function onInput(event) {
+  emit('update:modelValue', event.detail.value)
+}
+</script>
+
+<style>
+.composer {
+  padding: 16rpx 24rpx 24rpx 24rpx;
+  background-color: #ffffff;
+  border-top-width: 1rpx;
+  border-top-style: solid;
+  border-top-color: #f0f2f5;
+}
+.composer-box {
+  padding: 20rpx 24rpx 16rpx 24rpx;
+  border-radius: 26rpx;
+  background-color: #f7f8fa;
+  border-width: 1rpx;
+  border-style: solid;
+  border-color: #e4e7ec;
+}
+.composer-input {
+  width: 100%;
+  min-height: 76rpx;
+  max-height: 300rpx;
+  color: #101828;
+  font-size: 30rpx;
+  line-height: 44rpx;
+}
+.composer-placeholder {
+  color: #98a2b3;
+}
+.composer-tools {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12rpx;
+}
+.tool-left {
+  flex-direction: row;
+  align-items: center;
+}
+.tool-icon {
+  width: 56rpx;
+  color: #667085;
+  font-size: 34rpx;
+}
+.tool-model {
+  color: #475467;
+  font-size: 25rpx;
+}
+.send-btn {
+  padding: 12rpx 30rpx;
+  border-radius: 20rpx;
+  background-color: #4d6bfe;
+}
+.send-btn-off {
+  background-color: #c7d2fe;
+}
+.send-btn-stop {
+  background-color: #101828;
+}
+.send-text {
+  color: #ffffff;
+  font-size: 26rpx;
+}
+.composer-tip {
+  margin-top: 12rpx;
+  text-align: center;
+  color: #d0d5dd;
+  font-size: 22rpx;
+}
+</style>

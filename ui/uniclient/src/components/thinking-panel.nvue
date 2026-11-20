@@ -1,0 +1,118 @@
+<template>
+  <view class="think">
+    <view class="think-head" @click="toggle">
+      <text class="think-icon">{{ expanded ? '−' : '+' }}</text>
+      <text class="think-label">{{ label }}</text>
+      <text class="think-toggle">{{ expanded ? '收起' : '展开' }}</text>
+    </view>
+
+    <view v-if="expanded" class="think-body">
+      <text v-if="reasoning" class="think-text">{{ reasoning }}</text>
+      <view v-if="viewed.length" class="think-sources">
+        <text v-for="(item, index) in viewed" :key="index" class="think-source" @click="openSource(item)">
+          · {{ item.title || item.url }}
+        </text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup>
+/**
+ * 深度思考折叠面板：展示推理过程与看过的网页。
+ * 与 Web 端一致：流式期间自动展开，结束后可手动收起。
+ */
+import { computed, ref, watch } from 'vue'
+
+const props = defineProps({
+  reasoning: { type: String, default: '' },
+  streaming: { type: Boolean, default: false },
+  durationMs: { type: Number, default: 0 },
+  activity: { type: Object, default: null },
+  sources: { type: Array, default: () => [] },
+})
+
+const expanded = ref(false)
+
+watch(
+  () => props.streaming,
+  (value) => {
+    if (value) expanded.value = true
+  },
+  { immediate: true },
+)
+
+const seconds = computed(() => {
+  if (props.durationMs > 0) return Math.max(1, Math.round(props.durationMs / 1000))
+  return Math.max(2, Math.ceil(props.reasoning.length / 12))
+})
+
+const label = computed(() => {
+  if (props.streaming) return props.activity?.label || '正在思考…'
+  return `已思考 ${seconds.value} 秒`
+})
+
+const viewed = computed(() => props.sources.filter((item) => item.viewed))
+
+function toggle() {
+  expanded.value = !expanded.value
+}
+
+function openSource(item) {
+  if (!item.url) return
+  // #ifdef H5
+  window.open(item.url, '_blank')
+  // #endif
+  // #ifndef H5
+  uni.setClipboardData({ data: item.url })
+  // #endif
+}
+</script>
+
+<style>
+.think {
+  margin-top: 12rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 16rpx;
+  background-color: #f7f8fa;
+}
+.think-head {
+  flex-direction: row;
+  align-items: center;
+}
+.think-icon {
+  width: 32rpx;
+  color: #4d6bfe;
+  font-size: 26rpx;
+}
+.think-label {
+  flex: 1;
+  color: #475467;
+  font-size: 26rpx;
+}
+.think-toggle {
+  color: #98a2b3;
+  font-size: 24rpx;
+}
+.think-body {
+  margin-top: 14rpx;
+  padding-top: 14rpx;
+  border-top-width: 1rpx;
+  border-top-style: solid;
+  border-top-color: #e4e7ec;
+}
+.think-text {
+  color: #667085;
+  font-size: 25rpx;
+  line-height: 38rpx;
+}
+.think-sources {
+  margin-top: 12rpx;
+}
+.think-source {
+  margin-bottom: 6rpx;
+  color: #667085;
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+</style>

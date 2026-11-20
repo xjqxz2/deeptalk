@@ -1,0 +1,325 @@
+<template>
+  <view class="msg" :class="message.role === 'user' ? 'msg-user' : 'msg-assistant'">
+    <!-- 用户消息 -->
+    <block v-if="message.role === 'user'">
+      <view v-if="message.attachments && message.attachments.length" class="user-images">
+        <image
+          v-for="item in message.attachments"
+          :key="item.id"
+          class="user-image"
+          :src="item.url"
+          mode="aspectFill"
+        />
+      </view>
+      <view v-if="message.content" class="bubble">
+        <text class="bubble-text">{{ message.content }}</text>
+      </view>
+    </block>
+
+    <!-- 助手消息 -->
+    <block v-else>
+      <view class="head">
+        <image class="head-logo" src="/static/shark.png" mode="aspectFit" />
+        <text class="head-name">DeepTalk</text>
+        <text class="head-model">{{ message.model_name || 'DeepSeek' }}</text>
+      </view>
+
+      <ThinkingPanel
+        v-if="message.reasoning || (streaming && activity) || viewedSources.length"
+        :reasoning="message.reasoning"
+        :streaming="streaming"
+        :duration-ms="message.duration_ms || 0"
+        :activity="activity"
+        :sources="message.sources"
+      />
+
+      <view v-if="message.notice" class="notice">
+        <text class="notice-text">{{ message.notice }}</text>
+      </view>
+
+      <!-- 正文：Markdown 解析成块，逐块渲染（nvue 不支持 v-html） -->
+      <view v-if="blocks.length" class="blocks">
+        <view v-for="(block, index) in blocks" :key="index" class="block">
+          <text v-if="block.type === 'heading'" class="h1">{{ block.spans[0].text }}</text>
+
+          <text v-else-if="block.type === 'quote'" class="quote">
+            <text v-for="(span, si) in block.spans" :key="si" :class="spanClass(span)">{{ span.text }}</text>
+          </text>
+
+          <view v-else-if="block.type === 'list'" class="list">
+            <view v-for="(item, li) in block.items" :key="li" class="list-item">
+              <text class="list-bullet">{{ block.ordered ? `${li + 1}.` : '·' }}</text>
+              <text class="list-text">
+                <text v-for="(span, si) in item.spans" :key="si" :class="spanClass(span)">{{ span.text }}</text>
+              </text>
+            </view>
+          </view>
+
+          <view v-else-if="block.type === 'code'" class="code">
+            <view class="code-head">
+              <text class="code-lang">{{ block.language }}</text>
+              <text class="code-copy" @click="copy(block.code)">复制</text>
+            </view>
+            <scroll-view class="code-body" scroll-x>
+              <text class="code-text">{{ block.code }}</text>
+            </scroll-view>
+          </view>
+
+          <text v-else class="paragraph">
+            <text v-for="(span, si) in block.spans" :key="si" :class="spanClass(span)">{{ span.text }}</text>
+          </text>
+        </view>
+      </view>
+
+      <text v-else-if="streaming" class="typing">正在生成…</text>
+
+      <view v-if="message.error" class="error">
+        <text class="error-text">{{ message.error }}</text>
+        <text class="error-retry" @click="$emit('retry')">重试</text>
+      </view>
+
+      <view v-if="!streaming && hasActions" class="actions">
+        <text class="action" @click="copy(message.content)">复制</text>
+        <text v-if="showRegenerate" class="action" @click="$emit('regenerate')">重新生成</text>
+        <text class="action" :class="{ 'action-on': message.feedback === 'up' }" @click="$emit('rate', 'up')">赞</text>
+        <text class="action" :class="{ 'action-on': message.feedback === 'down' }" @click="$emit('rate', 'down')">踩</text>
+        <text v-if="message.output_tokens" class="action-meta">{{ message.output_tokens }} tokens</text>
+      </view>
+    </block>
+  </view>
+</template>
+
+<script setup>
+/**
+ * 单条消息。用户消息是右侧气泡，助手消息是整块正文。
+ * 正文用 parseMarkdown 拆成块，避免 nvue 无法渲染 HTML 的限制。
+ */
+import { computed } from 'vue'
+import ThinkingPanel from './thinking-panel.nvue'
+import { parseMarkdown } from '@/utils/markdown'
+
+const props = defineProps({
+  message: { type: Object, required: true },
+  activity: { type: Object, default: null },
+  showRegenerate: { type: Boolean, default: true },
+})
+defineEmits(['regenerate', 'rate', 'retry'])
+
+const streaming = computed(() => props.message.status === 'streaming')
+const blocks = computed(() => (props.message.content ? parseMarkdown(props.message.content) : []))
+const viewedSources = computed(() => (props.message.sources || []).filter((item) => item.viewed))
+const hasActions = computed(() => Boolean(props.message.content))
+
+/** 行内样式：加粗、行内代码、引用标号。 */
+function spanClass(span) {
+  if (span.bold) return 'span-bold'
+  if (span.code) return 'span-code'
+  if (span.cite) return 'span-cite'
+  return 'span'
+}
+
+function copy(text) {
+  if (!text) return
+  uni.setClipboardData({ data: text })
+}
+</script>
+
+<style>
+.msg {
+  width: 750rpx;
+  padding: 20rpx 32rpx;
+}
+.msg-user {
+  align-items: flex-end;
+}
+.msg-assistant {
+  align-items: stretch;
+}
+.user-images {
+  flex-direction: row;
+  justify-content: flex-end;
+  margin-bottom: 12rpx;
+}
+.user-image {
+  width: 200rpx;
+  height: 150rpx;
+  margin-left: 12rpx;
+  border-radius: 12rpx;
+}
+.bubble {
+  max-width: 580rpx;
+  padding: 20rpx 26rpx;
+  border-radius: 22rpx;
+  background-color: #f2f4f8;
+}
+.bubble-text {
+  color: #101828;
+  font-size: 30rpx;
+  line-height: 44rpx;
+}
+.head {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 12rpx;
+}
+.head-logo {
+  width: 40rpx;
+  height: 40rpx;
+  margin-right: 12rpx;
+}
+.head-name {
+  color: #101828;
+  font-size: 27rpx;
+  font-weight: bold;
+}
+.head-model {
+  margin-left: 12rpx;
+  color: #98a2b3;
+  font-size: 24rpx;
+}
+.blocks {
+  margin-top: 8rpx;
+}
+.block {
+  margin-bottom: 16rpx;
+}
+.paragraph {
+  color: #101828;
+  font-size: 30rpx;
+  line-height: 48rpx;
+}
+.h1 {
+  color: #101828;
+  font-size: 34rpx;
+  font-weight: bold;
+  line-height: 50rpx;
+}
+.quote {
+  padding-left: 20rpx;
+  border-left-width: 4rpx;
+  border-left-style: solid;
+  border-left-color: #d0d5dd;
+  color: #475467;
+  font-size: 28rpx;
+  line-height: 44rpx;
+}
+.list {
+  margin-top: 6rpx;
+}
+.list-item {
+  flex-direction: row;
+  align-items: flex-start;
+  margin-bottom: 8rpx;
+}
+.list-bullet {
+  width: 34rpx;
+  color: #4d6bfe;
+  font-size: 28rpx;
+  line-height: 44rpx;
+}
+.list-text {
+  flex: 1;
+  color: #101828;
+  font-size: 30rpx;
+  line-height: 44rpx;
+}
+.code {
+  margin-top: 12rpx;
+  border-radius: 16rpx;
+  background-color: #0f172a;
+}
+.code-head {
+  flex-direction: row;
+  justify-content: space-between;
+  padding: 14rpx 20rpx;
+  border-bottom-width: 1rpx;
+  border-bottom-style: solid;
+  border-bottom-color: #1e293b;
+}
+.code-lang {
+  color: #94a3b8;
+  font-size: 22rpx;
+}
+.code-copy {
+  color: #94a3b8;
+  font-size: 22rpx;
+}
+.code-body {
+  padding: 16rpx 20rpx;
+}
+.code-text {
+  color: #e2e8f0;
+  font-size: 24rpx;
+  line-height: 36rpx;
+  font-family: Menlo, monospace;
+}
+.span {
+  color: #101828;
+  font-size: 30rpx;
+  line-height: 48rpx;
+}
+.span-bold {
+  color: #101828;
+  font-size: 30rpx;
+  font-weight: bold;
+  line-height: 48rpx;
+}
+.span-code {
+  color: #b42318;
+  font-size: 27rpx;
+  font-family: Menlo, monospace;
+}
+.span-cite {
+  color: #4d6bfe;
+  font-size: 24rpx;
+}
+.typing {
+  color: #98a2b3;
+  font-size: 26rpx;
+}
+.notice {
+  margin-top: 12rpx;
+  padding: 14rpx 18rpx;
+  border-radius: 12rpx;
+  background-color: #fffaeb;
+}
+.notice-text {
+  color: #b54708;
+  font-size: 24rpx;
+}
+.error {
+  flex-direction: row;
+  align-items: center;
+  margin-top: 12rpx;
+  padding: 14rpx 18rpx;
+  border-radius: 12rpx;
+  background-color: #fef3f2;
+}
+.error-text {
+  flex: 1;
+  color: #b42318;
+  font-size: 25rpx;
+}
+.error-retry {
+  margin-left: 16rpx;
+  color: #b42318;
+  font-size: 25rpx;
+}
+.actions {
+  flex-direction: row;
+  align-items: center;
+  margin-top: 16rpx;
+}
+.action {
+  margin-right: 28rpx;
+  color: #98a2b3;
+  font-size: 24rpx;
+}
+.action-on {
+  color: #4d6bfe;
+}
+.action-meta {
+  color: #d0d5dd;
+  font-size: 22rpx;
+}
+</style>

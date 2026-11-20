@@ -60,7 +60,8 @@ func (h *AuthController) Register(c *gin.Context) {
 		return
 	}
 	middleware.SetSessionCookie(c, h.cfg, token)
-	responses.OK(c, gin.H{"user": responses.NewUser(u)})
+	// token 同时下发给小程序 / APP：它们无法可靠保存 Cookie
+	responses.OK(c, gin.H{"user": responses.NewUser(u), "token": token})
 }
 
 // Login 校验账号密码并签发会话。
@@ -77,7 +78,7 @@ func (h *AuthController) Login(c *gin.Context) {
 		return
 	}
 	middleware.SetSessionCookie(c, h.cfg, token)
-	responses.OK(c, gin.H{"user": responses.NewUser(u)})
+	responses.OK(c, gin.H{"user": responses.NewUser(u), "token": token})
 }
 
 // Logout 退出登录并撤销当前会话。

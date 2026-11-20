@@ -189,6 +189,23 @@ server {
 
 `gzip_types` 里不要包含 `text/event-stream`，否则流式回答会被整段压缩后才下发。
 
+小程序 / APP 客户端的流式回答走 WebSocket，需要单独放行 `Upgrade`：
+
+```nginx
+location = /api/v1/c/ws {
+    proxy_pass http://deeptalk_backend;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_read_timeout 3600s;
+    proxy_send_timeout 3600s;
+    proxy_buffering off;
+}
+```
+
+没有这四行（尤其是 `Upgrade` 与 `Connection`）时，握手会以 400 失败。
+
 ## 4.2 旧镜像清理
 
 `deploy.sh` 每次部署成功后会自动清理本项目的历史镜像，只保留最新 3 个

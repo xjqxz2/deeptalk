@@ -58,6 +58,16 @@ DeepTalk 支持安装到手机桌面，安装后没有浏览器地址栏，打�
 部分聚合网关要求带 `HTTP-Referer`、`X-Title` 之类的标识头。在后台「厂商配置」里可以添加多行
 `Header 名 / 值`，保存后调用该厂商的对话与连接测试都会带上这些请求头。留空表示不附加。
 
+## 小程序 / APP 客户端
+
+`ui/uniclient` 是 uni-app（Vue 3 + Vant，nvue 优先）客户端，面向微信小程序并预留 APP：
+
+- 流式回答走 WebSocket（`/api/v1/c/ws`），事件与 Web 端 SSE 完全一致；
+- 登录返回 token，客户端用 `Authorization: Bearer` 鉴权；
+- 支持登录注册、历史会话、思维链、代码块、图片附件、模型切换、分享链接复制。
+
+调试与构建见 [ui/uniclient/README.md](ui/uniclient/README.md)。
+
 ## 分享对话
 
 - 打开一段对话后，点击右上角的分享图标，或在「更多」菜单里选择「分享对话」；

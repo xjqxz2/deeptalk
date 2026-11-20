@@ -63,6 +63,7 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 
 	authController := capi.NewAuthController(deps.Users, deps.Providers, deps.Settings, cfg.Auth, cfg.WebSearchEnabled)
 	chatController := capi.NewChatController(deps.Chats)
+	wsController := capi.NewWSController(deps.Chats, deps.Users, cfg.Auth)
 	attachmentController := capi.NewAttachmentController(deps.Attachments)
 
 	overviewController := b.NewOverviewController(deps.Users, deps.Providers, deps.Chats, deps.Audits)
@@ -106,6 +107,10 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 		cGroup.POST("/conversations/:id/share", chatController.CreateShare)
 		cGroup.DELETE("/conversations/:id/share", chatController.RevokeShare)
 	}
+
+	// WebSocket 长连接：供小程序 / APP 使用，鉴权在处理器内部完成
+	// （小程序无法消费 SSE，也不方便携带 Cookie）
+	api.GET("/c/ws", wsController.Conn)
 
 	// 公开分享页：只读，不经过 Auth 中间件，也不提供任何回复接口
 	cPublicGroup := api.Group("/c/public")

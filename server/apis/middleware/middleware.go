@@ -118,8 +118,8 @@ func CORS(origins []string) gin.HandlerFunc {
 // 被限制登录的用户会立即失效，即使 Cookie 尚未过期。
 func Auth(users *user.Service, cfg Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		token, err := c.Cookie(cfg.CookieName)
-		if err != nil || token == "" {
+		token := sessionTokenFrom(c, cfg)
+		if token == "" {
 			responses.Fail(c, responses.CodeUnauthenticated, "登录已失效，请重新登录")
 			c.Abort()
 			return
@@ -140,6 +140,21 @@ func Auth(users *user.Service, cfg Config) gin.HandlerFunc {
 		c.Set(contextToken, token)
 		c.Next()
 	}
+}
+
+// sessionTokenFrom 依次从 Cookie、Authorization: Bearer、X-Session-Token 取会话令牌。
+// 小程序 / APP 无法可靠携带 Cookie，用请求头更稳；Web 端仍走 HttpOnly Cookie。
+func sessionTokenFrom(c *gin.Context, cfg Config) string {
+	if cookie, err := c.Cookie(cfg.CookieName); err == nil && cookie != "" {
+		return cookie
+	}
+	if header := strings.TrimSpace(c.GetHeader("Authorization")); strings.HasPrefix(strings.ToLower(header), "bearer ") {
+		return strings.TrimSpace(header[7:])
+	}
+	if header := strings.TrimSpace(c.GetHeader("X-Session-Token")); header != "" {
+		return header
+	}
+	return ""
 }
 
 // AdminOnly 校验管理员身份；必须在 Auth 之后使用。
