@@ -156,6 +156,39 @@ cd /srv/deeptalk
 
 普通 `git push main` 只构建镜像，不会部署；只有 `v*` tag 且 `DEPLOY_ENABLED=true` 才部署。
 
+## 4.1 反向代理（Nginx）
+
+容器只监听 `9821`，由 Nginx 终止 TLS 并转发。除了常规的 SSE 透传，还要注意两点：
+
+```nginx
+server {
+    # 静态资源体积较大，必须启用 gzip，否则每次首屏都要传近 1MB
+    gzip on;
+    gzip_comp_level 6;
+    gzip_min_length 1024;
+    gzip_vary on;
+    gzip_proxied any;
+    # 关键：Go 静态文件返回的是 text/javascript，不写这一项 JS 不会被压缩
+    gzip_types text/plain text/css text/javascript application/javascript
+               application/json image/svg+xml application/manifest+json;
+
+    location / {
+        proxy_pass http://deeptalk_backend;
+        proxy_http_version 1.1;
+
+        # SSE 必须逐字下发，不能被缓冲或压缩
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_request_buffering off;
+        proxy_set_header Connection "";
+        chunked_transfer_encoding on;
+        proxy_read_timeout 3600s;
+    }
+}
+```
+
+`gzip_types` 里不要包含 `text/event-stream`，否则流式回答会被整段压缩后才下发。
+
 ## 5. 回滚
 
 手动指定上一个 tag：
