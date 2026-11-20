@@ -53,28 +53,42 @@ func (s *Service) startTitleSummary(ctx context.Context, prov *provider.Provider
 		runCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 		defer cancel()
 
-		var b strings.Builder
-		_, err := s.providers.StreamCompletion(runCtx, prov, modelID, []provider.ChatMessage{
-			{Role: "system", Content: titlePrompt},
-			{Role: "user", Content: seed},
-		}, false, "", 64, 8*time.Second, func(ev provider.StreamEvent) error {
-			if ev.Kind != "content" {
-				return nil
+		// 模型偶尔只吐两三个字，重试一次通常就正常；两次都不行就让调用方用兜底标题
+		for attempt := 0; attempt < 2; attempt++ {
+			if title := s.requestTitle(runCtx, prov, modelID, seed); len([]rune(title)) >= 4 {
+				out <- title
+				return
 			}
-			b.WriteString(ev.Delta)
-			// 标题很短，拿到足够内容就收手，省一次等待
-			if len([]rune(b.String())) >= 40 {
-				return errTitleEnough
+			if runCtx.Err() != nil {
+				break
 			}
-			return nil
-		})
-		if err != nil && !isTitleEnough(err) {
-			out <- ""
-			return
 		}
-		out <- cleanTitle(b.String())
+		out <- ""
 	}()
 	return out
+}
+
+// requestTitle 发起一次标题请求并清洗结果。
+func (s *Service) requestTitle(ctx context.Context, prov *provider.Provider, modelID, seed string) string {
+	var b strings.Builder
+	_, err := s.providers.StreamCompletion(ctx, prov, modelID, []provider.ChatMessage{
+		{Role: "system", Content: titlePrompt},
+		{Role: "user", Content: seed},
+	}, false, "", 64, 8*time.Second, func(ev provider.StreamEvent) error {
+		if ev.Kind != "content" {
+			return nil
+		}
+		b.WriteString(ev.Delta)
+		// 标题很短，拿到足够内容就收手，省一次等待
+		if len([]rune(b.String())) >= 40 {
+			return errTitleEnough
+		}
+		return nil
+	})
+	if err != nil && !isTitleEnough(err) {
+		return ""
+	}
+	return cleanTitle(b.String())
 }
 
 // errTitleEnough 用于提前结束标题请求的流式读取。
@@ -89,7 +103,7 @@ func isTitleEnough(err error) bool {
 	return ok
 }
 
-// cleanTitle 清洗模型输出：取第一行、去掉引号与标点、限制长度。
+// cleanTitle 清洗模型输出：折叠空白、去掉引号与标点、限制长度。
 func cleanTitle(raw string) string {
 	text := strings.TrimSpace(raw)
 	if text == "" {

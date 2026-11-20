@@ -2,6 +2,7 @@ package chat
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -75,5 +76,46 @@ func TestStartTitleSummaryUsesModel(t *testing.T) {
 	}
 	if ch := service.startTitleSummary(context.Background(), prov, "m", "   "); ch != nil {
 		t.Fatal("blank seed should not start summary")
+	}
+}
+
+// TestRequestTitleRetriesShortOutput 校验模型只吐两三个字时会重试一次。
+func TestRequestTitleRetriesShortOutput(t *testing.T) {
+	attempt := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempt++
+		w.Header().Set("Content-Type", "text/event-stream")
+		title := "便宜好"
+		if attempt > 1 {
+			title = "生图模型价格对比"
+		}
+		payload, _ := json.Marshal(map[string]any{
+			"choices": []map[string]any{{"delta": map[string]any{"content": title}}},
+		})
+		fmt.Fprintf(w, "data: %s\n\ndata: [DONE]\n\n", payload)
+	}))
+	defer upstream.Close()
+
+	dsn := filepath.Join(t.TempDir(), "retry.db") + "?_pragma=busy_timeout(5000)"
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	providers := provider.NewService(db, "s", true, nil, nil)
+	enc, _ := provider.EncryptAPIKey("s", "sk")
+	prov := &provider.Provider{Name: "fake", BaseURL: upstream.URL, APIKeyEnc: enc}
+	service := NewService(db, providers, nil, nil, nil, nil, Config{})
+
+	ch := service.startTitleSummary(context.Background(), prov, "m", "找个便宜的生图模型")
+	select {
+	case got := <-ch:
+		if got != "生图模型价格对比" {
+			t.Fatalf("title = %q, want 生图模型价格对比", got)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out")
+	}
+	if attempt != 2 {
+		t.Fatalf("attempts = %d, want 2", attempt)
 	}
 }
