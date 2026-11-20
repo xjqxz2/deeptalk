@@ -113,7 +113,7 @@ type DailyUsage struct {
 
 // Migrate 创建会话与消息表，并为旧会话补齐 URL 公开 ID。
 func Migrate(db *gorm.DB) error {
-	if err := db.AutoMigrate(&Conversation{}, &Message{}); err != nil {
+	if err := db.AutoMigrate(&Conversation{}, &Message{}, &Share{}); err != nil {
 		return err
 	}
 	var rows []Conversation

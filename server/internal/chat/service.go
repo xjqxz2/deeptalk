@@ -459,6 +459,15 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 			}
 			for _, page := range pages {
 				if _, ok := known[page.URL]; ok {
+					// 搜索阶段已经收录过该 URL，打开正文后标记为已查看
+					for index := range toolSources {
+						if toolSources[index].URL == page.URL {
+							toolSources[index].Viewed = true
+							if toolSources[index].Title == "" {
+								toolSources[index].Title = page.Title
+							}
+						}
+					}
 					continue
 				}
 				if len(toolSources) >= 10 {
@@ -469,6 +478,7 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 					Title:   page.Title,
 					URL:     page.URL,
 					Snippet: truncateRunes(page.Content, 300),
+					Viewed:  true,
 				})
 			}
 			if raw, marshalErr := json.Marshal(toolSources); marshalErr == nil {

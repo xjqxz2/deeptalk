@@ -122,6 +122,39 @@ type MessageResponse struct {
 	CreatedAt    time.Time         `json:"created_at"`     // 发送时间
 }
 
+// ShareResponse 是分享链接响应；前端用 token 拼出完整 URL。
+type ShareResponse struct {
+	Token     string    `json:"token"`      // 分享 token
+	CreatedAt time.Time `json:"created_at"` // 创建时间
+}
+
+// NewShare 构造分享响应。
+func NewShare(share chat.Share) ShareResponse {
+	return ShareResponse{Token: share.Token, CreatedAt: share.CreatedAt}
+}
+
+// SharedConversationResponse 是公开分享页的只读数据。
+type SharedConversationResponse struct {
+	Title    string            `json:"title"`     // 会话标题
+	Owner    string            `json:"owner"`     // 分享者昵称
+	SharedAt time.Time         `json:"shared_at"` // 分享时间
+	Messages []MessageResponse `json:"messages"`  // 全部消息
+}
+
+// NewSharedConversation 构造分享页响应；只暴露标题、昵称与消息。
+func NewSharedConversation(shared chat.SharedConversation) SharedConversationResponse {
+	out := make([]MessageResponse, 0, len(shared.Messages))
+	for _, message := range shared.Messages {
+		out = append(out, NewMessage(message))
+	}
+	return SharedConversationResponse{
+		Title:    shared.Conversation.Title,
+		Owner:    shared.Owner,
+		SharedAt: shared.CreatedAt,
+		Messages: out,
+	}
+}
+
 // NewMessage 构造消息响应。
 func NewMessage(m chat.Message) MessageResponse {
 	return MessageResponse{

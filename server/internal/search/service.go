@@ -31,10 +31,12 @@ var (
 )
 
 // Result 是一条检索结果。
+// Viewed 表示模型不仅看到摘要，还真正打开了网页正文；前端据此区分“查看的网页”和搜索候选。
 type Result struct {
 	Title   string `json:"title"`
 	URL     string `json:"url"`
 	Snippet string `json:"snippet"`
+	Viewed  bool   `json:"viewed,omitempty"`
 }
 
 // Page 是模型指定 URL 后抓取到的正文。

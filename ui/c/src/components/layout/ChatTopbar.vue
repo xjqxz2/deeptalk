@@ -7,6 +7,7 @@ import {
   MenuOutlined,
   MobileOutlined,
   MoreOutlined,
+  ShareAltOutlined,
   UserOutlined,
   WarningOutlined,
 } from '@ant-design/icons-vue'
@@ -15,6 +16,7 @@ import { useChatStore } from '@/stores/chat'
 import { usePwaInstall } from '@/composables/usePwaInstall'
 import { useUserStore } from '@/stores/user'
 import AccountSettingsModal from '@/components/business/AccountSettingsModal.vue'
+import ShareModal from '@/components/business/ShareModal.vue'
 
 const app = useAppStore()
 const chat = useChatStore()
@@ -25,11 +27,15 @@ const { available: installAvailable, install: installApp } = usePwaInstall()
 
 const accountOpen = ref(false)
 const shortcutsOpen = ref(false)
+const shareOpen = ref(false)
 
 const title = computed(() => {
   if (route.name === 'chat-empty') return '新对话'
   return chat.current?.title || '对话'
 })
+
+/** 空态或没有消息时不能分享。 */
+const canShare = computed(() => Boolean(chat.current?.id) && chat.messages.length > 0)
 
 const initial = computed(() => userStore.user?.avatar_text ?? 'U')
 
@@ -48,11 +54,18 @@ function onUserMenu(info: { key: string }): void {
 
 /** 更多菜单。 */
 function onMoreMenu(info: { key: string }): void {
+  if (info.key === 'share') void openShare()
   if (info.key === 'install') void installApp()
   if (info.key === 'shortcuts') shortcutsOpen.value = true
   if (info.key === 'new') void newChat()
   if (info.key === 'account') accountOpen.value = true
   if (info.key === 'logout') void logout()
+}
+
+/** 打开分享弹窗；空会话没有可分享的内容。 */
+async function openShare(): Promise<void> {
+  if (!canShare.value) return
+  shareOpen.value = true
 }
 
 /** 退出登录。 */
@@ -98,6 +111,17 @@ async function logout(): Promise<void> {
           </a-menu>
         </template>
       </a-dropdown>
+      <a-tooltip title="分享对话" placement="bottom">
+        <button
+          type="button"
+          class="more-btn"
+          aria-label="分享对话"
+          :disabled="!canShare"
+          @click="openShare"
+        >
+          <ShareAltOutlined />
+        </button>
+      </a-tooltip>
       <a-dropdown :trigger="['click']" placement="bottomRight">
         <button type="button" class="more-btn" aria-label="更多操作">
           <MoreOutlined />
@@ -107,6 +131,10 @@ async function logout(): Promise<void> {
             <a-menu-item v-if="installAvailable" key="install">
               <MobileOutlined />
               安装到桌面
+            </a-menu-item>
+            <a-menu-item key="share" :disabled="!canShare">
+              <ShareAltOutlined />
+              分享对话
             </a-menu-item>
             <a-menu-item key="shortcuts">键盘快捷键</a-menu-item>
             <a-menu-item key="new">新建对话</a-menu-item>
@@ -121,6 +149,7 @@ async function logout(): Promise<void> {
     </div>
 
     <AccountSettingsModal v-model:open="accountOpen" />
+    <ShareModal v-model:open="shareOpen" :conversation-id="chat.current?.id ?? null" :title="title" />
 
     <a-modal v-model:open="shortcutsOpen" title="键盘快捷键" :footer="null" :width="420">
       <div class="shortcuts">
@@ -225,8 +254,13 @@ async function logout(): Promise<void> {
   cursor: pointer;
 }
 
-.more-btn:hover {
+.more-btn:hover:not(:disabled) {
   background: #f4f6fa;
+}
+
+.more-btn:disabled {
+  color: var(--dt-text-disabled);
+  cursor: not-allowed;
 }
 
 .shortcuts {

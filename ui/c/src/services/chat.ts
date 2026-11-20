@@ -1,6 +1,6 @@
 /** C 端会话与消息接口；流式请求在 chat store 中单独处理。 */
 import { del, get, patch, post, upload } from '@deeptalk/shared'
-import type { Attachment, ChatMessage, Conversation, ModelInfo } from '@deeptalk/shared'
+import type { Attachment, ChatMessage, Conversation, ModelInfo, ShareInfo, SharedConversation } from '@deeptalk/shared'
 
 /** 会话列表，keyword 由服务端做标题模糊匹配。 */
 export function listConversations(keyword = ''): Promise<{ items: Conversation[] }> {
@@ -37,6 +37,26 @@ export function uploadAttachment(file: File): Promise<{ attachment: Attachment }
   const form = new FormData()
   form.append('file', file, file.name)
   return upload<{ attachment: Attachment }>('/c/attachments', form)
+}
+
+/** 读取当前会话的分享；没有分享时 share 为 null。 */
+export function getShare(id: number | string): Promise<{ share: ShareInfo | null }> {
+  return get<{ share: ShareInfo | null }>(`/c/conversations/${encodeURIComponent(String(id))}/share`)
+}
+
+/** 创建（或复用）分享链接。 */
+export function createShare(id: number | string): Promise<{ share: ShareInfo }> {
+  return post<{ share: ShareInfo }>(`/c/conversations/${encodeURIComponent(String(id))}/share`)
+}
+
+/** 撤销分享，旧链接立即失效。 */
+export function revokeShare(id: number | string): Promise<null> {
+  return del<null>(`/c/conversations/${encodeURIComponent(String(id))}/share`)
+}
+
+/** 读取公开分享，不需要登录。 */
+export function getShared(token: string): Promise<SharedConversation> {
+  return get<SharedConversation>(`/c/public/shares/${encodeURIComponent(token)}`)
 }
 
 /** 当前可用模型。 */

@@ -35,6 +35,7 @@ BASE_URL=http://127.0.0.1:9821 PW_CHROMIUM=/path/to/chrome-headless-shell node t
 | `citations-check.mjs` | 正文 `[1]` 引用上标、来源卡片已移除、思考文案 |
 | `parallel-check.mjs` | 生成中可新建/切换会话、侧栏生成徽标、检索活动提示 |
 | `a2ui-check.mjs` | A2UI 消息经官方 Lit Renderer 渲染成组件 |
+| `share-check.mjs` | 创建/撤销分享、分享页只读、查看过的网页保留 |
 
 `pwa-check` / `a2ui-check` / `citations-check` 默认访问 `pnpm --filter @deeptalk/c preview` 的
 `http://127.0.0.1:4173`；`parallel-check` 还需要先启动慢速 SSE 服务：

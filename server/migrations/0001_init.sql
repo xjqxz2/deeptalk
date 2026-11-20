@@ -85,6 +85,19 @@ CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation
 CREATE INDEX IF NOT EXISTS idx_messages_user_id ON messages(user_id);
 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
 
+-- 对话分享：一个会话只保留一个有效分享；撤销后 token 失效
+CREATE TABLE IF NOT EXISTS conversation_shares (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  conversation_id INTEGER NOT NULL,
+  user_id         INTEGER NOT NULL,
+  token           TEXT    NOT NULL,
+  created_at      DATETIME NOT NULL,
+  revoked_at      DATETIME
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_conversation_shares_conversation_id ON conversation_shares(conversation_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_conversation_shares_token ON conversation_shares(token);
+CREATE INDEX IF NOT EXISTS idx_conversation_shares_user_id ON conversation_shares(user_id);
+
 CREATE TABLE IF NOT EXISTS attachments (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id      INTEGER NOT NULL,

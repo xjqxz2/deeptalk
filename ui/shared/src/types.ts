@@ -84,6 +84,22 @@ export interface SearchSource {
   title: string
   url: string
   snippet: string
+  /** 模型是否真正打开过该网页正文 */
+  viewed?: boolean
+}
+
+/** 会话分享。 */
+export interface ShareInfo {
+  token: string
+  created_at: string
+}
+
+/** 公开分享页的只读数据。 */
+export interface SharedConversation {
+  title: string
+  owner: string
+  shared_at: string
+  messages: ChatMessage[]
 }
 
 /** A2UI v0.9 envelope，前端交给官方 Lit Renderer 处理。 */

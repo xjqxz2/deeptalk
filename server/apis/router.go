@@ -100,6 +100,17 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 		cGroup.DELETE("/conversations/:id", chatController.Delete)
 		cGroup.POST("/conversations/:id/stream", chatController.Stream)
 		cGroup.POST("/messages/:id/feedback", chatController.Feedback)
+
+		// 分享只在登录态下创建与撤销；访客只能读取公开快照
+		cGroup.GET("/conversations/:id/share", chatController.GetShare)
+		cGroup.POST("/conversations/:id/share", chatController.CreateShare)
+		cGroup.DELETE("/conversations/:id/share", chatController.RevokeShare)
+	}
+
+	// 公开分享页：只读，不经过 Auth 中间件，也不提供任何回复接口
+	cPublicGroup := api.Group("/c/public")
+	{
+		cPublicGroup.GET("/shares/:token", chatController.PublicShare)
 	}
 
 	// B 端管理接口，需管理员身份

@@ -25,6 +25,12 @@ export const appRoutes: RouteRecordRaw[] = [
     ],
   },
   {
+    path: '/s/:token',
+    name: 'share',
+    component: () => import('@/pages/share/SharePage.vue'),
+    meta: { title: '分享的对话', public: true },
+  },
+  {
     path: '/login',
     name: 'login',
     component: () => import('@/pages/auth/LoginPage.vue'),

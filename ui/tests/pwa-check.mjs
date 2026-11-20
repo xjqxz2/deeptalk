@@ -141,11 +141,11 @@ await page.getByRole('menuitem', { name: '安装到桌面' }).click()
 await page.waitForSelector('.ant-modal-content')
 check('iOS 安装说明出现', (await page.locator('.ant-modal-content').innerText()).includes('添加到主屏幕'))
 check('iOS 安装说明包含 Safari', (await page.locator('.ant-modal-content').innerText()).includes('Safari'))
-await page.screenshot({ path: path.join(here, '../../docs/qa/pwa-ios-install-guide.png') })
+await page.screenshot({ path: '/tmp/deeptalk-pwa-ios-install-guide.png' })
 await page.getByRole('button', { name: '我知道了' }).click()
 await page.waitForTimeout(450)
 
-await page.screenshot({ path: path.join(here, '../../docs/qa/pwa-ios-empty.png') })
+await page.screenshot({ path: '/tmp/deeptalk-pwa-ios-empty.png' })
 
 // 断网时导航到任意会话，应返回离线页
 await context.setOffline(true)

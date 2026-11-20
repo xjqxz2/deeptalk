@@ -1,11 +1,15 @@
 package apis
 
 import (
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"testing/fstest"
+
+	"deeptalk/apis/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -77,5 +81,40 @@ func TestServeFrontendFileAdminKeepsImmutable(t *testing.T) {
 	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/assets/app.js", nil))
 	if got := recorder.Header().Get("Cache-Control"); !strings.Contains(got, "immutable") {
 		t.Fatalf("Cache-Control = %q, want immutable", got)
+	}
+}
+
+// TestReplyEndpointsRequireAuth 锁定所有回复相关接口都必须在登录态下调用；
+// 公开分享接口只读，不能在未登录时用于回复。
+func TestReplyEndpointsRequireAuth(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := NewRouter(Config{Env: "test", Auth: middleware.Config{CookieName: "dt_session"}}, Deps{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+
+	cases := []struct {
+		method string
+		path   string
+	}{
+		{http.MethodPost, "/api/v1/c/conversations/1/stream"},
+		{http.MethodPost, "/api/v1/c/messages/1/feedback"},
+		{http.MethodGet, "/api/v1/c/conversations/1/share"},
+		{http.MethodPost, "/api/v1/c/conversations/1/share"},
+		{http.MethodDelete, "/api/v1/c/conversations/1/share"},
+		{http.MethodPost, "/api/v1/c/conversations"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			router.ServeHTTP(recorder, httptest.NewRequest(tc.method, tc.path, nil))
+			if recorder.Code != http.StatusUnauthorized {
+				t.Fatalf("status = %d, want 401", recorder.Code)
+			}
+		})
+	}
+
+	// 公开分享读取不需要登录：不返回 401 即视为放行
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/c/public/shares/abc", nil))
+	if recorder.Code == http.StatusUnauthorized {
+		t.Fatal("public share endpoint must not require auth")
 	}
 }
