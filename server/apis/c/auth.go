@@ -3,6 +3,7 @@ package c
 
 import (
 	"errors"
+	"strings"
 
 	"deeptalk/apis/middleware"
 	"deeptalk/apis/requests"
@@ -10,6 +11,7 @@ import (
 	"deeptalk/internal/provider"
 	"deeptalk/internal/setting"
 	"deeptalk/internal/user"
+	"deeptalk/internal/wechat"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,6 +19,7 @@ import (
 // AuthController 处理注册、登录、退出、当前用户与用量。
 type AuthController struct {
 	users         *user.Service     // 账号能力
+	wechat        *wechat.Manager   // 小程序凭据（code2session）
 	providers     *provider.Service // 模型能力
 	settings      *setting.Service  // 平台设置
 	cfg           middleware.Config // Cookie 等配置
@@ -24,8 +27,34 @@ type AuthController struct {
 }
 
 // NewAuthController 创建 C 端账号控制器。
-func NewAuthController(users *user.Service, providers *provider.Service, settings *setting.Service, cfg middleware.Config, searchEnabled bool) *AuthController {
-	return &AuthController{users: users, providers: providers, settings: settings, cfg: cfg, searchEnabled: searchEnabled}
+func NewAuthController(users *user.Service, providers *provider.Service, settings *setting.Service, cfg middleware.Config, searchEnabled bool, wx *wechat.Manager) *AuthController {
+	return &AuthController{users: users, wechat: wx, providers: providers, settings: settings, cfg: cfg, searchEnabled: searchEnabled}
+}
+
+// BindWeChat 用工卡小程序 wx.login 的 code 绑定 openid，内容安全检测需要它。
+func (h *AuthController) BindWeChat(c *gin.Context) {
+	current := middleware.CurrentUser(c)
+	if h.wechat == nil || !h.wechat.Enables() {
+		responses.Fail(c, responses.CodeInternal, "小程序凭据未配置")
+		return
+	}
+	var req struct {
+		Code string `json:"code"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || strings.TrimSpace(req.Code) == "" {
+		responses.Fail(c, responses.CodeInvalidArgument, "缺少登录凭证")
+		return
+	}
+	session, err := h.wechat.Code2Session(c.Request.Context(), req.Code)
+	if err != nil {
+		responses.Fail(c, responses.CodeInvalidArgument, "小程序授权失败，请重试")
+		return
+	}
+	if err := h.users.SetWeChatOpenID(c.Request.Context(), current.ID, session.OpenID); err != nil {
+		responses.FromError(c, err)
+		return
+	}
+	responses.OK(c, gin.H{"bound": true})
 }
 
 // Config 返回注册开关等公开配置，供登录 / 注册页使用。

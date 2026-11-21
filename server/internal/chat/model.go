@@ -102,6 +102,7 @@ type StreamInput struct {
 	AttachmentIDs []uint // 本次消息的图片附件
 	Regenerate    bool   // 是否重新生成
 	ClientIP      string // 客户端公网 IP，用于注入当前位置
+	Platform      string // 客户端平台标识：mp-weixin / web / app
 }
 
 // DailyUsage 是按天聚合的用量。

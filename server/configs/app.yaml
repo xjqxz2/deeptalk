@@ -76,6 +76,16 @@ wechat:
   timeout_sec: 10
   # 是否启用；凭据齐全时自动开启
   enabled: false
+  # 内容安全：只对 X-Client=mp-weixin 的请求生效
+  security:
+    # 需要同时配置 app_id/secret 才会真正调用微信接口
+    enabled: true
+    # 1 资料；2 评论；3 论坛；4 社交日志
+    scene: 2
+    # 微信接口异常（限流、超时）时是否放行；未上架小程序每天只有 100 次额度
+    fail_open: true
+    # 没有绑定 openid 时是否拦截；默认只告警
+    require_bind: false
 
 uploads:
   # 图片附件落盘目录；Docker 中位于 /app/data/uploads，随数据卷持久化

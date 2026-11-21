@@ -23,3 +23,16 @@ export function wsURL(token) {
 
 /** 分享链接所在站点（PWA），用于复制分享地址 */
 export const WEB_BASE = 'https://deeptalk.peon.top'
+
+/**
+ * 客户端平台标识：后端据此决定是否对小程序的输入做内容安全检测。
+ * H5 调试页按 web 处理，微信小程序按 mp-weixin 处理。
+ */
+export const CLIENT_PLATFORM = (() => {
+  // #ifdef MP-WEIXIN
+  return 'mp-weixin'
+  // #endif
+  // #ifndef MP-WEIXIN
+  return 'web'
+  // #endif
+})()

@@ -8,7 +8,7 @@
  * 服务端回 {type:<事件名>, payload:<与 SSE 一致的数据>}。
  */
 import { getToken } from '@/store/session'
-import { wsURL } from '@/config/env'
+import { CLIENT_PLATFORM, wsURL } from '@/config/env'
 
 const HEARTBEAT_MS = 25000
 const RECONNECT_MAX = 30000
@@ -31,7 +31,7 @@ function openSocket(url) {
   }
   // #endif
   // #ifndef H5
-  const task = uni.connectSocket({ url, complete: () => {} })
+  const task = uni.connectSocket({ url, header: { 'X-Client': CLIENT_PLATFORM }, complete: () => {} })
   return {
     raw: task,
     send: (data) => task.send({ data }),

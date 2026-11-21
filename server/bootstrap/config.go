@@ -120,6 +120,16 @@ type WeChatConfig struct {
 	TokenBuffer int    `yaml:"token_buffer"` // 提前刷新秒数
 	TimeoutSec  int    `yaml:"timeout_sec"`  // 单次请求超时秒数
 	Enabled     bool   `yaml:"enabled"`      // 是否启用（缺凭据时自动关闭）
+
+	Security SecurityCheckConfig `yaml:"security"` // 内容安全策略
+}
+
+// SecurityCheckConfig 保存内容安全策略。
+type SecurityCheckConfig struct {
+	Enabled     bool `yaml:"enabled"`      // 是否对小程序端输入做检测
+	Scene       int  `yaml:"scene"`        // 1 资料 / 2 评论 / 3 论坛 / 4 社交日志
+	FailOpen    bool `yaml:"fail_open"`    // 微信接口异常时是否放行
+	RequireBind bool `yaml:"require_bind"` // 未绑定 openid 时是否拦截
 }
 
 // UploadsConfig 保存图片附件配置。
@@ -243,6 +253,15 @@ func applyEnvOverrides(cfg *Config) {
 	}
 	if v := os.Getenv("DEEPTALK_WECHAT_SECRET"); v != "" {
 		cfg.WeChat.Secret = v
+	}
+	if v := os.Getenv("DEEPTALK_WECHAT_SECURITY"); v != "" {
+		cfg.WeChat.Security.Enabled = v == "true" || v == "1"
+	}
+	if v := os.Getenv("DEEPTALK_WECHAT_SECURITY_REQUIRE_BIND"); v != "" {
+		cfg.WeChat.Security.RequireBind = v == "true" || v == "1"
+	}
+	if v := os.Getenv("DEEPTALK_WECHAT_SECURITY_FAIL_CLOSED"); v != "" {
+		cfg.WeChat.Security.FailOpen = !(v == "true" || v == "1")
 	}
 	if v := os.Getenv("DEEPTALK_WECHAT_TOKEN_BUFFER"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
@@ -378,6 +397,9 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.WeChat.TokenBuffer <= 0 {
 		cfg.WeChat.TokenBuffer = 300
+	}
+	if cfg.WeChat.Security.Scene <= 0 {
+		cfg.WeChat.Security.Scene = 2 // 评论场景，适合对话输入
 	}
 	if cfg.WeChat.TimeoutSec <= 0 {
 		cfg.WeChat.TimeoutSec = 10

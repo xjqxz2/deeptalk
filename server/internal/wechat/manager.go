@@ -37,6 +37,9 @@ type Config struct {
 	Timeout   time.Duration // 单次请求超时
 	Buffer    time.Duration // 提前刷新窗口
 	StaleLife time.Duration // 过期后仍可兜底使用的时间
+
+	Code2SessionEndpoint string // 覆盖 code2session 地址，测试用
+	MsgSecCheckEndpoint  string // 覆盖内容安全地址，测试用
 }
 
 // Manager 负责获取与刷新 access_token。

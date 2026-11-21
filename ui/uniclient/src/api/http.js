@@ -1,7 +1,7 @@
 /**
  * 统一的接口请求层：带 token、统一错误提示、登录失效自动跳转。
  */
-import { BASE_URL } from '@/config/env'
+import { BASE_URL, CLIENT_PLATFORM } from '@/config/env'
 import { getToken, clearSession } from '@/store/session'
 import { goLogin } from '@/utils/nav'
 
@@ -34,7 +34,7 @@ function gotoLogin() {
 export function request({ url, method = 'GET', data, silent = false }) {
   return new Promise((resolve, reject) => {
     const token = getToken()
-    const header = { 'Content-Type': 'application/json' }
+    const header = { 'Content-Type': 'application/json', 'X-Client': CLIENT_PLATFORM }
     if (token) header.Authorization = `Bearer ${token}`
     uni.request({
       url: `${BASE_URL}${url}`,
@@ -74,7 +74,7 @@ export function uploadFile(filePath) {
       url: `${BASE_URL}/api/v1/c/attachments`,
       filePath,
       name: 'file',
-      header: token ? { Authorization: `Bearer ${token}` } : {},
+      header: { 'X-Client': CLIENT_PLATFORM, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       success: (res) => {
         try {
           const body = JSON.parse(res.data)

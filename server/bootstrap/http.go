@@ -12,6 +12,7 @@ import (
 	"deeptalk/internal/attachment"
 	"deeptalk/internal/audit"
 	"deeptalk/internal/chat"
+	"deeptalk/internal/compliance"
 	"deeptalk/internal/provider"
 	"deeptalk/internal/search"
 	"deeptalk/internal/setting"
@@ -62,6 +63,14 @@ func (a *App) startHTTP(ctx context.Context) error {
 		Stealth:      cfg.WebSearch.Stealth,
 		MCP:          mcpCaller,
 	})
+	// 小程序端内容安全：只对 X-Client=mp-weixin 的请求生效
+	checker := compliance.New(compliance.Config{
+		Enabled:     cfg.WeChat.Security.Enabled,
+		Scene:       cfg.WeChat.Security.Scene,
+		FailOpen:    cfg.WeChat.Security.FailOpen,
+		RequireBind: cfg.WeChat.Security.RequireBind,
+	}, a.WeChat, users, a.Log)
+
 	chats := chat.NewService(a.DB, providers, users, searcher, attachments, settings, chat.Config{
 		MaxOutputTokens:  cfg.Upstream.MaxOutputTokens,
 		FirstByteTimeout: time.Duration(cfg.Upstream.FirstByteTimeoutSec) * time.Second,
@@ -72,6 +81,7 @@ func (a *App) startHTTP(ctx context.Context) error {
 		IdleMinTokens:    cfg.Context.IdleMinTokens,
 		Location:         cfg.App.Location,
 		Timezone:         cfg.App.Timezone,
+		Compliance:       checker,
 	})
 	chats.StartCompactionWorker(ctx)
 

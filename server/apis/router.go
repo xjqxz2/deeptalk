@@ -63,7 +63,7 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 	auth := middleware.Auth(deps.Users, cfg.Auth)
 	admin := middleware.AdminOnly()
 
-	authController := capi.NewAuthController(deps.Users, deps.Providers, deps.Settings, cfg.Auth, cfg.WebSearchEnabled)
+	authController := capi.NewAuthController(deps.Users, deps.Providers, deps.Settings, cfg.Auth, cfg.WebSearchEnabled, deps.WeChat)
 	chatController := capi.NewChatController(deps.Chats)
 	wsController := capi.NewWSController(deps.Chats, deps.Users, cfg.Auth)
 	attachmentController := capi.NewAttachmentController(deps.Attachments)
@@ -90,6 +90,7 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 		cGroup.GET("/auth/me", authController.Me)
 		cGroup.POST("/auth/logout", authController.Logout)
 		cGroup.PUT("/auth/password", authController.ChangePassword)
+		cGroup.POST("/auth/wechat/bind", authController.BindWeChat)
 		cGroup.GET("/usage", authController.Usage)
 		cGroup.GET("/models", authController.Models)
 

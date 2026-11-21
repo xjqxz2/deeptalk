@@ -57,6 +57,7 @@ type User struct {
 	LastLoginAt    *time.Time `gorm:"index"`                                 // 最近登录时间
 	LastLoginIP    string     `gorm:"size:64;not null;default:''"`           // 最近登录 IP
 	LastLoginCity  string     `gorm:"size:32;not null;default:''"`           // 最近登录城市（粗粒度）
+	WeChatOpenID   *string    `gorm:"size:64;uniqueIndex"`                    // 小程序 openid，用于内容安全
 	CreatedAt      time.Time  `gorm:"index"`                                 // 注册时间
 	UpdatedAt      time.Time  // 更新时间
 }

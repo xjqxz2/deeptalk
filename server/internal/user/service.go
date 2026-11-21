@@ -223,6 +223,36 @@ func (s *Service) Authenticate(ctx context.Context, token string) (*User, error)
 	return u, nil
 }
 
+// SetWeChatOpenID 绑定小程序 openid；同一个 openid 不能绑定到多个账号。
+func (s *Service) SetWeChatOpenID(ctx context.Context, userID uint, openid string) error {
+	openid = strings.TrimSpace(openid)
+	if openid == "" {
+		return errors.New("wechat openid is required")
+	}
+	var existing User
+	err := s.db.WithContext(ctx).Where("wechat_open_id = ?", openid).First(&existing).Error
+	if err == nil && existing.ID != userID {
+		return ErrForbidden
+	}
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+	return s.db.WithContext(ctx).Model(&User{}).Where("id = ?", userID).
+		Update("wechat_open_id", openid).Error
+}
+
+// WeChatOpenID 返回用户绑定的小程序 openid；未绑定时返回空串。
+func (s *Service) WeChatOpenID(ctx context.Context, userID uint) string {
+	var row struct {
+		WeChatOpenID *string
+	}
+	if err := s.db.WithContext(ctx).Model(&User{}).Select("wechat_open_id").
+		Where("id = ?", userID).Scan(&row).Error; err != nil || row.WeChatOpenID == nil {
+		return ""
+	}
+	return *row.WeChatOpenID
+}
+
 // Logout 撤销当前会话。
 func (s *Service) Logout(ctx context.Context, token string) error {
 	if token == "" {

@@ -30,3 +30,8 @@ export function fetchConfig() {
 export function fetchUsage() {
   return request({ url: '/api/v1/c/usage', silent: true })
 }
+
+/** 小程序端绑定 openid：内容安全检测按用户维度调用微信接口。 */
+export function bindWeChat(code) {
+  return request({ url: '/api/v1/c/auth/wechat/bind', method: 'POST', data: { code }, silent: true })
+}

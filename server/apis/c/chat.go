@@ -117,6 +117,19 @@ func (h *ChatController) Delete(c *gin.Context) {
 	responses.OK(c, nil)
 }
 
+// clientPlatform 读取客户端声明的平台标识，用于小程序端的内容安全校验。
+func clientPlatform(c *gin.Context) string {
+	value := strings.ToLower(strings.TrimSpace(c.GetHeader("X-Client")))
+	switch value {
+	case "mp-weixin", "weixin", "miniprogram", "mp":
+		return "mp-weixin"
+	case "app":
+		return "app"
+	default:
+		return "web"
+	}
+}
+
 // Stream 发起 SSE 流式回答。
 // 说明：只有在业务层确认可生成后才写出响应头，因此额度不足、模型不可用等错误仍返回 JSON。
 func (h *ChatController) Stream(c *gin.Context) {
@@ -196,6 +209,7 @@ func (h *ChatController) Stream(c *gin.Context) {
 		AttachmentIDs: req.AttachmentIDs,
 		Regenerate:    req.Regenerate,
 		ClientIP:      clientIP,
+		Platform:      clientPlatform(c),
 	}, emit)
 
 	close(stopHeartbeat)

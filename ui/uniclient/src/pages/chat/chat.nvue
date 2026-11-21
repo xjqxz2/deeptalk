@@ -273,7 +273,7 @@ import { session, clearSession, isLoggedIn } from '@/store/session'
 import { goLogin } from '@/utils/nav'
 import { errorState, clearError } from '@/utils/errors'
 import { toast, confirm } from '@/utils/ui'
-import { logout as logoutApi } from '@/api/auth'
+import { logout as logoutApi, bindWeChat } from '@/api/auth'
 
 const draft = ref('')
 const keyword = ref('')
@@ -494,6 +494,24 @@ function loadMore() {
   // 占位：历史消息分页由服务端一次返回
 }
 
+/**
+ * 小程序端把 wx.login 的 code 换成 openid 并绑定到当前账号：
+ * 微信的文本内容安全接口（msgSecCheck v2）要求带 openid。
+ */
+function bindWeChatOpenID() {
+  // #ifdef MP-WEIXIN
+  uni.login({
+    provider: 'weixin',
+    success: (res) => {
+      if (!res.code) return
+      bindWeChat(res.code).catch(() => {
+        // 绑定失败不阻断使用，服务端会按策略降级（默认放行并告警）
+      })
+    },
+  })
+  // #endif
+}
+
 /** 读取状态栏高度与胶囊位置，只有小程序 / APP 需要。 */
 function measureChrome() {
   // #ifndef H5
@@ -524,6 +542,7 @@ onReady(() => {
 })
 
 onMounted(async () => {
+  bindWeChatOpenID()
   // 没登录就不发任何请求：否则会同时打出 3 个 401，进而触发多次跳转
   if (!isLoggedIn()) return
   chatSocket.connect()

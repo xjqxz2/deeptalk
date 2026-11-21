@@ -41,6 +41,12 @@ type Config struct {
 	Timezone         string        // IP 定位失败时的时区兜底
 	MaxSitesPerTurn  int           // 单次回答最多打开多少个网页
 	MaxToolRounds    int           // 单次回答最多多少轮工具调用（安全阀）
+	Compliance       TextChecker   // 小程序端内容安全；nil 表示不校验
+}
+
+// TextChecker 在写入消息前对用户输入做平台相关的合规校验。
+type TextChecker interface {
+	CheckText(ctx context.Context, userID uint, text, platform string) error
 }
 
 // 默认预算：一轮回答里模型可以反复搜索、反复打开网页，共 25 个站；
@@ -212,6 +218,13 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 	}
 
 	content := strings.TrimSpace(in.Content)
+	// 小程序端的内容安全校验必须在写入消息之前完成：命中违规直接中止，
+	// 历史里不留记录，也不会消耗模型额度。
+	if !in.Regenerate && s.cfg.Compliance != nil && content != "" {
+		if err := s.cfg.Compliance.CheckText(ctx, userID, content, in.Platform); err != nil {
+			return err
+		}
+	}
 	// 附件必须在写入消息前完成归属与格式校验；重新生成时复用上一条用户消息的附件
 	var assets []attachment.Asset
 	if in.Regenerate {

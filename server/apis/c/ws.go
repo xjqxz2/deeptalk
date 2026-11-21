@@ -51,6 +51,7 @@ type wsRequest struct {
 	ModelID        uint   `json:"model_id"`        // 指定模型
 	AttachmentIDs  []uint `json:"attachment_ids"`  // 图片附件
 	Regenerate     bool   `json:"regenerate"`      // 重新生成
+	Platform       string `json:"platform"`        // 客户端平台（可选，握手头优先）
 }
 
 // wsFrame 是服务端下发的统一帧结构：
@@ -157,10 +158,27 @@ func (h *WSController) Conn(c *gin.Context) {
 				AttachmentIDs: req.AttachmentIDs,
 				Regenerate:    req.Regenerate,
 				ClientIP:      c.ClientIP(),
+				Platform:      wsPlatform(c, req.Platform),
 			}, streamCtx)
 		default:
 			_ = write(wsFrame{Type: "error", Payload: gin.H{"message": "未知的指令类型", "code": 3004}})
 		}
+	}
+}
+
+// wsPlatform 识别小程序端：优先握手请求头，其次帧里的 platform 字段。
+func wsPlatform(c *gin.Context, framePlatform string) string {
+	value := strings.ToLower(strings.TrimSpace(c.GetHeader("X-Client")))
+	if value == "" {
+		value = strings.ToLower(strings.TrimSpace(framePlatform))
+	}
+	switch value {
+	case "mp-weixin", "weixin", "miniprogram", "mp":
+		return "mp-weixin"
+	case "app":
+		return "app"
+	default:
+		return "web"
 	}
 }
 
