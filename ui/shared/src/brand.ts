@@ -1,9 +1,9 @@
 /**
- * 品牌标记：统一使用鲨鱼图标（白底圆角），C 端与 B 端共用同一份资源。
+ * 品牌标记：统一使用小橘树洞图标（透明底橘色小橘子），C 端与 B 端共用同一份资源。
  * 说明：图标是位图，通过 Vite 资源导入得到带哈希的 URL，构建与开发期都能正确解析。
  */
 import { h, type FunctionalComponent } from 'vue'
-import sharkMark from './assets/shark-mark.png'
+import brandMark from './assets/brand-mark.png'
 
 /** 品牌标记组件，size 控制边长；圆角由图标自身与容器共同保证。 */
 export const BrandMark: FunctionalComponent<{ size?: number; radius?: number }> = (props) => {
@@ -16,8 +16,8 @@ export const BrandMark: FunctionalComponent<{ size?: number; radius?: number }> 
     },
   }, [
     h('img', {
-      src: sharkMark,
-      alt: 'DeepTalk',
+      src: brandMark,
+      alt: '小橘树洞',
       width: size,
       height: size,
       draggable: false,

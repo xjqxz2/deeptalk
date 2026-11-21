@@ -9,7 +9,7 @@
     <view class="status-spacer" :style="statusBarStyle" />
     <view class="topbar">
       <view class="brand">
-        <image class="brand-logo" src="/static/shark.png" mode="aspectFit" />
+        <image class="brand-logo" src="/static/logo.png" mode="aspectFit" />
         <text class="brand-name">小橘树洞</text>
       </view>
       <text class="topbar-link" @click="toggleMode">

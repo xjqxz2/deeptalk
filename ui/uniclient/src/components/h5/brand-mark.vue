@@ -8,5 +8,5 @@ const props = defineProps({
   size: { type: Number, default: 28 },
   radius: { type: Number, default: 8 },
 })
-const logoSrc = '/static/shark.png'
+const logoSrc = '/static/logo.png'
 </script>

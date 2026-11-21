@@ -3,7 +3,7 @@
     <section class="auth-panel">
       <div class="panel-top">
         <div class="brand-inline">
-          <img class="brand-logo-img" src="/static/shark.png" alt="小橘树洞" />
+          <img class="brand-logo-img" src="/static/logo.png" alt="小橘树洞" />
           <span class="brand-name">小橘树洞</span>
         </div>
         <div class="switch">

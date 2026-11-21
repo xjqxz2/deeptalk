@@ -122,6 +122,8 @@ body,
 #app {
   height: 100%;
   margin: 0;
+  /* 固定视口：允许滚动，但禁止双指缩放 */
+  touch-action: pan-x pan-y;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
@@ -486,7 +488,7 @@ a:hover {
   }
 }
 
-/* 品牌标记：图标本身是白底圆角位图，容器只负责尺寸，不再二次裁切 */
+/* 品牌标记：图标是透明底位图，圆角由容器按需裁切 */
 .dt-brand-mark {
   display: inline-flex;
   flex: 0 0 auto;

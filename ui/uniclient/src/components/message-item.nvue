@@ -21,7 +21,7 @@
     <!-- 助手消息 -->
     <block v-else>
       <view class="head">
-        <image class="head-logo" src="/static/shark.png" mode="aspectFit" />
+        <image class="head-logo" src="/static/logo.png" mode="aspectFit" />
         <text class="head-name">小橘树洞</text>
         <text class="head-model">{{ message.model_name || 'DeepSeek' }}</text>
       </view>
