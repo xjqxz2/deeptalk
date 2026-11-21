@@ -1,0 +1,19 @@
+{
+ "pageErrors": [],
+ "consoleErrors": [
+  {
+   "label": "profile",
+   "type": "error",
+   "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+   "at": "2026-11-21T14:03:48.216Z"
+  }
+ ],
+ "httpErrors": [
+  {
+   "label": "profile",
+   "status": 400,
+   "url": "/api/v1/c/auth/profile/complete",
+   "at": "2026-11-21T14:03:48.215Z"
+  }
+ ]
+}

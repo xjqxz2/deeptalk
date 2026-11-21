@@ -285,7 +285,7 @@ export async function send(content, attachmentIds = []) {
   const text = String(content || '').trim()
   // 生成中不再拒绝输入：作为插话发给服务端，等这一轮结束后继续
   if (chat.generating) {
-    if (!text || !chat.conversation?.id) return
+    if (!text || !chat.current?.id) return
     interject(text)
     return
   }
@@ -329,7 +329,7 @@ export async function send(content, attachmentIds = []) {
  * 本地先挂一条"排队中"的消息，服务端在当前轮结束后处理并继续生成。
  */
 export function interject(content) {
-  const conversationID = chat.conversation?.id
+  const conversationID = chat.current?.id
   if (!conversationID) return
   const message = {
     id: -Date.now(),

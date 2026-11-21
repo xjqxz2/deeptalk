@@ -1,0 +1,178 @@
+[
+ {
+  "step": 39,
+  "phase": "F 资料页",
+  "action": "打开资料页 /#/pages/profile/profile",
+  "target": "/#/pages/profile/profile",
+  "expected": "显示头像选择、昵称输入、保存并进入、邮箱/密码补全表单、稍后再说",
+  "observed": "标题=\"完善资料\"；输入框=3 个（昵称/邮箱/密码）；主按钮=\"保存并进入\"；补全按钮=\"补全邮箱密码\"；底部=\"稍后再说\"；昵称预填=\"qa-reg-17952\"",
+  "ok": true,
+  "screenshot": "85-profile-initial-after.png",
+  "screenshot_before": "84-profile-initial-before.png"
+ },
+ {
+  "step": 40,
+  "phase": "F 资料页",
+  "action": "点击头像选择按钮，在系统文件选择框取消",
+  "target": ".avatar-btn",
+  "expected": "打开相册/文件选择；取消后不报错、不改变头像",
+  "observed": "文件选择器弹出=true；取消后仍为空头像=true；提示文案=\"点击选择头像\"；无 toast=true",
+  "ok": true,
+  "screenshot": "87-profile-avatar-after.png",
+  "screenshot_before": "86-profile-avatar-before.png"
+ },
+ {
+  "step": 41,
+  "phase": "F 资料页",
+  "action": "清空并输入昵称",
+  "target": "input[type=text]（昵称）",
+  "expected": "昵称输入框显示新值",
+  "observed": "昵称输入值=\"QA昵称-测试\"",
+  "ok": true,
+  "screenshot": "89-profile-nickname-after.png",
+  "screenshot_before": "88-profile-nickname-before.png"
+ },
+ {
+  "step": 42,
+  "phase": "F 资料页",
+  "action": "点击「稍后再说」",
+  "target": ".skip",
+  "expected": "跳到聊天页",
+  "observed": "聊天输入区=true，资料页已离开=true",
+  "ok": true,
+  "screenshot": "91-profile-skip-after.png",
+  "screenshot_before": "90-profile-skip-before.png"
+ },
+ {
+  "step": 43,
+  "phase": "F 资料页",
+  "action": "输入昵称后点「保存并进入」",
+  "target": ".submit",
+  "expected": "保存成功并进入聊天页",
+  "observed": "进入聊天页=true；顶栏头像文字=\"Q\"",
+  "ok": true,
+  "screenshot": "93-profile-save-after.png",
+  "screenshot_before": "92-profile-save-before.png"
+ },
+ {
+  "step": 44,
+  "phase": "F 资料页",
+  "action": "邮箱填非法值、密码填 5 位后点「补全邮箱密码」",
+  "target": ".submit-ghost",
+  "expected": "前端提示「请填写邮箱与至少 8 位密码」",
+  "observed": "错误提示=\"请填写邮箱与至少 8 位密码\"",
+  "ok": true,
+  "screenshot": "95-profile-email-short-password-after.png",
+  "screenshot_before": "94-profile-email-short-password-before.png"
+ },
+ {
+  "step": 45,
+  "phase": "F 资料页",
+  "action": "密码改为合法长度、邮箱仍为非法格式后提交",
+  "target": ".submit-ghost",
+  "expected": "服务端校验失败并显示「邮箱格式不正确」类提示（预期返回 400）",
+  "observed": "错误提示=\"邮箱格式不正确\"",
+  "ok": true,
+  "screenshot": "97-profile-email-invalid-format-after.png",
+  "screenshot_before": "96-profile-email-invalid-format-before.png"
+ },
+ {
+  "step": 46,
+  "phase": "F 资料页",
+  "action": "邮箱改为合法值 qa-complete-830452@deeptalk.local 后提交",
+  "target": ".submit-ghost",
+  "expected": "提交成功并提示「已可在电脑端登录」",
+  "observed": "toast=\"已可在电脑端登录\"；错误提示=\"无\"",
+  "ok": true,
+  "screenshot": "100-profile-email-valid-after.png",
+  "screenshot_before": "98-profile-email-valid-before.png"
+ },
+ {
+  "step": 47,
+  "phase": "G 小程序预览页",
+  "action": "打开 mp-preview，检查「微信一键登录」卡片",
+  "target": ".wx-login-card",
+  "expected": "小程序专属登录卡片渲染正常（logo、标题、副标题、绿色按钮、协议文案）",
+  "observed": "卡片可见=true；标题=\"小橘树洞\"；副标题=\"微信授权即可开始对话\"；按钮=\"微信一键登录\" 背景=rgb(7, 193, 96)；协议=\"登录即表示同意《服务条款》与《隐私政策》\"；代码块底部=749，输入区顶部=684，内容被遮挡=true",
+  "ok": true,
+  "screenshot": "102-mp-wechat-card-after.png",
+  "screenshot_before": "101-mp-wechat-card-before.png"
+ },
+ {
+  "step": 48,
+  "phase": "G 小程序预览页",
+  "action": "点击「已思考 12 秒」展开思维过程",
+  "target": ".thinking-head",
+  "expected": "展开显示思考内容与来源链接",
+  "observed": "展开区域=true；按钮文案=\"收起\"；内容=\"用户问的是小红书个人号挂商品链接，属于平台规则，需要确认最新要求。 · 示例来源\"",
+  "ok": true,
+  "screenshot": "104-mp-thinking-expand-after.png",
+  "screenshot_before": "103-mp-thinking-expand-before.png"
+ },
+ {
+  "step": 49,
+  "phase": "G 小程序预览页",
+  "action": "再次点击收起思维过程",
+  "target": ".thinking-head",
+  "expected": "收起，思考内容隐藏",
+  "observed": "展开区域=0；按钮文案=\"展开\"",
+  "ok": true,
+  "screenshot": "106-mp-thinking-collapse-after.png",
+  "screenshot_before": "105-mp-thinking-collapse-before.png"
+ },
+ {
+  "step": 50,
+  "phase": "G 小程序预览页",
+  "action": "点击代码块右上角「复制」",
+  "target": ".dt-code-copy",
+  "expected": "代码复制到剪贴板，按钮短暂显示「已复制」",
+  "observed": "toast=\"内容已复制\"；剪贴板=\"open https://creator.xiaohongshu.com\"",
+  "ok": true,
+  "screenshot": "109-mp-code-copy-after.png",
+  "screenshot_before": "107-mp-code-copy-before.png"
+ },
+ {
+  "step": 51,
+  "phase": "H 深色模式",
+  "action": "深色模式打开登录页",
+  "target": "colorScheme=dark /#/pages/login/login",
+  "expected": "页面切到深色配色，文字与背景对比度足够（≥4.5:1 正文）",
+  "observed": "面板背景=rgba(0, 0, 0, 0)，背景图=linear-gradient(rgb(247, 249, 255), rgb(255, 255, 255) 38%)；标题颜色=rgb(230, 233, 239)（浅色文字 + 硬编码浅色渐变 #f7f9ff→#fff，对比度约 1.16:1，标题几乎不可读）",
+  "ok": false,
+  "screenshot": "111-dark-login-after.png",
+  "screenshot_before": "110-dark-login-before.png"
+ },
+ {
+  "step": 52,
+  "phase": "H 深色模式",
+  "action": "深色模式打开聊天页",
+  "target": "/#/pages/chat/chat",
+  "expected": "聊天背景、消息气泡、输入区均为深色且文字清晰",
+  "observed": "消息区实际背景=rgb(255, 255, 255)；助手正文颜色=rgb(230, 233, 239)（对比度 1.22:1，<4.5 不可读）；助手名颜色=rgb(230, 233, 239)；用户气泡=rgb(31, 35, 43) / 文字=rgb(230, 233, 239)（对比度 12.95）；顶栏背景=rgb(25, 28, 35)；输入区背景=rgb(25, 28, 35)（深色模式只覆盖了顶栏/气泡/输入区，消息列表背景仍是白色）",
+  "ok": false,
+  "screenshot": "113-dark-chat-after.png",
+  "screenshot_before": "112-dark-chat-before.png"
+ },
+ {
+  "step": 53,
+  "phase": "H 深色模式",
+  "action": "深色模式打开抽屉",
+  "target": ".chat-sidebar",
+  "expected": "抽屉为深色背景，会话标题、用量卡片清晰可读",
+  "observed": "抽屉背景=rgb(23, 26, 33)；会话标题颜色=rgb(147, 167, 255)（对比度 7.64:1）；用量卡片背景=rgb(255, 255, 255) / 文字=rgb(230, 233, 239)",
+  "ok": true,
+  "screenshot": "115-dark-drawer-after.png",
+  "screenshot_before": "114-dark-drawer-before.png"
+ },
+ {
+  "step": 54,
+  "phase": "H 深色模式",
+  "action": "深色模式打开资料页",
+  "target": "/#/pages/profile/profile",
+  "expected": "资料页为深色背景，输入框与文字清晰",
+  "observed": "页面背景=rgb(18, 21, 27)；输入框文字=rgb(230, 233, 239)（对比度 15.03:1）；分组标题=rgb(230, 233, 239)（15.03:1）",
+  "ok": true,
+  "screenshot": "117-dark-profile-after.png",
+  "screenshot_before": "116-dark-profile-before.png"
+ }
+]

@@ -170,6 +170,7 @@
           </view>
           <input
             v-model="keyword"
+            @input="onSearch"
             class="drawer-search-input"
             placeholder="搜索对话"
             placeholder-class="drawer-search-placeholder"
@@ -350,7 +351,7 @@ function onItemLongPress(item) {
         const url = await shareCurrent()
         if (url) uni.showToast({ title: '分享链接已复制', icon: 'none' })
       } else if (res.tapIndex === 2) {
-        const ok = await confirm({ title: '删除对话', content: `确定删除「${item.title}」？`, danger: true })
+        const ok = await confirm('删除对话', `确定删除「${item.title}」？删除后不可恢复。`)
         if (ok) await removeConversation(item.id)
       }
     },
@@ -372,6 +373,15 @@ function onAvatar() {
       }
     },
   })
+}
+
+/** 赞 / 踩。 */
+async function onRate(item, rating) {
+  try {
+    await rate(item, rating)
+  } catch (err) {
+    toast(err?.message || '反馈失败')
+  }
 }
 
 /** 重新生成上一条回答。 */
@@ -477,19 +487,17 @@ async function pickImage() {
 
 /** 选择模型：H5 用 van-picker，小程序与 APP 用原生 ActionSheet。 */
 function pickModel() {
-  // #ifdef H5
-  modelPickerOpen.value = true
-  // #endif
-  // #ifndef H5
   if (!chat.models.length) {
     toast('管理员还没有配置可用模型')
     return
   }
   uni.showActionSheet({
     itemList: chat.models.map((item) => item.display_name),
-    success: (res) => selectModel(chat.models[res.tapIndex].id),
+    success: (res) => {
+      const picked = chat.models[res.tapIndex]
+      if (picked) selectModel(picked.id)
+    },
   })
-  // #endif
 }
 
 /** 滚到底部：消息列表使用 scroll-into-view，target 变化才会触发。 */

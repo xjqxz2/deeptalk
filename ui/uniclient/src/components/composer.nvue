@@ -120,8 +120,9 @@ function onKeydown(event) {
 }
 .composer-input {
   width: 100%;
-  min-height: 104rpx;
+  min-height: 48rpx;
   max-height: 384rpx;
+  flex-shrink: 0;
   color: #101828;
   font-size: 27rpx;
   line-height: 48rpx;

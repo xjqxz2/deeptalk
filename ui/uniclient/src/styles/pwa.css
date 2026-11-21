@@ -2492,3 +2492,57 @@ uni-button {
   background: transparent;
   padding: 0;
 }
+
+/* ---- 深色兜底：uni H5 的自定义页面结构（登录 / 聊天 / 抽屉） ---- */
+@media (prefers-color-scheme: dark) {
+  .page,
+  .messages-scroll,
+  .messages,
+  .list-inner,
+  .auth-panel,
+  .auth-shell {
+    background: var(--dt-bg) !important;
+    background-color: var(--dt-bg) !important;
+  }
+
+  .drawer,
+  .chat-sidebar,
+  .sidebar {
+    background: var(--dt-sidebar) !important;
+    background-color: var(--dt-sidebar) !important;
+  }
+
+  .usage-card,
+  .drawer-usage {
+    background: var(--dt-surface) !important;
+    background-color: var(--dt-surface) !important;
+    border-color: var(--dt-line) !important;
+  }
+
+  .topbar,
+  .chat-topbar,
+  .status-spacer,
+  .composer-wrap,
+  .composer {
+    background: var(--dt-surface) !important;
+    background-color: var(--dt-surface) !important;
+    border-color: var(--dt-line) !important;
+  }
+
+  .composer-box {
+    background: var(--dt-bg) !important;
+    border-color: var(--dt-line) !important;
+  }
+
+  .bubble,
+  .user-bubble {
+    background: var(--dt-hover) !important;
+  }
+
+  .bubble-text,
+  .paragraph,
+  .assistant-text,
+  .markdown-body {
+    color: var(--dt-text) !important;
+  }
+}

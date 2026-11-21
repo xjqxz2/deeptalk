@@ -90,6 +90,7 @@
       <view v-if="!streaming && hasActions" class="actions">
         <text class="action" @click="copy(message.content)">复制</text>
         <text v-if="showRegenerate" class="action" @click="$emit('regenerate')">重新生成</text>
+        <text v-if="message.status === 'stopped'" class="stopped-hint">已停止生成</text>
         <text class="action" :class="{ 'action-on': message.feedback === 'up' }" @click="$emit('rate', 'up')">赞</text>
         <text class="action" :class="{ 'action-on': message.feedback === 'down' }" @click="$emit('rate', 'down')">踩</text>
         <text class="action-meta">{{ meta }}</text>
@@ -417,5 +418,10 @@ function copy(text) {
   color: #4d6bfe;
   font-size: 20rpx;
   font-weight: bold;
+}
+
+.stopped-hint {
+  color: #98a2b3;
+  font-size: 22rpx;
 }
 </style>
