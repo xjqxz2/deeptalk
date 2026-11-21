@@ -455,6 +455,8 @@ export const useChatStore = defineStore('chat', () => {
       created_at: new Date().toISOString(),
     })
     targetMessages.push(assistant)
+    // 插话轮会复用一个连接继续推流：meta 到达时把写入目标切到新的助手消息
+    let activeAssistant = assistant
     run.generating = true
     const controller = new AbortController()
     run.abortController = controller
@@ -491,6 +493,24 @@ export const useChatStore = defineStore('chat', () => {
               }
             }
           }
+          if (meta.user_message?.interjection) {
+            const next = reactive<ChatMessage>({
+              id: meta.assistant_message_id,
+              role: 'assistant',
+              content: '',
+              reasoning: '',
+              status: 'streaming',
+              model_name: meta.model_name ?? '',
+              input_tokens: 0,
+              output_tokens: 0,
+              duration_ms: 0,
+              feedback: '',
+              created_at: new Date().toISOString(),
+            })
+            targetMessages.push(next)
+            activeAssistant = next
+            return
+          }
           assistant.id = meta.assistant_message_id
           assistant.model_name = meta.model_name
           assistant.created_at = meta.user_message?.created_at ?? assistant.created_at
@@ -513,54 +533,54 @@ export const useChatStore = defineStore('chat', () => {
           break
         }
         case 'reasoning':
-          assistant.reasoning += (payload as { delta: string }).delta ?? ''
+          activeAssistant.reasoning += (payload as { delta: string }).delta ?? ''
           break
         case 'delta': {
           const delta = (payload as { delta: string }).delta ?? ''
-          if (delta) assistant.activity = undefined
-          assistant.content += delta
+          if (delta) activeAssistant.activity = undefined
+          activeAssistant.content += delta
           break
         }
         case 'search':
-          assistant.searching = true
+          activeAssistant.searching = true
           break
         case 'activity':
-          assistant.activity = payload as SearchActivity
+          activeAssistant.activity = payload as SearchActivity
           break
         case 'a2ui': {
           const messages = (payload as { messages?: A2UIMessage[] }).messages ?? []
-          assistant.a2ui = [...(assistant.a2ui ?? []), ...messages]
+          activeAssistant.a2ui = [...(activeAssistant.a2ui ?? []), ...messages]
           break
         }
         case 'sources':
-          assistant.sources = (payload as { items: SearchSource[] }).items ?? []
-          assistant.searching = false
+          activeAssistant.sources = (payload as { items: SearchSource[] }).items ?? []
+          activeAssistant.searching = false
           break
         case 'notice':
-          assistant.notice = (payload as { message: string }).message
-          assistant.searching = false
-          assistant.activity = undefined
+          activeAssistant.notice = (payload as { message: string }).message
+          activeAssistant.searching = false
+          activeAssistant.activity = undefined
           break
         case 'usage': {
           const usage = payload as StreamUsage
-          assistant.input_tokens = usage.input_tokens
-          assistant.output_tokens = usage.output_tokens
-          assistant.duration_ms = usage.duration_ms
-          assistant.tokens_per_sec = usage.tokens_per_sec
-          assistant.character_count = usage.character_count
+          activeAssistant.input_tokens = usage.input_tokens
+          activeAssistant.output_tokens = usage.output_tokens
+          activeAssistant.duration_ms = usage.duration_ms
+          activeAssistant.tokens_per_sec = usage.tokens_per_sec
+          activeAssistant.character_count = usage.character_count
           break
         }
         case 'error':
-          assistant.status = 'error'
-          assistant.searching = false
-          assistant.activity = undefined
-          assistant.error = (payload as { message: string }).message || '生成失败，请重试'
+          activeAssistant.status = 'error'
+          activeAssistant.searching = false
+          activeAssistant.activity = undefined
+          activeAssistant.error = (payload as { message: string }).message || '生成失败，请重试'
           break
         case 'done': {
           const done = payload as { status: ChatMessage['status']; title?: string }
-          assistant.status = done.status ?? 'complete'
-          assistant.searching = false
-          assistant.activity = undefined
+          activeAssistant.status = done.status ?? 'complete'
+          activeAssistant.searching = false
+          activeAssistant.activity = undefined
           finished = true
           if (done.title) updateTitle(conversationID, done.title)
           break

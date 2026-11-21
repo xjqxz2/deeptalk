@@ -109,8 +109,14 @@ watch(html, () => {
           :height="84"
         />
       </div>
-      <div v-if="message.content" class="user-bubble">{{ message.content }}</div>
-      <div class="user-time">{{ formatTime(message.created_at) }}</div>
+      <div v-if="message.content" class="user-bubble">
+        <span v-if="message.interjection" class="interject-tag">插话</span>
+        {{ message.content }}
+      </div>
+      <div class="user-time">
+        <span v-if="message.status === 'queued'" class="interject-pending">排队中，本轮结束后处理 · </span>
+        {{ formatTime(message.created_at) }}
+      </div>
     </template>
 
     <template v-else>
@@ -193,9 +199,7 @@ watch(html, () => {
             <DislikeOutlined />
           </button>
           <span class="spacer" />
-          <span v-if="message.interjection" class="interject-tag">插话</span>
-        <span v-if="message.status === 'queued'" class="interject-pending">排队中，本轮结束后处理</span>
-        <span v-if="message.status === 'stopped'" class="stats">已停止生成</span>
+          <span v-if="message.status === 'stopped'" class="stats">已停止生成</span>
           <span v-else-if="message.status === 'complete'" class="stats">
             已生成 {{ formatNumber(characterCount) }} 字
             <template v-if="tokensPerSec"> · {{ tokensPerSec }} tok/s</template>

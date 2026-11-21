@@ -12,8 +12,12 @@
           height="84"
         />
       </div>
-      <div v-if="message.content" class="user-bubble">{{ message.content }}</div>
-      <div class="user-time">{{ time }}</div>
+      <div v-if="message.content" class="user-bubble">
+        <span v-if="message.interjection" class="interject-tag">插话</span>{{ message.content }}
+      </div>
+      <div class="user-time">
+        <span v-if="message.status === 'queued'" class="interject-pending">排队中，本轮结束后处理 · </span>{{ time }}
+      </div>
     </template>
 
     <template v-else>

@@ -69,9 +69,11 @@ async function handleAddFiles(files: File[]): Promise<void> {
 /** 发送消息。 */
 async function handleSend(): Promise<void> {
   const text = prompt.value.trim()
-  if ((!text && chat.attachments.length === 0) || chat.generating) return
+  if (!text && chat.attachments.length === 0) return
+  // 生成中允许继续发送：store 会把它转成"插话"，等这一轮结束后处理
+  const wasGenerating = chat.generating
   prompt.value = ''
-  atBottom.value = true
+  if (!wasGenerating) atBottom.value = true
   try {
     await chat.send(text)
   } catch (error) {

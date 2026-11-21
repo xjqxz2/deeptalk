@@ -55,20 +55,23 @@ func NewUser(u *user.User) UserResponse {
 		return UserResponse{}
 	}
 	return UserResponse{
-		ID:            u.ID,
-		Email:         u.Email,
-		Nickname:      u.Nickname,
-		Role:          u.Role,
-		Plan:          u.Plan,
-		QuotaTokens:   u.QuotaTokens,
-		UsedTokens:    u.UsedTokens,
-		UsedPercent:   percent(u.UsedTokens, u.QuotaTokens),
-		Disabled:      u.Disabled,
-		CreatedAt:     u.CreatedAt,
-		LastLoginAt:   u.LastLoginAt,
-		LastLoginCity: u.LastLoginCity,
-		LastLoginIP:   u.LastLoginIP,
-		AvatarText:    avatar(u.Nickname),
+		ID:               u.ID,
+		Email:            u.Email,
+		Nickname:         u.Nickname,
+		Role:             u.Role,
+		Plan:             u.Plan,
+		QuotaTokens:      u.QuotaTokens,
+		UsedTokens:       u.UsedTokens,
+		UsedPercent:      percent(u.UsedTokens, u.QuotaTokens),
+		Disabled:         u.Disabled,
+		CreatedAt:        u.CreatedAt,
+		LastLoginAt:      u.LastLoginAt,
+		LastLoginCity:    u.LastLoginCity,
+		LastLoginIP:      u.LastLoginIP,
+		AvatarText:       avatar(displayName(u)),
+		AvatarURL:        u.AvatarURL,
+		DisplayName:      displayName(u),
+		EmailPlaceholder: u.IsPlaceholderEmail(),
 	}
 }
 

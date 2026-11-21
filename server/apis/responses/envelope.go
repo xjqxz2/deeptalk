@@ -4,6 +4,7 @@ package responses
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"deeptalk/internal/chat"
 	"deeptalk/internal/provider"
@@ -67,6 +68,10 @@ func FromError(c *gin.Context, err error) {
 	case errors.Is(err, user.ErrNotFound), errors.Is(err, chat.ErrNotFound), errors.Is(err, chat.ErrMessageNotOwn),
 		errors.Is(err, provider.ErrNotFound), errors.Is(err, provider.ErrModelNotFound):
 		Fail(c, CodeNotFound, "资源不存在或无权访问")
+	case errors.Is(err, chat.ErrNotGenerating):
+		Fail(c, CodeInvalidArgument, "当前没有正在生成的回答，可直接发送")
+	case errors.Is(err, chat.ErrEmptyInterject):
+		Fail(c, CodeInvalidArgument, "插话内容不能为空")
 	case errors.Is(err, chat.ErrQuotaExceeded):
 		Fail(c, CodeQuotaExceeded, "本月额度已用完，请联系管理员调整额度")
 	case errors.Is(err, chat.ErrNoModel):
@@ -75,6 +80,10 @@ func FromError(c *gin.Context, err error) {
 		Fail(c, CodeForbidden, "预置厂商不可删除，可将其停用")
 	case errors.Is(err, provider.ErrInvalidBaseURL):
 		Fail(c, CodeInvalidArgument, "Base URL 不合法")
+	case strings.Contains(err.Error(), "invalid email"), strings.Contains(err.Error(), "email"):
+		Fail(c, CodeInvalidArgument, "邮箱格式不正确")
+	case strings.Contains(err.Error(), "password"):
+		Fail(c, CodeInvalidArgument, "密码至少 8 位，且需同时包含字母与数字")
 	default:
 		// 通用参数类错误使用 1001，其余按内部错误处理
 		msg := err.Error()

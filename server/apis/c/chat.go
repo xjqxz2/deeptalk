@@ -243,6 +243,29 @@ func (h *ChatController) Stream(c *gin.Context) {
 	}
 }
 
+// Interject 在生成过程中插入一句话：先入队，等当前轮结束后由同一条流继续处理。
+func (h *ChatController) Interject(c *gin.Context) {
+	current := middleware.CurrentUser(c)
+	id, err := h.chats.ResolveRef(c.Request.Context(), current.ID, c.Param("id"))
+	if err != nil {
+		responses.FromError(c, err)
+		return
+	}
+	var req struct {
+		Content string `json:"content"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		responses.Fail(c, responses.CodeInvalidArgument, "请求内容不合法")
+		return
+	}
+	item, err := h.chats.QueueInterjection(c.Request.Context(), current.ID, id, req.Content)
+	if err != nil {
+		responses.FromError(c, err)
+		return
+	}
+	responses.OK(c, gin.H{"queued": true, "id": item.ID, "content": item.Content})
+}
+
 // Feedback 记录消息赞 / 踩。
 func (h *ChatController) Feedback(c *gin.Context) {
 	current := middleware.CurrentUser(c)

@@ -12,9 +12,10 @@
         />
       </view>
       <view v-if="message.content" class="bubble">
+        <text v-if="message.interjection" class="interject-tag">插话</text>
         <text class="bubble-text">{{ message.content }}</text>
       </view>
-      <text class="msg-time">{{ time }}</text>
+      <text class="msg-time">{{ message.status === 'queued' ? '排队中，本轮结束后处理 · ' + time : time }}</text>
     </block>
 
     <!-- 助手消息 -->
@@ -407,5 +408,14 @@ function copy(text) {
   .error-retry {
     color: #fca5a5;
   }
+}
+.interject-tag {
+  margin-bottom: 6rpx;
+  padding: 2rpx 10rpx;
+  border-radius: 8rpx;
+  background-color: #eef2ff;
+  color: #4d6bfe;
+  font-size: 20rpx;
+  font-weight: bold;
 }
 </style>

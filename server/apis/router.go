@@ -106,6 +106,7 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 		cGroup.PATCH("/conversations/:id", chatController.Rename)
 		cGroup.DELETE("/conversations/:id", chatController.Delete)
 		cGroup.POST("/conversations/:id/stream", chatController.Stream)
+		cGroup.POST("/conversations/:id/interjections", chatController.Interject)
 		cGroup.POST("/messages/:id/feedback", chatController.Feedback)
 
 		// 分享只在登录态下创建与撤销；访客只能读取公开快照
