@@ -523,9 +523,10 @@ onReady(() => {
 })
 
 onMounted(async () => {
-  bindWeChatOpenID()
   // 没登录就不发任何请求：否则会同时打出 3 个 401，进而触发多次跳转
   if (!isLoggedIn()) return
+  // 登录后再绑定 openid，供内容安全使用
+  bindWeChatOpenID()
   chatSocket.connect()
   await Promise.all([loadModels(), loadConversations(), loadUsage()])
   if (chat.conversations.length) {

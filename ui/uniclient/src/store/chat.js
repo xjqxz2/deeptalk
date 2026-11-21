@@ -21,7 +21,7 @@ function startGenerationWatchdog() {
     }
     chat.generating = false
     chat.activity = null
-  }, 90000)
+  }, 240000)
 }
 
 /** 生成结束：清掉看门狗。 */

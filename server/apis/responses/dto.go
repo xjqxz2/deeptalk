@@ -350,14 +350,15 @@ type OverviewResponse struct {
 
 // SettingsResponse 是后台系统设置。
 type SettingsResponse struct {
-	AllowRegistration bool   `json:"allow_registration"`  // 开放注册
-	DefaultModelID    uint   `json:"default_model_id"`    // 默认模型
-	FallbackModelID   uint   `json:"fallback_model_id"`   // 兜底模型
-	MaxOutputTokens   int    `json:"max_output_tokens"`   // 单次输出预算
-	SiteName          string `json:"site_name"`           // 站点名
-	Version           string `json:"version"`             // 版本
-	StorageUsedBytes  int64  `json:"storage_used_bytes"`  // 存储已用
-	StorageTotalBytes int64  `json:"storage_total_bytes"` // 存储上限
+	AllowRegistration    bool   `json:"allow_registration"`     // 开放注册
+	DefaultModelID       uint   `json:"default_model_id"`       // 默认模型
+	FallbackModelID      uint   `json:"fallback_model_id"`      // 兜底模型
+	MaxOutputTokens      int    `json:"max_output_tokens"`      // 单次输出预算
+	SiteName             string `json:"site_name"`              // 站点名
+	GenerationTimeoutSec int    `json:"generation_timeout_sec"` // 生成首字节超时（秒）
+	Version              string `json:"version"`                // 版本
+	StorageUsedBytes     int64  `json:"storage_used_bytes"`     // 存储已用
+	StorageTotalBytes    int64  `json:"storage_total_bytes"`    // 存储上限
 }
 
 // percent 计算百分比并向上取整。

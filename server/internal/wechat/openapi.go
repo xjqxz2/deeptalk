@@ -93,7 +93,7 @@ func (m *Manager) Code2Session(ctx context.Context, code string) (*Session, erro
 		return nil, fmt.Errorf("wechat: decode code2session: %w", err)
 	}
 	if parsed.ErrCode != 0 {
-		return nil, fmt.Errorf("wechat: code2session errcode=%d errmsg=%s", parsed.ErrCode, parsed.ErrMsg)
+		return nil, &APIError{Code: parsed.ErrCode, Message: parsed.ErrMsg, Endpoint: "jscode2session"}
 	}
 	if parsed.OpenID == "" {
 		return nil, errors.New("wechat: code2session returned empty openid")

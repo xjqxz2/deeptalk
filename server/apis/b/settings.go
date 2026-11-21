@@ -55,6 +55,18 @@ func (h *SettingsController) Update(c *gin.Context) {
 		}
 		recordAudit(c, h.audits, "setting.registration", "setting", 0, detail)
 	}
+	if req.GenerationTimeoutSec != nil {
+		value := *req.GenerationTimeoutSec
+		if value < 10 || value > 300 {
+			responses.Fail(c, responses.CodeInvalidArgument, "生成超时需在 10–300 秒之间")
+			return
+		}
+		if err := h.settings.Set(ctx, setting.KeyGenerationTimeout, strconv.Itoa(value)); err != nil {
+			responses.FromError(c, err)
+			return
+		}
+		recordAudit(c, h.audits, "setting.generation_timeout", "setting", 0, "生成首字节超时调整为 "+strconv.Itoa(value)+" 秒")
+	}
 	if req.SiteName != nil {
 		name := strings.TrimSpace(*req.SiteName)
 		if name == "" || len([]rune(name)) > 32 {
@@ -104,14 +116,15 @@ func (h *SettingsController) snapshot(c *gin.Context) responses.SettingsResponse
 	routing := h.providers.Routing(ctx)
 	used := fileSize(h.dbPath) + fileSize(h.dbPath+"-wal")
 	return responses.SettingsResponse{
-		AllowRegistration: h.settings.Bool(ctx, setting.KeyAllowRegistration, true),
-		DefaultModelID:    routing.DefaultModelID,
-		FallbackModelID:   routing.FallbackModelID,
-		MaxOutputTokens:   h.settings.Int(ctx, setting.KeyMaxOutputTokens, 384000),
-		SiteName:          h.settings.Get(ctx, setting.KeySiteName, "小橘树洞"),
-		Version:           "v1.0.0",
-		StorageUsedBytes:  used,
-		StorageTotalBytes: 10 * 1024 * 1024 * 1024,
+		AllowRegistration:    h.settings.Bool(ctx, setting.KeyAllowRegistration, true),
+		DefaultModelID:       routing.DefaultModelID,
+		FallbackModelID:      routing.FallbackModelID,
+		MaxOutputTokens:      h.settings.Int(ctx, setting.KeyMaxOutputTokens, 384000),
+		SiteName:             h.settings.Get(ctx, setting.KeySiteName, "小橘树洞"),
+		GenerationTimeoutSec: h.settings.Int(ctx, setting.KeyGenerationTimeout, 30),
+		Version:              "v1.0.0",
+		StorageUsedBytes:     used,
+		StorageTotalBytes:    10 * 1024 * 1024 * 1024,
 	}
 }
 

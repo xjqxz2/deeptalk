@@ -12,11 +12,12 @@ import (
 
 // 平台设置键名。集中定义避免各处硬编码字符串。
 const (
-	KeyAllowRegistration = "allow_registration" // 是否开放 C 端注册
-	KeyDefaultModelID    = "default_model_id"   // 平台默认模型主键
-	KeyFallbackModelID   = "fallback_model_id"  // 兜底模型主键
-	KeyMaxOutputTokens   = "max_output_tokens"  // 单次回答输出预算（thinking + 正文）
-	KeySiteName          = "site_name"          // 站点名称（后台可改）
+	KeyAllowRegistration = "allow_registration"     // 是否开放 C 端注册
+	KeyDefaultModelID    = "default_model_id"       // 平台默认模型主键
+	KeyFallbackModelID   = "fallback_model_id"      // 兜底模型主键
+	KeyMaxOutputTokens   = "max_output_tokens"      // 单次回答输出预算（thinking + 正文）
+	KeySiteName          = "site_name"              // 站点名称（后台可改）
+	KeyGenerationTimeout = "generation_timeout_sec" // 生成首字节超时（秒），后台可调
 )
 
 // Setting 是 key/value 形式的平台设置。

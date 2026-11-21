@@ -295,6 +295,7 @@ export interface SettingsInfo {
   fallback_model_id: number
   max_output_tokens: number
   site_name: string
+  generation_timeout_sec: number
   version: string
   storage_used_bytes: number
   storage_total_bytes: number

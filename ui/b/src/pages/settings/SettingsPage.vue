@@ -28,6 +28,8 @@ const fallbackModelId = ref<number | undefined>(undefined)
 const maxOutputTokens = ref(384000)
 const siteName = ref('')
 const savingSiteName = ref(false)
+const generationTimeout = ref(30)
+const savingTimeout = ref(false)
 const savingRegistration = ref(false)
 const savingRouting = ref(false)
 const savingBudget = ref(false)
@@ -53,7 +55,8 @@ async function load(showError = true): Promise<void> {
     defaultModelId.value = modelData.routing.default_model_id
     fallbackModelId.value = modelData.routing.fallback_model_id || undefined
     maxOutputTokens.value = settingsData.max_output_tokens
-    siteName.value = settingsData.site_name || '' 
+    siteName.value = settingsData.site_name || ''
+    generationTimeout.value = settingsData.generation_timeout_sec || 30
   } catch (error) {
     if (showError) message.error(error instanceof Error ? error.message : '设置加载失败')
   } finally {
@@ -95,6 +98,24 @@ async function applyRegistration(value: boolean): Promise<void> {
 }
 
 /** 保存单次输出预算（thinking + 正文共用）。 */
+/** 保存生成超时（首字节预算）。 */
+async function saveGenerationTimeout(): Promise<void> {
+  const value = Number(generationTimeout.value)
+  if (!Number.isFinite(value) || value < 10 || value > 300) {
+    message.warning('生成超时需在 10–300 秒之间')
+    return
+  }
+  savingTimeout.value = true
+  try {
+    settings.value = await put<SettingsInfo>('/b/settings', { generation_timeout_sec: value })
+    message.success('生成超时已保存')
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : '保存失败')
+  } finally {
+    savingTimeout.value = false
+  }
+}
+
 /** 保存站点名称。 */
 async function saveSiteName(): Promise<void> {
   const name = siteName.value.trim()
@@ -319,6 +340,11 @@ onMounted(async () => {
               class="site-name-input"
             />
             <a-button type="primary" size="small" :loading="savingSiteName" @click="saveSiteName">保存名称</a-button>
+          </div>
+          <div class="site-name-row">
+            <label class="field-label">生成超时（秒）</label>
+            <a-input-number v-model:value="generationTimeout" :min="10" :max="300" :step="10" class="site-name-input" />
+            <a-button type="primary" size="small" :loading="savingTimeout" @click="saveGenerationTimeout">保存超时</a-button>
           </div>
           <div class="info-rows">
             <div><span>站点名称</span><strong>{{ settings?.site_name ?? '小橘树洞' }}</strong></div>

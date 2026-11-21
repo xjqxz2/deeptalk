@@ -51,7 +51,7 @@ func (h *AuthController) WeChatLogin(c *gin.Context) {
 	}
 	session, err := h.wechat.Code2Session(c.Request.Context(), req.Code)
 	if err != nil {
-		responses.Fail(c, responses.CodeInvalidArgument, "小程序授权失败，请重试")
+		responses.Fail(c, responses.CodeInvalidArgument, wechatLoginMessage(err))
 		return
 	}
 	current, token, err := h.users.LoginByOpenID(c.Request.Context(), session.OpenID, "", user.RequestMeta{
@@ -109,6 +109,24 @@ func (h *AuthController) CompleteProfile(c *gin.Context) {
 	responses.OK(c, gin.H{"user": responses.NewUser(updated)})
 }
 
+// wechatLoginMessage 把微信侧错误翻译成可以照着做的提示。
+func wechatLoginMessage(err error) string {
+	var apiErr *wechat.APIError
+	if errors.As(err, &apiErr) {
+		switch apiErr.Code {
+		case 40013, 41002:
+			return "小程序 AppID 与当前预览不一致：请用真实 AppID 打开（开发者工具「详情 → 基本信息」），不要用测试号"
+		case 40125:
+			return "小程序 AppSecret 不正确，请在服务端配置里更新"
+		case 40029:
+			return "授权码已失效，请重试一次"
+		case 45011:
+			return "授权过于频繁，请稍后再试"
+		}
+	}
+	return "小程序授权失败，请重试"
+}
+
 // BindWeChat 用小程序 wx.login 的 code 绑定 openid，内容安全检测需要它。
 func (h *AuthController) BindWeChat(c *gin.Context) {
 	current := middleware.CurrentUser(c)
@@ -125,7 +143,7 @@ func (h *AuthController) BindWeChat(c *gin.Context) {
 	}
 	session, err := h.wechat.Code2Session(c.Request.Context(), req.Code)
 	if err != nil {
-		responses.Fail(c, responses.CodeInvalidArgument, "小程序授权失败，请重试")
+		responses.Fail(c, responses.CodeInvalidArgument, wechatLoginMessage(err))
 		return
 	}
 	if err := h.users.SetWeChatOpenID(c.Request.Context(), current.ID, session.OpenID); err != nil {

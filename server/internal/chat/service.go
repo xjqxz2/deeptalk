@@ -864,7 +864,7 @@ func (s *Service) generate(
 					return emitDelta(kind, delta)
 				})
 				used, calls, err = s.providers.StreamCompletionWithTools(ctx, prov, model.ModelID, history,
-					deepThinking, reasoningEffort, maxTokens, s.cfg.FirstByteTimeout, roundTools,
+					deepThinking, reasoningEffort, maxTokens, s.firstByteTimeout(ctx), roundTools,
 					func(ev provider.StreamEvent) error {
 						if ev.Kind == "reasoning" && !deepThinking {
 							return nil
@@ -1524,6 +1524,22 @@ const systemPrompt = `你是小橘树洞，一个真诚、自然、乐于助人�
 13. 一次回答里可以多次调用工具：先用 web_search 拿候选，再用 urls 打开真正需要读的页面；网页总量上限 25 个，抓取并发 5 个。资料够了就停止调用并给出结论，不要为了凑数反复打开无关页面。
 14. 需要点击才能看到的内容（翻页、展开、详情页、搜索框、表单）用 browser 工具操作：open 打开页面后，用返回快照里的 ref 点击或填写，再看新快照。不要凭空猜 selector，也不要用 browser 重复打开静态文章。
 13. 当用户要求卡片、对比表、表单、步骤、清单、数据面板或图文布局时，可以调用 render_ui 生成 A2UI 界面；不要在简单问答中滥用。界面已经表达的内容，正文只做简短补充。`
+
+// firstByteTimeout 返回本次生成的首字节超时：
+// 后台设置优先（10–300 秒），未配置时用配置文件里的默认值。
+func (s *Service) firstByteTimeout(ctx context.Context) time.Duration {
+	timeout := s.cfg.FirstByteTimeout
+	if s.settings != nil {
+		timeout = time.Duration(s.settings.Int(ctx, setting.KeyGenerationTimeout, int(timeout/time.Second))) * time.Second
+	}
+	if timeout < 10*time.Second {
+		return 10 * time.Second
+	}
+	if timeout > 300*time.Second {
+		return 300 * time.Second
+	}
+	return timeout
+}
 
 // buildHistory 组装完整上下文：系统提示 + 历史摘要 + 摘要边界之后的原始消息。
 // 消息不再固定截断为 20 条；超过窗口阈值时由后台压缩前缀，当前请求继续用旧上下文。

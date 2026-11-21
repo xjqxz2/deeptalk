@@ -259,11 +259,12 @@ func (q *UserListQuery) Bind(c *gin.Context) error {
 
 // SettingsRequest 是系统设置更新请求，字段均可选。
 type SettingsRequest struct {
-	AllowRegistration *bool   `json:"allow_registration"` // 开放注册
-	DefaultModelID    *uint   `json:"default_model_id"`   // 默认模型
-	FallbackModelID   *uint   `json:"fallback_model_id"`  // 兜底模型
-	MaxOutputTokens   *int    `json:"max_output_tokens"`  // 单次输出预算
-	SiteName          *string `json:"site_name"`          // 站点名称
+	AllowRegistration    *bool   `json:"allow_registration"`     // 开放注册
+	DefaultModelID       *uint   `json:"default_model_id"`       // 默认模型
+	FallbackModelID      *uint   `json:"fallback_model_id"`      // 兜底模型
+	MaxOutputTokens      *int    `json:"max_output_tokens"`      // 单次输出预算
+	SiteName             *string `json:"site_name"`              // 站点名称
+	GenerationTimeoutSec *int    `json:"generation_timeout_sec"` // 生成首字节超时（秒）
 }
 
 // Bind 绑定系统设置请求。
