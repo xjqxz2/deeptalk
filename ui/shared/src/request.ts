@@ -5,6 +5,7 @@
  * - 后端统一信封 { code, msg, data }，code !== 0 抛出 ApiError；
  * - 401/423 由页面或路由守卫统一处理，这里只抛出结构化错误。
  */
+import { signRequest } from './sign'
 import type { Envelope } from './types'
 
 /** 接口地址前缀，开发期由 Vite 代理到 0.0.0.0:9821。 */
@@ -51,13 +52,22 @@ function withQuery(path: string, query?: RequestOptions['query']): string {
  */
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, query, signal } = options
+  const url = withQuery(`${API_BASE}${path}`, query)
+  const bodyText = body === undefined ? '' : JSON.stringify(body)
+  // 写请求需要签名：method + path + query + body 摘要 + 时间戳 + nonce
+  const queryText = url.includes('?') ? url.slice(url.indexOf('?') + 1) : ''
+  const pathText = url.split('?')[0]
+  const signHeaders = await signRequest(method, pathText, queryText, bodyText)
   let response: Response
   try {
-    response = await fetch(withQuery(`${API_BASE}${path}`, query), {
+    response = await fetch(url, {
       method,
       credentials: 'include',
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      headers: {
+        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        ...signHeaders,
+      },
+      body: body === undefined ? undefined : bodyText,
       signal,
     })
   } catch (error) {

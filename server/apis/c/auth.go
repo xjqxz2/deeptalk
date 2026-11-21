@@ -2,6 +2,7 @@
 package c
 
 import (
+	"encoding/hex"
 	"errors"
 	"strings"
 
@@ -9,6 +10,7 @@ import (
 	"deeptalk/apis/requests"
 	"deeptalk/apis/responses"
 	"deeptalk/internal/provider"
+	"deeptalk/internal/security"
 	"deeptalk/internal/setting"
 	"deeptalk/internal/user"
 	"deeptalk/internal/wechat"
@@ -18,17 +20,18 @@ import (
 
 // AuthController 处理注册、登录、退出、当前用户与用量。
 type AuthController struct {
-	users         *user.Service     // 账号能力
-	wechat        *wechat.Manager   // 小程序凭据（code2session）
-	providers     *provider.Service // 模型能力
-	settings      *setting.Service  // 平台设置
-	cfg           middleware.Config // Cookie 等配置
-	searchEnabled bool              // 联网搜索是否可用
+	users         *user.Service      // 账号能力
+	wechat        *wechat.Manager    // 小程序凭据（code2session）
+	sign          *security.Verifier // 请求签名密钥派生
+	providers     *provider.Service  // 模型能力
+	settings      *setting.Service   // 平台设置
+	cfg           middleware.Config  // Cookie 等配置
+	searchEnabled bool               // 联网搜索是否可用
 }
 
 // NewAuthController 创建 C 端账号控制器。
-func NewAuthController(users *user.Service, providers *provider.Service, settings *setting.Service, cfg middleware.Config, searchEnabled bool, wx *wechat.Manager) *AuthController {
-	return &AuthController{users: users, wechat: wx, providers: providers, settings: settings, cfg: cfg, searchEnabled: searchEnabled}
+func NewAuthController(users *user.Service, providers *provider.Service, settings *setting.Service, cfg middleware.Config, searchEnabled bool, wx *wechat.Manager, sign *security.Verifier) *AuthController {
+	return &AuthController{users: users, wechat: wx, sign: sign, providers: providers, settings: settings, cfg: cfg, searchEnabled: searchEnabled}
 }
 
 // WeChatLogin 用小程序 wx.login 的 code 登录：openid 不存在时自动建号。
@@ -58,10 +61,12 @@ func (h *AuthController) WeChatLogin(c *gin.Context) {
 		return
 	}
 	middleware.SetSessionCookie(c, h.cfg, token)
-	responses.OK(c, gin.H{
+	payload := gin.H{
 		"user":  responses.NewUser(current),
 		"token": token,
-	})
+	}
+	h.attachSignKey(c, token, payload)
+	responses.OK(c, payload)
 }
 
 // UpdateProfile 更新昵称与头像（小程序端在授权后调用）。
@@ -128,6 +133,37 @@ func (h *AuthController) BindWeChat(c *gin.Context) {
 	responses.OK(c, gin.H{"bound": true})
 }
 
+// attachSignKey 把本次会话的签名密钥放进响应：密钥由服务端主密钥派生，
+// 客户端只用于给写请求签名，服务端不存明文。
+func (h *AuthController) attachSignKey(c *gin.Context, token string, payload gin.H) {
+	if h.sign == nil || h.sign.Disabled() {
+		return
+	}
+	keyID, err := h.users.SessionSignKey(c.Request.Context(), token)
+	if err != nil || keyID == "" {
+		return
+	}
+	payload["sign_key_id"] = keyID
+	payload["sign_key"] = hex.EncodeToString(h.sign.DeriveKey(keyID))
+}
+
+// SignKey 重新下发当前会话的签名密钥（刷新页面后客户端内存丢失时用）。
+func (h *AuthController) SignKey(c *gin.Context) {
+	if h.sign == nil || h.sign.Disabled() {
+		responses.OK(c, gin.H{})
+		return
+	}
+	keyID, err := h.users.SessionSignKey(c.Request.Context(), middleware.SessionToken(c))
+	if err != nil || keyID == "" {
+		responses.Fail(c, responses.CodeUnauthenticated, "登录已失效，请重新登录")
+		return
+	}
+	responses.OK(c, gin.H{
+		"sign_key_id": keyID,
+		"sign_key":    hex.EncodeToString(h.sign.DeriveKey(keyID)),
+	})
+}
+
 // Config 返回注册开关等公开配置，供登录 / 注册页使用。
 func (h *AuthController) Config(c *gin.Context) {
 	allow, _ := h.settings.AllowRegistration(c.Request.Context())
@@ -178,7 +214,9 @@ func (h *AuthController) Login(c *gin.Context) {
 		return
 	}
 	middleware.SetSessionCookie(c, h.cfg, token)
-	responses.OK(c, gin.H{"user": responses.NewUser(u), "token": token})
+	payload := gin.H{"user": responses.NewUser(u), "token": token}
+	h.attachSignKey(c, token, payload)
+	responses.OK(c, payload)
 }
 
 // Logout 退出登录并撤销当前会话。

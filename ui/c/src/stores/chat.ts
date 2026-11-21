@@ -7,7 +7,7 @@
  */
 import { computed, reactive, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { ApiError, conversationGroup } from '@deeptalk/shared'
+import { ApiError, conversationGroup, signatureHeadersFor } from '@deeptalk/shared'
 import type {
   A2UIMessage,
   Attachment,
@@ -592,17 +592,20 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     try {
-      const response = await fetch(`/api/v1/c/conversations/${conversationID}/stream`, {
+      const streamBody = JSON.stringify({
+        content: text,
+        // 模型可能刚被管理员删除；selectedModel 只会在当前列表中存在
+        model_id: selectedModel.value?.id ?? 0,
+        attachment_ids: pendingAttachments.map((item) => item.id),
+        regenerate,
+      })
+      const streamPath = `/api/v1/c/conversations/${conversationID}/stream`
+      const signHeaders = await signatureHeadersFor('POST', streamPath, streamBody)
+      const response = await fetch(streamPath, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: text,
-          // 模型可能刚被管理员删除；selectedModel 只会在当前列表中存在
-          model_id: selectedModel.value?.id ?? 0,
-          attachment_ids: pendingAttachments.map((item) => item.id),
-          regenerate,
-        }),
+        headers: { 'Content-Type': 'application/json', ...signHeaders },
+        body: streamBody,
         signal: controller.signal,
       })
       if (!response.ok) {

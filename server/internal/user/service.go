@@ -13,6 +13,8 @@ import (
 
 	"deeptalk/internal/audit"
 
+	"deeptalk/internal/security"
+
 	"gorm.io/gorm"
 )
 
@@ -579,6 +581,7 @@ func (s *Service) issueSession(ctx context.Context, tx *gorm.DB, userID uint, me
 		ExpiresAt: time.Now().Add(s.opt.SessionTTL),
 		IP:        meta.IP,
 		UserAgent: truncate(meta.UserAgent, 255),
+		SignKeyID: security.NewKeyID(),
 	}
 	if err := dalCreateSession(ctx, tx, session); err != nil {
 		return "", err
@@ -805,4 +808,25 @@ func (s *Service) UpdateProfile(ctx context.Context, userID uint, nickname, avat
 		return nil, err
 	}
 	return u, nil
+}
+
+// SessionSignKey 返回会话的签名 key id；老会话没有时补发一个。
+func (s *Service) SessionSignKey(ctx context.Context, token string) (string, error) {
+	if strings.TrimSpace(token) == "" {
+		return "", ErrUnauthenticated
+	}
+	sum := sha256Hex(token)
+	var session Session
+	if err := s.db.WithContext(ctx).Where("token_hash = ? AND revoked_at IS NULL", sum).First(&session).Error; err != nil {
+		return "", ErrUnauthenticated
+	}
+	if session.SignKeyID != "" {
+		return session.SignKeyID, nil
+	}
+	keyID := security.NewKeyID()
+	if err := s.db.WithContext(ctx).Model(&Session{}).Where("id = ?", session.ID).
+		Update("sign_key_id", keyID).Error; err != nil {
+		return "", err
+	}
+	return keyID, nil
 }

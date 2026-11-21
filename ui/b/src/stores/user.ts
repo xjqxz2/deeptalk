@@ -1,7 +1,7 @@
 /** 管理员登录态：B 端只允许平台管理员访问。 */
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { ApiError } from '@deeptalk/shared'
+import { ApiError, getSignKey, setSignKey } from '@deeptalk/shared'
 import type { User } from '@deeptalk/shared'
 import * as authApi from '@/services/auth'
 
@@ -18,6 +18,14 @@ export const useUserStore = defineStore('user', () => {
     if (initialized.value) return
     try {
       const data = await authApi.fetchMe()
+      if (!getSignKey()) {
+        try {
+          const key = await authApi.fetchSignKey()
+          if (key?.sign_key && key?.sign_key_id) setSignKey({ id: key.sign_key_id, key: key.sign_key })
+        } catch {
+          // 忽略：服务端 log 模式下不影响使用
+        }
+      }
       user.value = data.user
     } catch (error) {
       if (error instanceof ApiError && (error.code === 1002 || error.status === 401)) {
@@ -35,6 +43,7 @@ export const useUserStore = defineStore('user', () => {
     submitting.value = true
     try {
       const data = await authApi.login(email, password)
+      if (data.sign_key && data.sign_key_id) setSignKey({ id: data.sign_key_id, key: data.sign_key })
       user.value = data.user
       initialized.value = true
       return data.user
@@ -49,6 +58,7 @@ export const useUserStore = defineStore('user', () => {
       await authApi.logout()
     } finally {
       user.value = null
+      setSignKey(null)
     }
   }
 

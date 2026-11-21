@@ -26,6 +26,22 @@ export function setSession(token, user) {
 }
 
 /** 更新用户信息（额度变化等）。 */
+const SIGN_KEY = 'dt_sign_key'
+
+/** 读取会话签名密钥：{ id, key }。 */
+export function getSignKey() {
+  return uni.getStorageSync(SIGN_KEY) || null
+}
+
+/** 保存会话签名密钥。 */
+export function setSignKey(value) {
+  if (!value || !value.key || !value.id) {
+    uni.removeStorageSync(SIGN_KEY)
+    return
+  }
+  uni.setStorageSync(SIGN_KEY, { id: value.id, key: value.key })
+}
+
 export function patchUser(patch) {
   session.user = { ...(session.user || {}), ...patch }
   uni.setStorageSync(USER_KEY, session.user)
@@ -37,6 +53,7 @@ export function clearSession() {
   session.user = null
   uni.removeStorageSync(TOKEN_KEY)
   uni.removeStorageSync(USER_KEY)
+  uni.removeStorageSync('dt_sign_key')
 }
 
 /** 是否已登录。 */

@@ -4,3 +4,5 @@ export * from './request'
 export * from './format'
 export * from './markdown'
 export * from './brand'
+
+export * from './sign'

@@ -15,6 +15,7 @@ import (
 	"deeptalk/internal/audit"
 	"deeptalk/internal/chat"
 	"deeptalk/internal/provider"
+	"deeptalk/internal/security"
 	"deeptalk/internal/setting"
 	"deeptalk/internal/user"
 	"deeptalk/internal/wechat"
@@ -29,6 +30,8 @@ type Config struct {
 	DBPath           string            // SQLite 路径（设置页展示存储占用）
 	Auth             middleware.Config // Cookie 与会话配置
 	AllowedOrigins   []string          // 开发期跨域来源
+	SignMode         string            // 请求签名模式：off / log / enforce
+	SecuritySecret   string            // 签名密钥派生源（与 AES-GCM 同源）
 	WebSearchEnabled bool              // 联网搜索是否可用（下发给 C 端）
 }
 
@@ -48,6 +51,8 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 	if cfg.Env != "dev" {
 		gin.SetMode(gin.ReleaseMode)
 	}
+	// 请求签名：密钥按会话派生，服务端只存 key id
+	signVerifier := security.NewVerifier(cfg.SecuritySecret)
 	router := gin.New()
 	// 不信任任何代理头，IP 以 RemoteAddr 为准，避免伪造登录地
 	_ = router.SetTrustedProxies(nil)
@@ -63,7 +68,7 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 	auth := middleware.Auth(deps.Users, cfg.Auth)
 	admin := middleware.AdminOnly()
 
-	authController := capi.NewAuthController(deps.Users, deps.Providers, deps.Settings, cfg.Auth, cfg.WebSearchEnabled, deps.WeChat)
+	authController := capi.NewAuthController(deps.Users, deps.Providers, deps.Settings, cfg.Auth, cfg.WebSearchEnabled, deps.WeChat, signVerifier)
 	chatController := capi.NewChatController(deps.Chats)
 	wsController := capi.NewWSController(deps.Chats, deps.Users, cfg.Auth)
 	attachmentController := capi.NewAttachmentController(deps.Attachments)
@@ -86,11 +91,12 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 	}
 
 	// C 端受保护接口
-	cGroup := api.Group("/c", auth)
+	cGroup := api.Group("/c", auth, middleware.Signature(signVerifier, cfg.SignMode, log))
 	{
 		cGroup.GET("/auth/me", authController.Me)
 		cGroup.POST("/auth/logout", authController.Logout)
 		cGroup.PUT("/auth/password", authController.ChangePassword)
+		cGroup.GET("/auth/sign-key", authController.SignKey)
 		cGroup.POST("/auth/wechat/bind", authController.BindWeChat)
 		cGroup.POST("/auth/profile/complete", authController.CompleteProfile)
 		cGroup.PATCH("/auth/profile", authController.UpdateProfile)
@@ -126,7 +132,7 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 	}
 
 	// B 端管理接口，需管理员身份
-	bGroup := api.Group("/b", auth, admin)
+	bGroup := api.Group("/b", auth, admin, middleware.Signature(signVerifier, cfg.SignMode, log))
 	{
 		bGroup.GET("/overview", overviewController.Overview)
 		bGroup.GET("/audit-logs", overviewController.AuditLogs)

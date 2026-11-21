@@ -269,11 +269,11 @@ import {
 } from '@/store/chat'
 import { chatSocket } from '@/utils/ws'
 import { uploadFile } from '@/api/http'
-import { session, clearSession, isLoggedIn } from '@/store/session'
+import { session, clearSession, isLoggedIn, getSignKey } from '@/store/session'
 import { goLogin } from '@/utils/nav'
 import { errorState, clearError } from '@/utils/errors'
 import { toast, confirm } from '@/utils/ui'
-import { logout as logoutApi, bindWeChat } from '@/api/auth'
+import { logout as logoutApi, bindWeChat, fetchSignKey } from '@/api/auth'
 
 const draft = ref('')
 const keyword = ref('')
@@ -535,6 +535,10 @@ function measureChrome() {
 // 首帧之前量好状态栏与胶囊，避免内容先画到状态栏上再跳一下
 onLoad(() => {
   measureChrome()
+  // 老会话 / 换设备：本地没有签名密钥时补取一次
+  if (isLoggedIn() && !getSignKey()) {
+    fetchSignKey().catch(() => {})
+  }
 })
 
 onReady(() => {

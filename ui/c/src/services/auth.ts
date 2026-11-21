@@ -8,13 +8,25 @@ export function fetchAuthConfig(): Promise<AuthConfig> {
 }
 
 /** 登录，成功后服务端下发 HttpOnly Cookie。 */
-export function login(email: string, password: string): Promise<{ user: User }> {
-  return post<{ user: User }>('/c/auth/login', { email, password })
+export interface AuthResult {
+  user: User
+  token?: string
+  sign_key?: string
+  sign_key_id?: string
+}
+
+export function login(email: string, password: string): Promise<AuthResult> {
+  return post<AuthResult>('/c/auth/login', { email, password })
+}
+
+/** 刷新页面后重新取回会话签名密钥（服务端字段为 sign_key / sign_key_id）。 */
+export function fetchSignKey(): Promise<{ sign_key?: string; sign_key_id?: string }> {
+  return get<{ sign_key?: string; sign_key_id?: string }>('/c/auth/sign-key')
 }
 
 /** 注册并直接登录。 */
-export function register(email: string, password: string): Promise<{ user: User }> {
-  return post<{ user: User }>('/c/auth/register', { email, password })
+export function register(email: string, password: string): Promise<AuthResult> {
+  return post<AuthResult>('/c/auth/register', { email, password })
 }
 
 /** 退出登录。 */

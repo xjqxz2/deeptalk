@@ -2,7 +2,8 @@
  * 统一的接口请求层：带 token、统一错误提示、登录失效自动跳转。
  */
 import { BASE_URL, CLIENT_PLATFORM } from '@/config/env'
-import { getToken, clearSession } from '@/store/session'
+import { getToken, getSignKey, clearSession } from '@/store/session'
+import { signRequest } from '@/utils/sign'
 import { goLogin } from '@/utils/nav'
 
 // 并发请求同时 401 时只跳一次登录页，避免连续 reLaunch 把页面来回重建
@@ -32,9 +33,14 @@ function gotoLogin() {
  * @param {boolean} [options.silent] 失败时不弹提示
  */
 export function request({ url, method = 'GET', data, silent = false }) {
+  // 写请求签名：小程序端没有 Cookie，签名密钥随会话下发
+  const path = url.split('?')[0]
+  const query = url.includes('?') ? url.split('?').slice(1).join('?') : ''
+  const bodyText = data === undefined ? '' : JSON.stringify(data)
+  const signHeaders = signRequest(getSignKey(), method, path, query, bodyText)
   return new Promise((resolve, reject) => {
     const token = getToken()
-    const header = { 'Content-Type': 'application/json', 'X-Client': CLIENT_PLATFORM }
+    const header = { 'Content-Type': 'application/json', 'X-Client': CLIENT_PLATFORM, ...signHeaders }
     if (token) header.Authorization = `Bearer ${token}`
     uni.request({
       url: `${BASE_URL}${url}`,
@@ -74,7 +80,7 @@ export function uploadFile(filePath) {
       url: `${BASE_URL}/api/v1/c/attachments`,
       filePath,
       name: 'file',
-      header: { 'X-Client': CLIENT_PLATFORM, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      header: { 'X-Client': CLIENT_PLATFORM, ...signHeaders, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       success: (res) => {
         try {
           const body = JSON.parse(res.data)

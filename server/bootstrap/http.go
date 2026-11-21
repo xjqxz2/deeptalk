@@ -95,6 +95,8 @@ func (a *App) startHTTP(ctx context.Context) error {
 			AllowedOrigins: cfg.CORS.AllowedOrigins,
 		},
 		AllowedOrigins:   cfg.CORS.AllowedOrigins,
+		SignMode:         cfg.Security.SignMode,
+		SecuritySecret:   cfg.Security.Secret,
 		WebSearchEnabled: cfg.WebSearch.Enabled,
 	}, apis.Deps{
 		Users:       users,

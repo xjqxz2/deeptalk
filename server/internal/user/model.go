@@ -73,6 +73,7 @@ type Session struct {
 	RevokedAt *time.Time `gorm:"index"`                        // 撤销时间，非空表示失效
 	IP        string     `gorm:"size:64;not null;default:''"`  // 签发 IP
 	UserAgent string     `gorm:"size:255;not null;default:''"` // 客户端 UA
+	SignKeyID string     `gorm:"size:64;not null;default:''"`  // 请求签名密钥标识（密钥由主密钥派生）
 	CreatedAt time.Time  // 签发时间
 }
 

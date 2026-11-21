@@ -4,7 +4,7 @@
  */
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { ApiError } from '@deeptalk/shared'
+import { ApiError, setSignKey, getSignKey } from '@deeptalk/shared'
 import type { UsageInfo, User } from '@deeptalk/shared'
 import * as authApi from '@/services/auth'
 
@@ -27,6 +27,15 @@ export const useUserStore = defineStore('user', () => {
     try {
       const data = await authApi.fetchMe()
       user.value = data.user
+      // 刷新页面后内存丢失：补取一次签名密钥
+      if (!getSignKey()) {
+        try {
+          const key = await authApi.fetchSignKey()
+          if (key?.sign_key && key?.sign_key_id) setSignKey({ id: key.sign_key_id, key: key.sign_key })
+        } catch {
+          // 取不到就继续（服务端处于 log 模式时不影响使用）
+        }
+      }
       await refreshUsage()
     } catch (error) {
       if (error instanceof ApiError && (error.code === 1002 || error.status === 401)) {
@@ -45,6 +54,7 @@ export const useUserStore = defineStore('user', () => {
     try {
       const data = await authApi.login(email, password)
       user.value = data.user
+      if (data.sign_key && data.sign_key_id) setSignKey({ id: data.sign_key_id, key: data.sign_key })
       initialized.value = true
       await refreshUsage()
       return data.user
@@ -59,6 +69,7 @@ export const useUserStore = defineStore('user', () => {
     try {
       const data = await authApi.register(email, password)
       user.value = data.user
+      if (data.sign_key && data.sign_key_id) setSignKey({ id: data.sign_key_id, key: data.sign_key })
       initialized.value = true
       await refreshUsage()
       return data.user
@@ -74,6 +85,7 @@ export const useUserStore = defineStore('user', () => {
     } finally {
       user.value = null
       usage.value = null
+      setSignKey(null)
     }
   }
 

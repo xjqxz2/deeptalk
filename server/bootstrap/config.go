@@ -57,7 +57,8 @@ type AuthConfig struct {
 
 // SecurityConfig 保存敏感配置。
 type SecurityConfig struct {
-	Secret string `yaml:"secret"` // AES-GCM 密钥派生源
+	Secret   string `yaml:"secret"`    // AES-GCM 与签名密钥派生源
+	SignMode string `yaml:"sign_mode"` // off / log / enforce
 }
 
 // CORSConfig 保存允许跨域的来源列表。
@@ -210,6 +211,9 @@ func applyEnvOverrides(cfg *Config) {
 	}
 	if v := os.Getenv("DEEPTALK_DB"); v != "" {
 		cfg.Database.DSN = v
+	}
+	if v := os.Getenv("DEEPTALK_SIGN_MODE"); v != "" {
+		cfg.Security.SignMode = v
 	}
 	if v := os.Getenv("DEEPTALK_SECRET"); v != "" {
 		cfg.Security.Secret = v
@@ -391,6 +395,9 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.Uploads.Dir == "" {
 		cfg.Uploads.Dir = "data/uploads"
+	}
+	if cfg.Security.SignMode == "" {
+		cfg.Security.SignMode = "log"
 	}
 	if strings.TrimSpace(cfg.WeChat.AppID) != "" && strings.TrimSpace(cfg.WeChat.Secret) != "" {
 		cfg.WeChat.Enabled = true

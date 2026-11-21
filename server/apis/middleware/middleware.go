@@ -19,9 +19,10 @@ import (
 
 // 上下文键名，集中定义避免拼写错误。
 const (
-	contextUser  = "current_user"  // 当前登录用户
-	contextToken = "session_token" // 当前会话 token
-	contextReqID = "request_id"    // 请求 ID
+	contextUser    = "current_user"  // 当前登录用户
+	contextToken   = "session_token" // 当前会话 token
+	contextReqID   = "request_id"    // 请求 ID
+	contextSignKey = "sign_key_id"   // 会话签名密钥标识
 )
 
 // Config 是中间件所需的配置。
@@ -138,6 +139,9 @@ func Auth(users *user.Service, cfg Config) gin.HandlerFunc {
 		}
 		c.Set(contextUser, current)
 		c.Set(contextToken, token)
+		if keyID, keyErr := users.SessionSignKey(c.Request.Context(), token); keyErr == nil {
+			c.Set(contextSignKey, keyID)
+		}
 		c.Next()
 	}
 }
