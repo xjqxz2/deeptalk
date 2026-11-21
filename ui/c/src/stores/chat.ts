@@ -395,8 +395,16 @@ export const useChatStore = defineStore('chat', () => {
     run.messages.push(optimistic)
     try {
       await chatApi.interject(conversationID, content)
+      // 排队超时兜底：60 秒还没被处理就提示，避免永久「排队中」
+      window.setTimeout(() => {
+        if (optimistic.status === 'queued') {
+          optimistic.status = 'error'
+          optimistic.error = '插话未被处理，请重新发送'
+        }
+      }, 60_000)
     } catch (error) {
-      optimistic.status = 'error'
+      // 当前没有正在生成的回答：撤掉排队消息，改为普通发送
+      run.messages = run.messages.filter((item) => item !== optimistic)
       throw error
     }
   }
@@ -556,11 +564,20 @@ export const useChatStore = defineStore('chat', () => {
           activeAssistant.sources = (payload as { items: SearchSource[] }).items ?? []
           activeAssistant.searching = false
           break
-        case 'notice':
-          activeAssistant.notice = (payload as { message: string }).message
+        case 'notice': {
+          const notice = payload as { message: string; interjection?: string }
+          if (notice.interjection) {
+            const stuck = run.messages.find((item) => item.role === 'user' && item.status === 'queued')
+            if (stuck) {
+              stuck.status = 'error'
+              stuck.error = notice.message || '插话未处理，请重新发送'
+            }
+          }
+          activeAssistant.notice = notice.message
           activeAssistant.searching = false
           activeAssistant.activity = undefined
           break
+        }
         case 'usage': {
           const usage = payload as StreamUsage
           activeAssistant.input_tokens = usage.input_tokens

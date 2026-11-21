@@ -1,0 +1,857 @@
+[
+  {
+    "step": 1,
+    "action": "直接访问 /login，观察页面默认状态",
+    "target": "登录页（login-card）",
+    "expected": "展示标题、邮箱/密码输入框、禁用状态的登录按钮、返回工作台链接",
+    "observed": "标题=\"登录平台控制台\"；登录按钮禁用=true；底部链接=\"返回对话工作台\"",
+    "ok": true,
+    "screenshot": "01-01-登录页初始状态-操作后.png"
+  },
+  {
+    "step": 2,
+    "action": "点击登录页底部「返回对话工作台」链接",
+    "target": "a.workspace-link",
+    "expected": "跳转到 C 端对话工作台页面",
+    "observed": "点击后 URL=/login?redirect=/overview；页面标题=\"登录平台控制台\"；未离开后台登录页（5322 根路径即后台应用，链接被路由守卫弹回）",
+    "ok": false,
+    "screenshot": "03-02-返回对话工作台链接-操作后.png"
+  },
+  {
+    "step": 3,
+    "action": "在邮箱输入框输入 admin@company.com",
+    "target": "#admin-email",
+    "expected": "输入内容正确回显，密码为空时登录按钮保持禁用",
+    "observed": "输入值=\"admin@company.com\"；登录按钮禁用=true",
+    "ok": true,
+    "screenshot": "05-03-邮箱输入框-操作后.png"
+  },
+  {
+    "step": 4,
+    "action": "在密码输入框输入 123456",
+    "target": "#admin-password",
+    "expected": "密码以掩码显示，登录按钮变为可用",
+    "observed": "input type=password；登录按钮禁用=false",
+    "ok": true,
+    "screenshot": "07-04-密码输入框-操作后.png"
+  },
+  {
+    "step": 5,
+    "action": "点击密码框右侧眼睛图标",
+    "target": ".ant-input-password-icon",
+    "expected": "密码明文显示（type=text）",
+    "observed": "切换后 input type=text",
+    "ok": true,
+    "screenshot": "09-05-密码显示切换-操作后.png"
+  },
+  {
+    "step": 6,
+    "action": "再次点击眼睛图标",
+    "target": ".ant-input-password-icon",
+    "expected": "密码恢复掩码显示（type=password）",
+    "observed": "切换后 input type=password",
+    "ok": true,
+    "screenshot": "11-06-密码再次隐藏-操作后.png"
+  },
+  {
+    "step": 7,
+    "action": "输入错误密码 wrong-pass-123 后点击登录",
+    "target": "登录按钮 button[type=submit]",
+    "expected": "表单内出现错误提示，停留在登录页",
+    "observed": "错误提示=\"邮箱或密码不正确\"；URL=/login",
+    "ok": true,
+    "screenshot": "13-07-错误密码登录-操作后.png"
+  },
+  {
+    "step": 8,
+    "action": "改用正确密码 123456 登录",
+    "target": "登录按钮 button[type=submit]",
+    "expected": "登录成功，跳转 /overview 并出现成功提示",
+    "observed": "URL=/overview；提示=\"登录成功\"；页面标题=\"概览\"",
+    "ok": true,
+    "screenshot": "15-08-正确密码登录-操作后.png"
+  },
+  {
+    "step": 9,
+    "action": "在顶栏全局搜索输入 deepseek 后回车",
+    "target": ".global-search input",
+    "expected": "跳转厂商页并显示搜索条件 chip 与过滤结果",
+    "observed": "搜索 chip=\"搜索：deepseek\n×\"；厂商卡片=1 张",
+    "ok": true,
+    "screenshot": "17-09-顶栏搜索厂商关键词-操作后.png"
+  },
+  {
+    "step": 10,
+    "action": "点击搜索 chip 上的 × 清除",
+    "target": ".search-chip button",
+    "expected": "chip 消失，列表恢复全部厂商",
+    "observed": "chip=\"已清除\"；厂商卡片=1 张",
+    "ok": true,
+    "screenshot": "19-10-清除搜索条件-操作后.png"
+  },
+  {
+    "step": 11,
+    "action": "在顶栏搜索输入 ux-user 后回车",
+    "target": ".global-search input",
+    "expected": "跳转用户页并按关键词过滤",
+    "observed": "URL=/users?q=ux-user；用户搜索框值=\"ux-user\"；行数=1",
+    "ok": true,
+    "screenshot": "21-11-顶栏搜索用户关键词-操作后.png"
+  },
+  {
+    "step": 12,
+    "action": "点击顶栏通知铃铛图标",
+    "target": "button[aria-label=\"通知\"]",
+    "expected": "弹出最近变更通知面板",
+    "observed": "面板内容=\"最近变更 / 查看全部 /  / 暂无变更记录\"",
+    "ok": true,
+    "screenshot": "23-12-通知铃铛-操作后.png"
+  },
+  {
+    "step": 13,
+    "action": "点击右上角账号区域打开下拉",
+    "target": "button[aria-label=\"账号菜单\"]",
+    "expected": "下拉展示账号相关操作（个人设置/系统设置、退出登录等）",
+    "observed": "菜单项=[\"返回对话工作台\",\" 系统设置\",\" 退出登录\"]；未见「个人设置/账号与密码」项（仅 返回对话工作台 / 系统设置 / 退出登录）",
+    "ok": true,
+    "screenshot": "25-13-账号下拉菜单-操作后.png"
+  },
+  {
+    "step": 14,
+    "action": "在账号下拉中点击「系统设置」",
+    "target": ".ant-dropdown-menu-item「系统设置」",
+    "expected": "跳转到系统设置页",
+    "observed": "URL=/settings；标题=\"系统设置\"",
+    "ok": true,
+    "screenshot": "27-14-账号菜单进入系统设置-操作后.png"
+  },
+  {
+    "step": 15,
+    "action": "点击顶栏「更多」按钮打开下拉",
+    "target": "button[aria-label=\"更多\"]",
+    "expected": "下拉展示管理员指南/返回工作台/退出登录等",
+    "observed": "菜单项=[\" 管理员指南\",\" 返回对话工作台\",\"退出登录\"]",
+    "ok": true,
+    "screenshot": "186-91-复验-更多菜单下拉-操作后.png"
+  },
+  {
+    "step": 16,
+    "action": "视口切到 900px 后点击顶栏汉堡按钮「打开导航」",
+    "target": "button[aria-label=\"打开导航\"]",
+    "expected": "窄屏下出现汉堡按钮，点击后抽屉侧栏展开并出现遮罩",
+    "observed": "侧栏 class=\"admin-sidebar mobile-open\"；遮罩数量=1；1440px 下该按钮 display:none（仅响应式出现）",
+    "ok": true,
+    "screenshot": "31-16-折叠侧栏按钮（窄视口）-操作后.png"
+  },
+  {
+    "step": 17,
+    "action": "点击侧栏外的遮罩层",
+    "target": ".sidebar-backdrop",
+    "expected": "侧栏收起，遮罩消失",
+    "observed": "侧栏 class=\"admin-sidebar\"；遮罩数量=0；已恢复 1440px 视口",
+    "ok": true,
+    "screenshot": "33-17-移动端遮罩关闭侧栏-操作后.png"
+  },
+  {
+    "step": 18,
+    "action": "点击侧栏「概览」",
+    "target": ".sidebar-nav .nav-item「概览」",
+    "expected": "进入 /overview 页面并高亮该菜单",
+    "observed": "URL=/overview；页面标题=\"概览\"；高亮菜单=\"概览\"",
+    "ok": true,
+    "screenshot": "34-18-侧栏进入概览-操作后.png"
+  },
+  {
+    "step": 19,
+    "action": "点击侧栏「厂商与模型」",
+    "target": ".sidebar-nav .nav-item「厂商与模型」",
+    "expected": "进入 /providers 页面并高亮该菜单",
+    "observed": "URL=/providers；页面标题=\"厂商与模型\"；高亮菜单=\"厂商与模型\"",
+    "ok": true,
+    "screenshot": "35-19-侧栏进入厂商与模型-操作后.png"
+  },
+  {
+    "step": 20,
+    "action": "点击侧栏「套餐与限额」",
+    "target": ".sidebar-nav .nav-item「套餐与限额」",
+    "expected": "进入 /plans 页面并高亮该菜单（页面标题使用 .page-title）",
+    "observed": "URL=/plans；标题=\"套餐与限额\"；套餐卡=3；高亮=\"套餐与限额\"",
+    "ok": true,
+    "screenshot": "187-92-复验-侧栏进入套餐与限额-操作后.png"
+  },
+  {
+    "step": 21,
+    "action": "点击侧栏「用户管理」",
+    "target": ".sidebar-nav .nav-item「用户管理」",
+    "expected": "进入 /users 页面并高亮该菜单",
+    "observed": "URL=/users；页面标题=\"用户管理\"；高亮菜单=\"用户管理\"",
+    "ok": true,
+    "screenshot": "37-21-侧栏进入用户管理-操作后.png"
+  },
+  {
+    "step": 22,
+    "action": "点击侧栏「用量统计」",
+    "target": ".sidebar-nav .nav-item「用量统计」",
+    "expected": "进入 /usage 页面并高亮该菜单",
+    "observed": "URL=/usage；页面标题=\"用量统计\"；高亮菜单=\"用量统计\"",
+    "ok": true,
+    "screenshot": "38-22-侧栏进入用量统计-操作后.png"
+  },
+  {
+    "step": 23,
+    "action": "点击侧栏「系统设置」",
+    "target": ".sidebar-nav .nav-item「系统设置」",
+    "expected": "进入 /settings 页面并高亮该菜单",
+    "observed": "URL=/settings；页面标题=\"系统设置\"；高亮菜单=\"系统设置\"",
+    "ok": true,
+    "screenshot": "39-23-侧栏进入系统设置-操作后.png"
+  },
+  {
+    "step": 24,
+    "action": "点击侧栏「返回对话工作台」",
+    "target": ".sidebar-nav a.back-link",
+    "expected": "跳转到 C 端对话工作台",
+    "observed": "跳转后 URL=/overview；页面标题=\"概览\"（href=\"/\" 在 5322 被后台路由接管，仍停留在控制台）",
+    "ok": false,
+    "screenshot": "41-24-侧栏返回对话工作台-操作后.png"
+  },
+  {
+    "step": 25,
+    "action": "在概览页寻找时间范围切换控件",
+    "target": "概览页 PageHeader / 用量趋势面板",
+    "expected": "概览页提供时间范围切换（如 7/14/30 天）",
+    "observed": "概览页 segmented=0、范围按钮=0；趋势面板副标题固定为\"最近 14 天 tokens 与消息量\"（时间范围只在「用量统计」页提供）",
+    "ok": false,
+    "screenshot": "44-25-概览时间范围切换-操作后.png"
+  },
+  {
+    "step": 26,
+    "action": "点击概览页右上角「刷新」",
+    "target": ".page-header .actions button「刷新」",
+    "expected": "重新拉取概览数据并出现成功提示",
+    "observed": "提示=\"已刷新\"",
+    "ok": true,
+    "screenshot": "46-26-概览刷新按钮-操作后.png"
+  },
+  {
+    "step": 27,
+    "action": "将鼠标悬停到用量趋势柱状图某一天",
+    "target": ".overview-page .bar-slot",
+    "expected": "出现 tooltip 展示日期 / tokens / 消息数",
+    "observed": "tooltip=\"2026-11-14 · 0 tokens · 0 条\"",
+    "ok": true,
+    "screenshot": "48-27-概览图表hover-操作后.png"
+  },
+  {
+    "step": 28,
+    "action": "点击概览「快捷入口 - 配置模型路由」",
+    "target": ".shortcut「配置模型路由」",
+    "expected": "跳转厂商与模型页",
+    "observed": "URL=/providers",
+    "ok": true,
+    "screenshot": "50-28-快捷入口配置模型路由-操作后.png"
+  },
+  {
+    "step": 29,
+    "action": "点击概览「快捷入口 - 管理用户额度」",
+    "target": ".shortcut「管理用户额度」",
+    "expected": "跳转用户管理页",
+    "observed": "URL=/users",
+    "ok": true,
+    "screenshot": "52-29-快捷入口管理用户额度-操作后.png"
+  },
+  {
+    "step": 30,
+    "action": "点击概览「快捷入口 - 系统设置」",
+    "target": ".shortcut「系统设置」",
+    "expected": "跳转系统设置页",
+    "observed": "URL=/settings",
+    "ok": true,
+    "screenshot": "54-30-快捷入口系统设置-操作后.png"
+  },
+  {
+    "step": 31,
+    "action": "点击用量趋势面板右上角「查看详情」",
+    "target": ".usage-panel button.link「查看详情」",
+    "expected": "跳转用量统计页",
+    "observed": "URL=/usage",
+    "ok": true,
+    "screenshot": "56-31-概览查看详情-操作后.png"
+  },
+  {
+    "step": 32,
+    "action": "点击「最近变更」面板右上角「全部」",
+    "target": "button.link「全部」",
+    "expected": "跳转厂商与模型页查看完整审计记录",
+    "observed": "URL=/providers",
+    "ok": true,
+    "screenshot": "58-32-概览最近变更全部-操作后.png"
+  },
+  {
+    "step": 33,
+    "action": "进入厂商与模型页并滚动查看",
+    "target": "/providers",
+    "expected": "展示筛选标签、厂商卡片、模型路由表、默认路由与最近变更",
+    "observed": "厂商卡片=1 张；标签=\"全部 1 预置 1 自定义 0\"；模型行=1",
+    "ok": true,
+    "screenshot": "61-33-厂商页初始状态-操作后.png"
+  },
+  {
+    "step": 34,
+    "action": "点击筛选标签「预置」",
+    "target": ".filter-tab「预置」",
+    "expected": "只展示预置厂商",
+    "observed": "卡片=1；激活标签=\"预置 1\"",
+    "ok": true,
+    "screenshot": "63-34-厂商筛选预置标签-操作后.png"
+  },
+  {
+    "step": 35,
+    "action": "点击筛选标签「自定义」",
+    "target": ".filter-tab「自定义」",
+    "expected": "自定义厂商为空时展示空状态与新建入口",
+    "observed": "卡片=0；空态=\"没有匹配的厂商 /  / 调整筛选条件，或接入一个新的 OpenAI 兼容服务。 /  / 新建厂商\"",
+    "ok": true,
+    "screenshot": "65-35-厂商筛选自定义空态-操作后.png"
+  },
+  {
+    "step": 36,
+    "action": "点击筛选标签「全部」",
+    "target": ".filter-tab「全部」",
+    "expected": "恢复展示全部厂商",
+    "observed": "卡片=1",
+    "ok": true,
+    "screenshot": "67-36-厂商筛选全部-操作后.png"
+  },
+  {
+    "step": 37,
+    "action": "点击「新建厂商」，填写名称/Base URL/API Key 后点击取消",
+    "target": ".page-header button「新建厂商」",
+    "expected": "弹窗可填写，取消后关闭且不创建厂商",
+    "observed": "弹窗可见=0；厂商卡片=1（取消未创建新厂商）",
+    "ok": true,
+    "screenshot": "70-37-新建厂商弹窗填写后取消-操作后.png"
+  },
+  {
+    "step": 38,
+    "action": "新建厂商：名称「QA 测试厂商」、Base URL http://127.0.0.1:9999/v1、API Key、模型 qa-test-model，点击保存",
+    "target": "新建厂商弹窗 → 保存并启用",
+    "expected": "创建成功并出现成功提示，卡片数增加",
+    "observed": "提示=\"厂商已创建\"；卡片=2；QA 卡片存在=1",
+    "ok": true,
+    "screenshot": "73-38-新建测试厂商并保存-操作后.png"
+  },
+  {
+    "step": 39,
+    "action": "关闭「QA 测试厂商」卡片上的启用开关，在确认框中点击取消",
+    "target": "switch「QA 测试厂商 启用开关」",
+    "expected": "弹出停用确认框，取消后开关保持开启、厂商仍可用",
+    "observed": "开关 aria-checked=true；确认框可见=0",
+    "ok": true,
+    "screenshot": "76-39-厂商启用开关关闭（二次确认→取消）-操作后.png"
+  },
+  {
+    "step": 40,
+    "action": "点击「QA 测试厂商」卡片打开厂商配置弹窗",
+    "target": ".provider-card「QA 测试厂商」",
+    "expected": "弹窗标题为厂商配置，回填名称/地址，Key 显示掩码或留空提示",
+    "observed": "标题=\"厂商配置\"；名称回填=\"QA 测试厂商\"；Key 占位=\"已配置 sk-••••••••only（留空表示不修改）\"",
+    "ok": true,
+    "screenshot": "79-40-编辑厂商弹窗-操作后.png"
+  },
+  {
+    "step": 41,
+    "action": "在厂商配置弹窗点击「删除厂商」，确认框点取消",
+    "target": "删除厂商 → 确认框「取消」",
+    "expected": "出现删除二次确认，取消后厂商仍存在",
+    "observed": "卡片=2；QA 仍在=1；可见弹窗=0",
+    "ok": true,
+    "screenshot": "82-41-删除厂商确认框取消-操作后.png"
+  },
+  {
+    "step": 42,
+    "action": "点击页头「测试连通性」批量测试已启用厂商",
+    "target": ".page-header button「测试连通性」",
+    "expected": "给出汇总提示（可用数量）",
+    "observed": "提示=\"连通性测试完成：0 / 1 个上游可用\"；健康指标=\"\"",
+    "ok": true,
+    "screenshot": "189-93-复验-批量测试连通性-操作后.png"
+  },
+  {
+    "step": 43,
+    "action": "点击厂商卡片上的「测试连接」",
+    "target": ".provider-card .card-link",
+    "expected": "服务端发起连通性测试并给出结果提示（失败也要有明确反馈）",
+    "observed": "提示=\"DeepSeek：连接失败（HTTP 404）：上游未返回错误详情\"；卡片状态=\"连接失败\"",
+    "ok": true,
+    "screenshot": "191-94-复验-单厂商测试连接-操作后.png"
+  },
+  {
+    "step": 44,
+    "action": "关闭模型 qa-test-model 的启用开关，确认框点取消",
+    "target": ".model-table 行 qa-test-model 的 switch",
+    "expected": "出现停用确认，取消后模型仍启用",
+    "observed": "开关 aria-checked=true",
+    "ok": true,
+    "screenshot": "89-44-模型启用开关关闭（取消）-操作后.png"
+  },
+  {
+    "step": 45,
+    "action": "在「默认路由」下拉把默认模型切到 qa-temp-model",
+    "target": ".routing-select（默认模型）",
+    "expected": "保存成功并提示，表格默认标签移动到该模型",
+    "observed": "提示=\"默认路由已更新\"；默认行=\"qa-temp-model qa-temp-model 默认 \tQA 厂商2\t128K\t4\"；下拉值=\"qa-temp-model · QA 厂商2\"",
+    "ok": true,
+    "screenshot": "195-96-复验-设为默认模型-操作后.png"
+  },
+  {
+    "step": 46,
+    "action": "把默认模型切回 deepseek-flash（显示名 DeepSeek-V4.1-Flash）",
+    "target": ".routing-select（默认模型）",
+    "expected": "恢复成功并提示",
+    "observed": "提示=\"默认路由已更新\"；下拉值=\"DeepSeek-V4.1-Flash · DeepSeek\"",
+    "ok": true,
+    "screenshot": "197-97-复验-恢复默认模型-操作后.png"
+  },
+  {
+    "step": 47,
+    "action": "点击「添加模型」，选择 QA 厂商3，填写 qa-model-2 后保存",
+    "target": "模型路由面板「添加模型」",
+    "expected": "模型创建成功并提示，表格行数增加",
+    "observed": "提示=\"模型已添加\"；模型行数=3",
+    "ok": true,
+    "screenshot": "211-103-复验2-添加模型-操作后.png"
+  },
+  {
+    "step": 48,
+    "action": "打开 qa-model-2 的编辑弹窗，查找删除模型入口",
+    "target": "模型编辑弹窗（ModelFormModal）",
+    "expected": "模型应提供删除操作",
+    "observed": "弹窗\"编辑模型\"按钮=[\"取 消\",\"保 存\"]；删除模型入口=0（模型表行内也无删除项，后端路由仅 POST/PUT/PATCH，无 DELETE）",
+    "ok": false,
+    "screenshot": "214-104-复验2-删除模型入口缺失-操作后.png"
+  },
+  {
+    "step": 49,
+    "action": "打开 QA 测试厂商配置，点击删除厂商并确认删除",
+    "target": "厂商配置 → 删除厂商 → 确认「删除」",
+    "expected": "删除成功，提示出现，卡片与其模型一并移除",
+    "observed": "提示=\"厂商已删除\"；剩余卡片=1；模型行=1",
+    "ok": true,
+    "screenshot": "99-49-删除厂商（确认删除）-操作后.png"
+  },
+  {
+    "step": 50,
+    "action": "进入套餐与限额页",
+    "target": "/plans",
+    "expected": "展示三个套餐卡片，每张含四项限额与启用开关",
+    "observed": "卡片=3；套餐=免费版 · free | 专业版 · pro | 旗舰版 · ultimate；首卡数值=1.00 / 50 / 100 / 200",
+    "ok": true,
+    "screenshot": "102-50-套餐页初始状态-操作后.png"
+  },
+  {
+    "step": 51,
+    "action": "修改第 1 张套餐卡的四项限额（月消费/5小时/7天/30天）并逐个失焦",
+    "target": ".plan-card 第 1 张的数字输入",
+    "expected": "每次修改失焦后保存成功并提示「已保存」",
+    "observed": "提示=\"已保存\"；修改后数值=2.00 / 51 / 101 / 201（原值 1.00 / 50 / 100 / 200）",
+    "ok": true,
+    "screenshot": "104-51-套餐卡1四个数字修改并失焦-操作后.png"
+  },
+  {
+    "step": 52,
+    "action": "修改第 2 张套餐卡的四项限额（月消费/5小时/7天/30天）并逐个失焦",
+    "target": ".plan-card 第 2 张的数字输入",
+    "expected": "每次修改失焦后保存成功并提示「已保存」",
+    "observed": "提示=\"已保存\"；修改后数值=11.00 / 151 / 401 / 1001（原值 10.00 / 150 / 400 / 1000）",
+    "ok": true,
+    "screenshot": "106-52-套餐卡2四个数字修改并失焦-操作后.png"
+  },
+  {
+    "step": 53,
+    "action": "修改第 3 张套餐卡的四项限额（月消费/5小时/7天/30天）并逐个失焦",
+    "target": ".plan-card 第 3 张的数字输入",
+    "expected": "每次修改失焦后保存成功并提示「已保存」",
+    "observed": "提示=\"已保存\"；修改后数值=51.00 / 401 / 2101 / 5001（原值 50.00 / 400 / 2100 / 5000）",
+    "ok": true,
+    "screenshot": "108-53-套餐卡3四个数字修改并失焦-操作后.png"
+  },
+  {
+    "step": 54,
+    "action": "点击第 1 张套餐卡的启用开关（关闭再开启）",
+    "target": ".plan-card .ant-switch",
+    "expected": "切换后保存成功并提示「已保存」",
+    "observed": "提示=\"已保存\"；开关最终 aria-checked=true",
+    "ok": true,
+    "screenshot": "110-54-套餐启用开关切换-操作后.png"
+  },
+  {
+    "step": 55,
+    "action": "刷新页面，检查四项限额是否持久化",
+    "target": "/plans（reload）",
+    "expected": "刷新后仍显示修改后的数值",
+    "observed": "刷新后首卡数值=2.00 / 51 / 101 / 201（期望 2 / 51 / 101 / 201）",
+    "ok": true,
+    "screenshot": "112-55-套餐页刷新持久化-操作后.png"
+  },
+  {
+    "step": 56,
+    "action": "把三个套餐卡的四项限额还原为测试前数值",
+    "target": ".plan-card 数字输入",
+    "expected": "还原成功并持久化",
+    "observed": "还原后首卡数值=1.00 / 50 / 100 / 200（原值 1.00 / 50 / 100 / 200）",
+    "ok": true,
+    "screenshot": "114-56-套餐数值还原-操作后.png"
+  },
+  {
+    "step": 57,
+    "action": "进入用户管理页",
+    "target": "/users",
+    "expected": "展示统计卡、用户列表、右侧详情与分页",
+    "observed": "行数=7；统计卡=4；分页文案=\"共 7 位用户 · 第 1 / 1 页\"",
+    "ok": true,
+    "screenshot": "117-57-用户页初始状态-操作后.png"
+  },
+  {
+    "step": 58,
+    "action": "在搜索框输入 ux-user",
+    "target": "input[aria-label=\"搜索用户\"]",
+    "expected": "列表按关键词过滤（防抖后 1 行）",
+    "observed": "行数=1；首行=\"u / ux-user / ux-user@deeptalk.local\"",
+    "ok": true,
+    "screenshot": "119-58-用户搜索-操作后.png"
+  },
+  {
+    "step": 59,
+    "action": "清空搜索框",
+    "target": "input[aria-label=\"搜索用户\"]",
+    "expected": "列表恢复全部用户",
+    "observed": "行数=7",
+    "ok": true,
+    "screenshot": "121-59-清除用户搜索-操作后.png"
+  },
+  {
+    "step": 60,
+    "action": "把排序下拉从「最近活跃」切到「用量优先」",
+    "target": ".sort-select",
+    "expected": "列表按新排序重新加载",
+    "observed": "排序值=\"用量优先\"；行数=7",
+    "ok": true,
+    "screenshot": "123-60-用户排序切换-操作后.png"
+  },
+  {
+    "step": 61,
+    "action": "点击「筛选」打开面板，把每页显示改为 10",
+    "target": ".filter-btn → 每页显示单选",
+    "expected": "每页条数变化并重新加载列表",
+    "observed": "分页=\"共 7 位用户 · 第 1 / 1 页\"；行数=7（共 2 位用户，未出现第 2 页）",
+    "ok": true,
+    "screenshot": "126-61-每页显示筛选-操作后.png"
+  },
+  {
+    "step": 62,
+    "action": "点击状态筛选「已限制」",
+    "target": ".segments button「已限制」",
+    "expected": "只显示被限制用户；无匹配时展示空态",
+    "observed": "行数=0；空态=\"没有匹配的用户 /  / 试试更换关键词，或清除状态筛选。 / 清除筛选\"",
+    "ok": true,
+    "screenshot": "128-62-状态筛选已限制-操作后.png"
+  },
+  {
+    "step": 63,
+    "action": "点击状态筛选「全部」",
+    "target": ".segments button「全部」",
+    "expected": "恢复完整用户列表",
+    "observed": "行数=7",
+    "ok": true,
+    "screenshot": "130-63-恢复全部用户-操作后.png"
+  },
+  {
+    "step": 64,
+    "action": "点击第二行（ux-user）",
+    "target": ".user-table tbody tr 第 2 行",
+    "expected": "右侧详情面板切换到该用户",
+    "observed": "详情邮箱=\"ux-user@deeptalk.local\"；账号信息首行=\"角色 普通用户\"",
+    "ok": true,
+    "screenshot": "132-64-点击用户行打开详情-操作后.png"
+  },
+  {
+    "step": 65,
+    "action": "打开详情「限制登录」开关，确认框点取消",
+    "target": ".user-detail .ant-switch",
+    "expected": "出现限制登录确认框，取消后用户仍正常",
+    "observed": "限制登录开关 aria-checked=false；确认框可见=0",
+    "ok": true,
+    "screenshot": "135-65-限制登录（二次确认→取消）-操作后.png"
+  },
+  {
+    "step": 66,
+    "action": "点击详情「重置密码」，在弹窗中取消",
+    "target": ".user-detail button「重置密码」",
+    "expected": "弹出重置密码确认弹窗，取消后不生成新密码",
+    "observed": "弹窗可见=0（未生成一次性密码）",
+    "ok": true,
+    "screenshot": "138-66-重置密码弹窗取消-操作后.png"
+  },
+  {
+    "step": 67,
+    "action": "在详情「套餐与额度」下拉选择专业版，确认框点取消",
+    "target": ".user-detail .plan-select",
+    "expected": "出现调整套餐确认框，取消后套餐不变",
+    "observed": "当前套餐=\"免费版\"（取消后未变更）",
+    "ok": true,
+    "screenshot": "141-67-调整套餐（二次确认→取消）-操作后.png"
+  },
+  {
+    "step": 68,
+    "action": "点击「调整额度」，把本月额度改为 30M 后保存",
+    "target": ".user-detail .quota-foot button「调整额度」",
+    "expected": "额度保存成功并提示「额度已更新」",
+    "observed": "提示=\"额度已更新\"；额度信息=\"已用 6.3K / 30M 1%\"",
+    "ok": true,
+    "screenshot": "144-68-调整额度保存-操作后.png"
+  },
+  {
+    "step": 69,
+    "action": "把该用户额度还原为 4M",
+    "target": "调整额度弹窗",
+    "expected": "还原成功并提示「额度已更新」",
+    "observed": "提示=\"额度已更新\"；额度信息=\"已用 6.3K / 4M 1%\"",
+    "ok": true,
+    "screenshot": "146-69-额度还原-操作后.png"
+  },
+  {
+    "step": 70,
+    "action": "点击页头「导出 CSV」",
+    "target": ".page-header button「导出 CSV」",
+    "expected": "浏览器触发 CSV 下载并提示开始下载",
+    "observed": "下载文件=deeptalk-users-20261121.csv（781 bytes）；提示=\"CSV 已开始下载（仅包含账号字段）\"",
+    "ok": true,
+    "screenshot": "148-70-导出CSV-操作后.png"
+  },
+  {
+    "step": 71,
+    "action": "查看分页区域并尝试切换每页条数",
+    "target": ".pager",
+    "expected": "分页显示总条数与页码，数据量足够时可翻页",
+    "observed": "分页文案=\"共 7 位用户 · 第 1 / 1 页\"；可点击页码=1 条（仅 2 位用户，实际只有 1 页，无法验证翻页）",
+    "ok": true,
+    "screenshot": "150-71-分页信息检查-操作后.png"
+  },
+  {
+    "step": 72,
+    "action": "进入用量统计页",
+    "target": "/usage",
+    "expected": "展示四个统计卡、柱状图与按天明细表",
+    "observed": "统计卡=4；柱=14；明细行=14；副标题=\"最近 14 天 · 鼠标悬停查看单日明细\"",
+    "ok": true,
+    "screenshot": "153-72-用量页初始状态-操作后.png"
+  },
+  {
+    "step": 73,
+    "action": "点击时间范围「7 天」",
+    "target": ".ant-segmented「7 天」",
+    "expected": "图表与统计卡切换到 7 天口径",
+    "observed": "副标题=\"最近 7 天 · 鼠标悬停查看单日明细\"；柱数=7；统计卡副标题=\"最近 7 天 · 含深度思考\"",
+    "ok": true,
+    "screenshot": "155-73-用量切换7天-操作后.png"
+  },
+  {
+    "step": 74,
+    "action": "点击时间范围「30 天」",
+    "target": ".ant-segmented「30 天」",
+    "expected": "图表切换到 30 天口径",
+    "observed": "副标题=\"最近 30 天 · 鼠标悬停查看单日明细\"；柱数=30",
+    "ok": true,
+    "screenshot": "157-74-用量切换30天-操作后.png"
+  },
+  {
+    "step": 75,
+    "action": "点击页头「刷新」",
+    "target": ".page-header button「刷新」",
+    "expected": "重新加载用量数据",
+    "observed": "刷新后柱数=30；仍在加载=0",
+    "ok": true,
+    "screenshot": "159-75-用量刷新按钮-操作后.png"
+  },
+  {
+    "step": 76,
+    "action": "悬停柱状图某一日",
+    "target": ".usage-page .bar-slot",
+    "expected": "出现单日明细 tooltip",
+    "observed": "tooltip=\"2026-11-02 · 0 tokens · 0 条\"",
+    "ok": true,
+    "screenshot": "161-76-用量图表hover-操作后.png"
+  },
+  {
+    "step": 77,
+    "action": "检查按天明细表是否支持点击表头排序",
+    "target": ".usage-table thead th",
+    "expected": "表格支持排序（表头可点击）",
+    "observed": "可排序表头=0（原生 table，无排序控件）；表头=\"日期\t消息数\ttokens\t单条均值\t占总量\"；点击表头无任何反馈",
+    "ok": false,
+    "screenshot": "163-77-用量表格排序检查-操作后.png"
+  },
+  {
+    "step": 78,
+    "action": "在用量页查找导出按钮",
+    "target": "/usage 页头操作区",
+    "expected": "用量统计提供导出（下载）入口",
+    "observed": "导出按钮=0；页头操作=\"、7 天 / 14 天 / 30 天 / 刷新\"（导出仅存在于用户管理页）",
+    "ok": false,
+    "screenshot": "164-78-用量导出按钮检查-操作后.png"
+  },
+  {
+    "step": 79,
+    "action": "进入系统设置页",
+    "target": "/settings",
+    "expected": "展示注册开关、默认路由、输出预算、安全说明与运行信息",
+    "observed": "面板数=6；注册开关=true（开放注册）",
+    "ok": true,
+    "screenshot": "167-79-设置页初始状态-操作后.png"
+  },
+  {
+    "step": 80,
+    "action": "点击「允许自助注册」开关，确认框点取消",
+    "target": "button[aria-label=\"开放注册开关\"]",
+    "expected": "出现关闭注册二次确认，取消后仍开放注册",
+    "observed": "开关=true；状态标签=\"开放注册\"；确认框可见=0",
+    "ok": true,
+    "screenshot": "170-80-注册开关关闭（二次确认→取消）-操作后.png"
+  },
+  {
+    "step": 81,
+    "action": "在设置页查找「站点名称」输入框",
+    "target": "设置页右侧「存储与运行」面板",
+    "expected": "站点名称可输入并保存",
+    "observed": "侧栏输入框数量=0；站点名称以只读文本展示：\"站点名称 / 小橘树洞\"（无编辑入口）",
+    "ok": false,
+    "screenshot": "171-81-站点名称可编辑性检查-操作后.png"
+  },
+  {
+    "step": 82,
+    "action": "点击「默认路由」面板「保存路由」",
+    "target": "button「保存路由」",
+    "expected": "保存成功并提示",
+    "observed": "提示=\"默认路由已保存\"",
+    "ok": true,
+    "screenshot": "173-82-保存默认路由-操作后.png"
+  },
+  {
+    "step": 83,
+    "action": "把单次输出预算改为 385024 后点击「保存预算」",
+    "target": ".budget-control .ant-input-number input",
+    "expected": "保存成功并提示",
+    "observed": "提示=\"输出预算已保存，下一条消息生效\"；输入框值=385024",
+    "ok": true,
+    "screenshot": "175-83-输出预算修改保存-操作后.png"
+  },
+  {
+    "step": 84,
+    "action": "把输出预算还原为 384000 并保存",
+    "target": ".budget-control",
+    "expected": "还原成功并提示",
+    "observed": "提示=\"输出预算已保存，下一条消息生效\"；输入框值=384000",
+    "ok": true,
+    "screenshot": "177-84-输出预算还原-操作后.png"
+  },
+  {
+    "step": 85,
+    "action": "打开账号下拉并点击「退出登录」",
+    "target": "账号菜单 → 退出登录",
+    "expected": "退出成功并回到登录页",
+    "observed": "URL=/login；提示=\"已退出登录\"",
+    "ok": true,
+    "screenshot": "179-85-退出登录-操作后.png"
+  },
+  {
+    "step": 86,
+    "action": "在 colorScheme:dark 下打开登录页",
+    "target": "/login（dark）",
+    "expected": "登录页背景/文字/输入框适配深色主题，无白底残留",
+    "observed": "页面背景=rgb(18, 21, 27)；卡片背景=color(srgb 0.0980392 0.109804 0.137255 / 0.96)；标题颜色=rgb(230, 233, 239)；背景为深色=true",
+    "ok": true,
+    "screenshot": "180-86-深色模式登录页-操作后.png"
+  },
+  {
+    "step": 87,
+    "action": "深色模式下进入概览页",
+    "target": "/overview（dark）",
+    "expected": "概览页在深色模式下仍可读，卡片背景为深色",
+    "observed": "标题=\"概览\"；面板背景=rgb(25, 28, 35)",
+    "ok": true,
+    "screenshot": "181-87-深色模式概览-操作后.png"
+  },
+  {
+    "step": 88,
+    "action": "深色模式下进入套餐与限额页",
+    "target": "/plans（dark）",
+    "expected": "套餐卡片深色适配正常",
+    "observed": "卡片数=3；卡片背景=rgb(25, 28, 35)",
+    "ok": true,
+    "screenshot": "182-88-深色模式套餐页-操作后.png"
+  },
+  {
+    "step": 89,
+    "action": "深色模式下进入厂商与模型页",
+    "target": "/providers（dark）",
+    "expected": "厂商卡片/模型表深色适配正常",
+    "observed": "卡片数=1；卡片背景=rgb(25, 28, 35)",
+    "ok": true,
+    "screenshot": "183-89-深色模式厂商页-操作后.png"
+  },
+  {
+    "step": 90,
+    "action": "深色模式下进入用户管理页",
+    "target": "/users（dark）",
+    "expected": "用户列表与详情深色适配正常",
+    "observed": "行数=7；列表背景=rgb(25, 28, 35)",
+    "ok": true,
+    "screenshot": "184-90-深色模式用户页-操作后.png"
+  },
+  {
+    "step": 91,
+    "action": "新建厂商「QA 厂商2」（Base URL http://127.0.0.1:9998/v1，含模型 qa-temp-model）",
+    "target": "新建厂商弹窗 → 保存并启用",
+    "expected": "创建成功并提示，卡片数变为 2",
+    "observed": "提示=\"厂商已创建\"；卡片=2",
+    "ok": true,
+    "screenshot": "193-95-复验-创建临时厂商-操作后.png"
+  },
+  {
+    "step": 92,
+    "action": "删除 QA 厂商2 厂商（确认删除），验证级联清理",
+    "target": "厂商配置 → 删除厂商 → 确认「删除」",
+    "expected": "删除成功，卡片与其模型一并移除",
+    "observed": "提示=\"厂商已删除\"；剩余厂商=1；剩余模型=1",
+    "ok": true,
+    "screenshot": "203-100-复验-删除临时厂商并清理-操作后.png"
+  },
+  {
+    "step": 93,
+    "action": "进入系统设置，查看「兜底模型」下拉在未设置时的显示",
+    "target": "/settings .routing-select 第二个（兜底模型）",
+    "expected": "未设置兜底时应显示占位文案「不设置兜底」",
+    "observed": "下拉数量=2；默认模型=\"DeepSeek-V4.1-Flash · DeepSeek\"；兜底模型=\"0\"（fallback_model_id=0 被当作合法值渲染成 \"0\"，未显示占位「不设置兜底」）",
+    "ok": false,
+    "screenshot": "205-101-兜底模型下拉占位显示检查-操作后.png"
+  },
+  {
+    "step": 94,
+    "action": "新建厂商「QA 厂商3」用于模型增删用例",
+    "target": "新建厂商弹窗",
+    "expected": "创建成功，卡片数变为 2",
+    "observed": "提示=\"厂商已创建\"；卡片=2",
+    "ok": true,
+    "screenshot": "207-102-准备-创建模型用例临时厂商-操作后.png"
+  },
+  {
+    "step": 95,
+    "action": "删除 QA 厂商3（确认删除），验证级联清理",
+    "target": "厂商配置 → 删除厂商 → 确认",
+    "expected": "删除成功并恢复基线（1 厂商 / 1 模型）",
+    "observed": "提示=\"厂商已删除\"；剩余厂商=1；剩余模型=1；默认模型=\"DeepSeek-V4.1-Flash · DeepSeek\"",
+    "ok": true,
+    "screenshot": "216-105-清理-删除临时厂商-操作后.png"
+  }
+]

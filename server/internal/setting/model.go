@@ -16,6 +16,7 @@ const (
 	KeyDefaultModelID    = "default_model_id"   // 平台默认模型主键
 	KeyFallbackModelID   = "fallback_model_id"  // 兜底模型主键
 	KeyMaxOutputTokens   = "max_output_tokens"  // 单次回答输出预算（thinking + 正文）
+	KeySiteName          = "site_name"          // 站点名称（后台可改）
 )
 
 // Setting 是 key/value 形式的平台设置。

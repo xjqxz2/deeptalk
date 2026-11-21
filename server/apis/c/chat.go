@@ -214,6 +214,14 @@ func (h *ChatController) Stream(c *gin.Context) {
 	for {
 		err = h.chats.Stream(c.Request.Context(), current.ID, id, input, emit)
 		if err != nil {
+			// 本轮异常（用户停止 / 上游报错）时，队列里的插话不会再被处理：
+			// 取出来并告知前端，避免界面永久停在「排队中」。
+			if next, ok, _ := h.chats.PopInterjection(c.Request.Context(), current.ID, id); ok && next != nil {
+				_ = emit("notice", gin.H{
+					"message":      "插话未处理，请重新发送",
+					"interjection": next.Content,
+				})
+			}
 			break
 		}
 		// 生成期间用户可能插了话：当前轮结束后接着处理，不打断连接

@@ -3,6 +3,7 @@ package b
 import (
 	"os"
 	"strconv"
+	"strings"
 
 	"deeptalk/apis/requests"
 	"deeptalk/apis/responses"
@@ -54,6 +55,18 @@ func (h *SettingsController) Update(c *gin.Context) {
 		}
 		recordAudit(c, h.audits, "setting.registration", "setting", 0, detail)
 	}
+	if req.SiteName != nil {
+		name := strings.TrimSpace(*req.SiteName)
+		if name == "" || len([]rune(name)) > 32 {
+			responses.Fail(c, responses.CodeInvalidArgument, "站点名称需为 1–32 个字符")
+			return
+		}
+		if err := h.settings.Set(ctx, setting.KeySiteName, name); err != nil {
+			responses.FromError(c, err)
+			return
+		}
+		recordAudit(c, h.audits, "setting.site_name", "setting", 0, "修改站点名称为 "+name)
+	}
 	if req.MaxOutputTokens != nil {
 		if *req.MaxOutputTokens < 1024 || *req.MaxOutputTokens > 1_000_000 {
 			responses.Fail(c, responses.CodeInvalidArgument, "输出预算需在 1024–1,000,000 tokens 之间")
@@ -95,7 +108,7 @@ func (h *SettingsController) snapshot(c *gin.Context) responses.SettingsResponse
 		DefaultModelID:    routing.DefaultModelID,
 		FallbackModelID:   routing.FallbackModelID,
 		MaxOutputTokens:   h.settings.Int(ctx, setting.KeyMaxOutputTokens, 384000),
-		SiteName:          "小橘树洞",
+		SiteName:          h.settings.Get(ctx, setting.KeySiteName, "小橘树洞"),
 		Version:           "v1.0.0",
 		StorageUsedBytes:  used,
 		StorageTotalBytes: 10 * 1024 * 1024 * 1024,

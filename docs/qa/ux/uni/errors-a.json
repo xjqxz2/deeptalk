@@ -1,0 +1,19 @@
+{
+ "pageErrors": [],
+ "consoleErrors": [
+  {
+   "label": "login",
+   "type": "error",
+   "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+   "at": "2026-11-21T13:31:14.921Z"
+  }
+ ],
+ "httpErrors": [
+  {
+   "label": "login",
+   "status": 400,
+   "url": "/api/v1/c/auth/login",
+   "at": "2026-11-21T13:31:14.921Z"
+  }
+ ]
+}

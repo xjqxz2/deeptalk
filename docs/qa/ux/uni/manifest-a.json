@@ -1,0 +1,101 @@
+[
+ {
+  "step": 1,
+  "phase": "A 登录页",
+  "action": "打开登录页",
+  "target": "/#/pages/login/login",
+  "expected": "品牌、标题「欢迎回来」、邮箱/密码输入框、登录按钮、注册链接渲染正常",
+  "observed": "标题=欢迎回来；密码框 type=password（无显示/隐藏眼睛图标）；按钮=\"登录\"；存在「立即注册」「忘记密码？」",
+  "ok": true,
+  "screenshot": "02-login-initial-after.png",
+  "screenshot_before": "01-login-initial-before.png"
+ },
+ {
+  "step": 2,
+  "phase": "A 登录页",
+  "action": "点击邮箱输入框并输入账号",
+  "target": "input[aria-label=\"邮箱\"]",
+  "expected": "输入框获得焦点并显示已输入的邮箱",
+  "observed": "value=\"ux-user@deeptalk.local\"，聚焦=true",
+  "ok": true,
+  "screenshot": "04-login-email-after.png",
+  "screenshot_before": "03-login-email-before.png"
+ },
+ {
+  "step": 3,
+  "phase": "A 登录页",
+  "action": "点击密码输入框并输入错误密码",
+  "target": "input[aria-label=\"密码\"]",
+  "expected": "密码以掩码显示（无明文）",
+  "observed": "type=password，值长度=14，页面显示为圆点（无明文切换按钮）",
+  "ok": true,
+  "screenshot": "06-login-password-after.png",
+  "screenshot_before": "05-login-password-before.png"
+ },
+ {
+  "step": 4,
+  "phase": "A 登录页",
+  "action": "点击「登录」（错误密码）",
+  "target": ".submit-btn",
+  "expected": "显示错误提示「邮箱或密码不正确」，停留在登录页（预期返回 400）",
+  "observed": "错误提示=\"邮箱或密码不正确\"，仍停留在登录页=true",
+  "ok": true,
+  "screenshot": "08-login-submit-error-after.png",
+  "screenshot_before": "07-login-submit-error-before.png"
+ },
+ {
+  "step": 5,
+  "phase": "A 登录页",
+  "action": "点击「忘记密码？」",
+  "target": ".field-link（未绑定任何事件）",
+  "expected": "有可见反馈（跳转、弹窗或提示说明重置方式）",
+  "observed": "点击后页面无任何变化（无弹窗/无 toast/无跳转，URL 仍为 /pages/login/login），「忘记密码？」是纯 span 无点击处理",
+  "ok": false,
+  "screenshot": "10-login-forgot-after.png",
+  "screenshot_before": "09-login-forgot-before.png"
+ },
+ {
+  "step": 6,
+  "phase": "A 登录页",
+  "action": "改正密码后点击「登录」",
+  "target": ".submit-btn",
+  "expected": "登录成功并自动进入聊天页",
+  "observed": "登录页已卸载=true，聊天顶栏=true，输入区=true（H5 reLaunch 后地址栏固定为 #/，不随页面变化）",
+  "ok": true,
+  "screenshot": "12-login-submit-success-after.png",
+  "screenshot_before": "11-login-submit-success-before.png"
+ },
+ {
+  "step": 7,
+  "phase": "B 注册",
+  "action": "点击「立即注册」切换视图",
+  "target": ".switch-link",
+  "expected": "标题变为「创建账号」，按钮变为「注册并登录」",
+  "observed": "标题=\"创建账号\"，按钮=\"注册并登录\"",
+  "ok": true,
+  "screenshot": "14-register-switch-after.png",
+  "screenshot_before": "13-register-switch-before.png"
+ },
+ {
+  "step": 8,
+  "phase": "B 注册",
+  "action": "输入新邮箱与密码",
+  "target": "邮箱 / 密码输入框",
+  "expected": "两个输入框都有值，可提交",
+  "observed": "邮箱=qa-reg-1795267870661@deeptalk.local，密码长度=12",
+  "ok": true,
+  "screenshot": "16-register-fill-after.png",
+  "screenshot_before": "15-register-fill-before.png"
+ },
+ {
+  "step": 9,
+  "phase": "B 注册",
+  "action": "点击「注册并登录」",
+  "target": ".submit-btn",
+  "expected": "注册成功并自动登录进入聊天页（新账号空会话）",
+  "observed": "登录页已卸载=true；聊天输入区=true；空会话提示=true；localStorage 键数=4；首屏文案=\"新对话 / q / \"",
+  "ok": true,
+  "screenshot": "18-register-submit-after.png",
+  "screenshot_before": "17-register-submit-before.png"
+ }
+]

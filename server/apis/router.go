@@ -156,6 +156,7 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 		bGroup.POST("/models", providerController.CreateModel)
 		bGroup.PUT("/models/:id", providerController.UpdateModel)
 		bGroup.PATCH("/models/:id/enabled", providerController.ToggleModel)
+		bGroup.DELETE("/models/:id", providerController.DeleteModel)
 		bGroup.GET("/routing", providerController.Routing)
 		bGroup.PUT("/routing", providerController.SetRouting)
 		bGroup.GET("/health", providerController.Health)

@@ -3,7 +3,31 @@
   <LoginH5 />
   <!-- #endif -->
 
+  <!-- #ifdef MP-WEIXIN -->
+  <view class="page wx-page">
+    <view class="status-spacer" :style="statusBarStyle" />
+    <view class="wx-body">
+      <image class="wx-logo" src="/static/logo.png" mode="aspectFit" />
+      <text class="wx-title">小橘树洞</text>
+      <text class="wx-sub">微信授权即可开始对话</text>
+
+      <view class="wx-points">
+        <text class="wx-point">· 一个微信账号对应一个对话空间</text>
+        <text class="wx-point">· 之后可在设置里补全邮箱密码，用电脑版登录</text>
+        <text class="wx-point">· 不读取你的手机号与通讯录</text>
+      </view>
+
+      <view class="wx-action" :class="{ 'wx-action-off': wxLoading }" @click="onWeChatLogin">
+        <text class="wx-action-text">{{ wxLoading ? '正在授权…' : '微信一键登录' }}</text>
+      </view>
+      <text v-if="error" class="wx-error">{{ error }}</text>
+      <text class="wx-agree">登录即表示同意《服务条款》与《隐私政策》</text>
+    </view>
+  </view>
+  <!-- #endif -->
+
   <!-- #ifndef H5 -->
+  <!-- #ifndef MP-WEIXIN -->
   <view class="page">
     <!-- 顶部：品牌 + 注册入口 -->
     <view class="status-spacer" :style="statusBarStyle" />
@@ -70,6 +94,7 @@
     </view>
   </view>
   <!-- #endif -->
+  <!-- #endif -->
 </template>
 
 <script setup>
@@ -79,18 +104,19 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import { onReady } from '@dcloudio/uni-app'
-import { login, register } from '@/api/auth'
+import { login, register, wechatLogin } from '@/api/auth'
 // #ifdef H5
 import LoginH5 from '@/components/h5/login.vue'
 // #endif
 import { setSession, isLoggedIn } from '@/store/session'
-import { goChat } from '@/utils/nav'
+import { goChat as goChatPage } from '@/utils/nav'
 
 const mode = ref('login')
 const email = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
+const wxLoading = ref(false)
 
 const canSubmit = computed(() => email.value.trim().length > 0 && password.value.length > 0)
 
@@ -100,7 +126,7 @@ const statusBarStyle = computed(() => `height:${statusBarHeight.value || 0}px;`)
 
 onReady(() => {
   // 已经有登录态就直接进聊天页
-  if (isLoggedIn()) goChat()
+  if (isLoggedIn()) goChatPage()
 })
 
 onMounted(() => {
@@ -118,6 +144,33 @@ function toggleMode() {
   error.value = ''
 }
 
+/** 小程序端：wx.login 换 code，后端建号/登录后直接进聊天。 */
+async function onWeChatLogin() {
+  if (wxLoading.value) return
+  wxLoading.value = true
+  error.value = ''
+  try {
+    const code = await new Promise((resolve, reject) => {
+      uni.login({
+        provider: 'weixin',
+        success: (res) => (res.code ? resolve(res.code) : reject(new Error('未获取到微信授权码'))),
+        fail: () => reject(new Error('微信授权失败，请重试')),
+      })
+    })
+    const data = await wechatLogin(code)
+    setSession(data.token, data.user)
+    if (data.user?.email_placeholder) {
+      uni.navigateTo({ url: '/pages/profile/profile' })
+      return
+    }
+    goChatPage()
+  } catch (err) {
+    error.value = err?.message || '登录失败，请重试'
+  } finally {
+    wxLoading.value = false
+  }
+}
+
 async function submit() {
   if (!canSubmit.value || loading.value) return
   error.value = ''
@@ -125,7 +178,7 @@ async function submit() {
   try {
     const data = mode.value === 'login' ? await login(email.value.trim(), password.value) : await register(email.value.trim(), password.value)
     setSession(data.token, data.user)
-    goChat()
+    goChatPage()
   } catch (err) {
     error.value = err?.message || '操作失败，请重试'
   } finally {
@@ -317,6 +370,81 @@ async function submit() {
   }
   .notes {
     border-top-color: #2a2f3a;
+  }
+}
+
+/* 小程序授权页 */
+.wx-page {
+  background-color: #f7f8fa;
+}
+.wx-body {
+  flex: 1;
+  padding: 0 56rpx;
+  align-items: center;
+  justify-content: center;
+}
+.wx-logo {
+  width: 168rpx;
+  height: 168rpx;
+  margin-bottom: 28rpx;
+}
+.wx-title {
+  color: #101828;
+  font-size: 44rpx;
+  font-weight: 700;
+}
+.wx-sub {
+  margin-top: 12rpx;
+  color: #667085;
+  font-size: 26rpx;
+}
+.wx-points {
+  margin-top: 48rpx;
+  margin-bottom: 56rpx;
+  align-items: flex-start;
+}
+.wx-point {
+  margin-top: 12rpx;
+  color: #98a2b3;
+  font-size: 23rpx;
+}
+.wx-action {
+  width: 100%;
+  height: 96rpx;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20rpx;
+  background-color: #07c160;
+}
+.wx-action-off {
+  opacity: 0.6;
+}
+.wx-action-text {
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 650;
+}
+.wx-error {
+  margin-top: 20rpx;
+  color: #d92d20;
+  font-size: 24rpx;
+}
+.wx-agree {
+  margin-top: 28rpx;
+  color: #b0b7c3;
+  font-size: 21rpx;
+}
+@media (prefers-color-scheme: dark) {
+  .wx-page {
+    background-color: #12151b;
+  }
+  .wx-title {
+    color: #e6e9ef;
+  }
+  .wx-sub,
+  .wx-point,
+  .wx-agree {
+    color: #7b8494;
   }
 }
 </style>

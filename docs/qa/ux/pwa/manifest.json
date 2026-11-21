@@ -1,0 +1,785 @@
+[
+  {
+    "step": 1,
+    "action": "打开登录页",
+    "target": "/login",
+    "expected": "显示「欢迎回来」表单，未输入时登录按钮禁用",
+    "observed": "标题含「欢迎回来」；登录按钮 disabled=true；注册入口 href=/register",
+    "ok": true,
+    "screenshot": "01-login-init-after.png"
+  },
+  {
+    "step": 2,
+    "action": "点击邮箱框并逐字输入",
+    "target": "#login-email",
+    "expected": "输入内容进入邮箱框，密码为空时登录按钮仍禁用",
+    "observed": "值=ux-user@deeptalk.local；登录按钮 disabled=true",
+    "ok": true,
+    "screenshot": "02-login-email-type-after.png"
+  },
+  {
+    "step": 3,
+    "action": "点击密码框并逐字输入",
+    "target": "#login-password",
+    "expected": "输入被掩码显示（type=password），登录按钮变为可用",
+    "observed": "type=password，长度=12；登录按钮 disabled=false",
+    "ok": true,
+    "screenshot": "03-login-password-type-after.png"
+  },
+  {
+    "step": 4,
+    "action": "点击密码可见性图标",
+    "target": ".ant-input-password-icon",
+    "expected": "密码变为明文显示（type=text）",
+    "observed": "type 变为 text，密码明文可见",
+    "ok": true,
+    "screenshot": "04-login-pwd-show-after.png"
+  },
+  {
+    "step": 5,
+    "action": "再次点击密码可见性图标",
+    "target": ".ant-input-password-icon",
+    "expected": "密码恢复掩码（type=password）",
+    "observed": "type 恢复为 password",
+    "ok": true,
+    "screenshot": "05-login-pwd-hide-after.png"
+  },
+  {
+    "step": 6,
+    "action": "点击「忘记密码？」",
+    "target": ".text-link",
+    "expected": "弹出「忘记密码」说明弹窗",
+    "observed": "弹窗标题「忘记密码」；内容含管理员重置说明",
+    "ok": true,
+    "screenshot": "06-login-forgot-open-after.png"
+  },
+  {
+    "step": 7,
+    "action": "点击「我知道了」关闭弹窗",
+    "target": "弹窗按钮「我知道了」",
+    "expected": "弹窗关闭，回到登录表单",
+    "observed": "弹窗关闭，登录表单仍可见",
+    "ok": true,
+    "screenshot": "07-login-forgot-close-after.png"
+  },
+  {
+    "step": 8,
+    "action": "点击《服务条款》",
+    "target": ".inline-link 第 1 个",
+    "expected": "弹出服务条款与隐私政策弹窗（非跳转）",
+    "observed": "未跳转，弹出「服务条款与隐私政策」，正文长度=144",
+    "ok": true,
+    "screenshot": "08-login-terms-open-after.png"
+  },
+  {
+    "step": 9,
+    "action": "点击「关闭」",
+    "target": "弹窗按钮「关闭」",
+    "expected": "条款弹窗关闭",
+    "observed": "弹窗已关闭",
+    "ok": true,
+    "screenshot": "09-login-terms-close-after.png"
+  },
+  {
+    "step": 10,
+    "action": "点击《隐私政策》",
+    "target": ".inline-link 第 2 个",
+    "expected": "弹出服务条款与隐私政策弹窗（非跳转）",
+    "observed": "未跳转，弹出「服务条款与隐私政策」",
+    "ok": true,
+    "screenshot": "10-login-privacy-open-after.png"
+  },
+  {
+    "step": 11,
+    "action": "点击「关闭」",
+    "target": "弹窗按钮「关闭」",
+    "expected": "隐私弹窗关闭",
+    "observed": "弹窗已关闭",
+    "ok": true,
+    "screenshot": "11-login-privacy-close-after.png"
+  },
+  {
+    "step": 12,
+    "action": "点击「立即注册」",
+    "target": ".switch a",
+    "expected": "跳转 /register 注册页",
+    "observed": "URL=http://127.0.0.1:5321/register，注册表单已渲染",
+    "ok": true,
+    "screenshot": "12-login-to-register-after.png"
+  },
+  {
+    "step": 13,
+    "action": "查看注册页",
+    "target": "/register",
+    "expected": "显示邮箱/密码/确认密码、密码规则与「创建账号并进入」按钮",
+    "observed": "规则 3 条；提交按钮 disabled=true",
+    "ok": true,
+    "screenshot": "13-register-init-after.png"
+  },
+  {
+    "step": 14,
+    "action": "点击「去登录」",
+    "target": ".switch a",
+    "expected": "返回 /login 登录页",
+    "observed": "URL=http://127.0.0.1:5321/login",
+    "ok": true,
+    "screenshot": "14-register-to-login-after.png"
+  },
+  {
+    "step": 15,
+    "action": "再次点击「立即注册」",
+    "target": ".switch a",
+    "expected": "重新进入注册页",
+    "observed": "URL=http://127.0.0.1:5321/register",
+    "ok": true,
+    "screenshot": "15-register-reenter-after.png"
+  },
+  {
+    "step": 16,
+    "action": "输入注册邮箱",
+    "target": "#register-email",
+    "expected": "邮箱输入成功",
+    "observed": "值=qa-pwa-1795269084034@deeptalk.local",
+    "ok": true,
+    "screenshot": "16-register-email-type-after.png"
+  },
+  {
+    "step": 17,
+    "action": "输入注册密码",
+    "target": "#register-password",
+    "expected": "「至少 8 位」「字母 + 数字」两条规则变为通过态",
+    "observed": "type=password；已通过规则 3 条",
+    "ok": true,
+    "screenshot": "17-register-password-type-after.png"
+  },
+  {
+    "step": 18,
+    "action": "输入不一致的确认密码并失焦",
+    "target": "#register-confirm",
+    "expected": "提示「两次输入的密码不一致」",
+    "observed": "提示「两次输入的密码不一致」",
+    "ok": true,
+    "screenshot": "18-register-confirm-mismatch-after.png"
+  },
+  {
+    "step": 19,
+    "action": "修正确认密码并提交注册",
+    "target": ".submit-btn",
+    "expected": "创建账号成功、自动登录并进入工作台",
+    "observed": "Toast「账号创建成功，已进入工作台」；URL=http://127.0.0.1:5321/，已进入空态工作台",
+    "ok": true,
+    "screenshot": "19-register-submit-after.png"
+  },
+  {
+    "step": 20,
+    "action": "点击顶栏头像打开账号菜单",
+    "target": ".chat-topbar .avatar",
+    "expected": "出现「账号与密码 / 退出登录」菜单",
+    "observed": "菜单内容： 账号与密码 退出登录",
+    "ok": true,
+    "screenshot": "20-register-user-menu-after.png"
+  },
+  {
+    "step": 21,
+    "action": "点击「退出登录」",
+    "target": "账号菜单-退出登录",
+    "expected": "退出登录并回到 /login",
+    "observed": "URL=http://127.0.0.1:5321/login（无二次确认弹窗）",
+    "ok": true,
+    "screenshot": "21-register-logout-after.png"
+  },
+  {
+    "step": 22,
+    "action": "重新输入测试账号邮箱",
+    "target": "#login-email",
+    "expected": "邮箱输入成功",
+    "observed": "值=ux-user@deeptalk.local",
+    "ok": true,
+    "screenshot": "22-login-email-refill-after.png"
+  },
+  {
+    "step": 23,
+    "action": "重新输入测试账号密码",
+    "target": "#login-password",
+    "expected": "密码输入成功，登录按钮可用",
+    "observed": "密码长度=12，登录按钮可用",
+    "ok": true,
+    "screenshot": "23-login-password-refill-after.png"
+  },
+  {
+    "step": 24,
+    "action": "点击「登录」",
+    "target": ".submit-btn",
+    "expected": "登录成功并进入聊天空态",
+    "observed": "Toast「登录成功」；URL=http://127.0.0.1:5321/",
+    "ok": true,
+    "screenshot": "24-login-submit-after.png"
+  },
+  {
+    "step": 25,
+    "action": "查看聊天空态",
+    "target": "/",
+    "expected": "显示品牌问候与输入区（可聚焦）",
+    "observed": "问候可见；输入框 placeholder=「给 小橘树洞 发送消息…」；侧栏会话数=13",
+    "ok": true,
+    "screenshot": "25-empty-init-after.png"
+  },
+  {
+    "step": 26,
+    "action": "点击输入框并逐字输入问题",
+    "target": ".composer-input",
+    "expected": "文本进入输入框，发送按钮可用",
+    "observed": "输入 20 字；发送按钮 aria-label=发送消息",
+    "ok": true,
+    "screenshot": "26-empty-input-type-after.png"
+  },
+  {
+    "step": 27,
+    "action": "点击模型下拉",
+    "target": ".model-select",
+    "expected": "展开模型选项列表",
+    "observed": "下拉展开，选项 1 个：1 DeepSeek-V4.1-Flash",
+    "ok": true,
+    "screenshot": "27-model-open-after.png"
+  },
+  {
+    "step": 28,
+    "action": "选择模型项",
+    "target": ".ant-select-item-option",
+    "expected": "选中后下拉关闭，触发按钮显示新模型名",
+    "observed": "选择「DeepSeek-V4.1-Flash」；触发按钮显示「DeepSeek-V4.1-Flash」；残留下拉=0",
+    "ok": true,
+    "screenshot": "28-model-select-after.png"
+  },
+  {
+    "step": 29,
+    "action": "再次打开下拉后点击空白处关闭",
+    "target": ".model-select",
+    "expected": "下拉关闭且不改变已选模型",
+    "observed": "下拉已关闭，模型仍为「DeepSeek-V4.1-Flash」",
+    "ok": true,
+    "screenshot": "29-model-close-after.png"
+  },
+  {
+    "step": 30,
+    "action": "点击附件按钮并选择一个图片文件",
+    "target": "[aria-label=\"上传图片\"]",
+    "expected": "打开系统文件选择框，选中后上传并在输入区显示附件缩略图",
+    "observed": "filechooser 已触发并选择 sample.png；缩略图 1 个；已上传 src=/api/v1/c/attachments/3…",
+    "ok": true,
+    "screenshot": "30-attach-upload-after.png"
+  },
+  {
+    "step": 31,
+    "action": "点击附件右上角移除按钮",
+    "target": ".attachment-remove",
+    "expected": "附件从输入区移除",
+    "observed": "附件已移除，剩余 0 个",
+    "ok": true,
+    "screenshot": "31-attach-remove-after.png"
+  },
+  {
+    "step": 32,
+    "action": "在输入框按 Enter 发送首条消息",
+    "target": ".composer-input",
+    "expected": "创建会话、跳到 /chat/:id 并进入流式生成",
+    "observed": "URL=http://127.0.0.1:5321/chat/3cae0665631441b88e2347e6c50b07b2；用户消息 1 条；生成中 stop-btn=1，typing 占位=1",
+    "ok": true,
+    "screenshot": "32-send-enter-after.png"
+  },
+  {
+    "step": 33,
+    "action": "等待首轮回答生成完成",
+    "target": ".message.assistant",
+    "expected": "流式结束，出现助手消息与操作栏（复制/重新生成/赞/踩）",
+    "observed": "回答 30 字；操作按钮 4 个；生成已结束",
+    "ok": true,
+    "screenshot": "33-session-complete-after.png"
+  },
+  {
+    "step": 34,
+    "action": "悬停助手消息并点击「复制」",
+    "target": ".message-actions 复制",
+    "expected": "按钮变为「已复制」，剪贴板得到回答正文",
+    "observed": "按钮「已复制」；剪贴板 30 字，与正文一致",
+    "ok": true,
+    "screenshot": "34-msg-copy-after.png"
+  },
+  {
+    "step": 35,
+    "action": "点击「重新生成」",
+    "target": ".message-actions 重新生成",
+    "expected": "旧回答被替换并重新流式生成，结束后仍是一条回答",
+    "observed": "回答条数保持 1；新正文 30 字",
+    "ok": true,
+    "screenshot": "35-msg-regenerate-after.png"
+  },
+  {
+    "step": 36,
+    "action": "点击「赞」",
+    "target": "[aria-label=\"赞\"]",
+    "expected": "点赞按钮进入选中态（aria-pressed=true），请求成功",
+    "observed": "aria-pressed=true，class 含 active",
+    "ok": true,
+    "screenshot": "36-msg-like-after.png"
+  },
+  {
+    "step": 37,
+    "action": "点击「踩」",
+    "target": "[aria-label=\"踩\"]",
+    "expected": "踩选中、赞取消选中（互斥）",
+    "observed": "踩选中=true，赞选中=false",
+    "ok": true,
+    "screenshot": "37-msg-dislike-after.png"
+  },
+  {
+    "step": 38,
+    "action": "再次点击「踩」取消",
+    "target": "[aria-label=\"踩\"]",
+    "expected": "踩取消选中，恢复空反馈",
+    "observed": "踩 aria-pressed=false",
+    "ok": true,
+    "screenshot": "38-msg-dislike-off-after.png"
+  },
+  {
+    "step": 39,
+    "action": "点击顶栏「分享对话」",
+    "target": "[aria-label=\"分享对话\"]",
+    "expected": "弹出「分享对话」弹窗，说明只读分享",
+    "observed": "弹窗「分享对话」；正文含只读说明",
+    "ok": true,
+    "screenshot": "39-share-open-after.png"
+  },
+  {
+    "step": 40,
+    "action": "点击「创建分享链接」",
+    "target": "分享弹窗-创建分享链接",
+    "expected": "生成分享链接并自动复制，Toast「链接已复制」",
+    "observed": "链接=http://127.0.0.1:5321/s/8e55cdd02ef14af095a7d5599bb90126…；Toast「链接已复制」",
+    "ok": true,
+    "screenshot": "40-share-create-after.png"
+  },
+  {
+    "step": 41,
+    "action": "点击分享链接旁「复制」",
+    "target": "分享弹窗-复制",
+    "expected": "再次复制链接并提示成功",
+    "observed": "Toast「链接已复制」",
+    "ok": true,
+    "screenshot": "41-share-copy-after.png"
+  },
+  {
+    "step": 42,
+    "action": "点击「取消分享」",
+    "target": "分享弹窗-取消分享",
+    "expected": "撤销分享，链接失效并回到未分享状态",
+    "observed": "Toast 读取到上一条「链接已复制」；分享链接输入框已移除，弹窗回到「创建分享链接」未分享状态（撤销生效）",
+    "ok": true,
+    "screenshot": "42-share-revoke-after.png"
+  },
+  {
+    "step": 43,
+    "action": "关闭分享弹窗",
+    "target": ".ant-modal-close",
+    "expected": "弹窗关闭回到会话",
+    "observed": "分享弹窗已关闭",
+    "ok": true,
+    "screenshot": "43-share-close-after.png"
+  },
+  {
+    "step": 44,
+    "action": "点击顶栏「更多操作」",
+    "target": "[aria-label=\"更多操作\"]",
+    "expected": "出现分享/键盘快捷键/新建对话/退出登录菜单",
+    "observed": "菜单： 分享对话 键盘快捷键 新建对话 退出登录",
+    "ok": true,
+    "screenshot": "44-more-menu-open-after.png"
+  },
+  {
+    "step": 45,
+    "action": "点击菜单「键盘快捷键」",
+    "target": "菜单项 键盘快捷键",
+    "expected": "弹出快捷键说明弹窗（Enter/Shift+Enter/Esc 等）",
+    "observed": "弹窗「键盘快捷键」，5 条快捷键：键盘快捷键 发送消息 Enter 换行 Shift + Enter 停止生成 Esc 新建对话 Ctrl / ⌘ + K 关闭侧栏 Ctrl / ⌘ + B 生",
+    "ok": true,
+    "screenshot": "45-shortcuts-open-after.png"
+  },
+  {
+    "step": 46,
+    "action": "关闭快捷键弹窗",
+    "target": ".ant-modal-close",
+    "expected": "弹窗关闭",
+    "observed": "快捷键弹窗已关闭",
+    "ok": true,
+    "screenshot": "46-shortcuts-close-after.png"
+  },
+  {
+    "step": 47,
+    "action": "生成中在输入框输入并点击「插话」发送",
+    "target": ".send-btn（插话）",
+    "expected": "消息以「插话」排队（显示「排队中，本轮结束后处理」），不打断当前生成",
+    "observed": "按钮 aria-label=「插话」；排队中提示 1 处；插话标签 1 处；stop-btn 仍在=1",
+    "ok": true,
+    "screenshot": "47-interject-send-after.png"
+  },
+  {
+    "step": 48,
+    "action": "查看插话排队状态",
+    "target": ".interject-pending / .interject-tag",
+    "expected": "插话消息标注「插话」并提示「排队中，本轮结束后处理」",
+    "observed": "最后一条用户消息：插话 插话补充：请再补充一个具体例子 排队中，本轮结束后处理 · 13:52；排队提示 1 处；插话标签 1 处",
+    "ok": true,
+    "screenshot": "48-interject-queued-after.png"
+  },
+  {
+    "step": 49,
+    "action": "等待插话轮处理完成",
+    "target": ".message.assistant",
+    "expected": "当前轮结束后自动处理插话，出现第二轮回答，排队状态清除",
+    "observed": "助手消息 3 条；排队提示 0 处；插话标签 1 处；第二轮正文 30 字",
+    "ok": true,
+    "screenshot": "49-interject-complete-after.png"
+  },
+  {
+    "step": 50,
+    "action": "生成中点击「停止生成」",
+    "target": ".stop-btn",
+    "expected": "流中断，回答标记「已停止生成」，已输出内容保留",
+    "observed": "用户消息 4 条；最后一条显示「已停止生成」",
+    "ok": true,
+    "screenshot": "50-stop-generating-after.png"
+  },
+  {
+    "step": 51,
+    "action": "点击「新建对话」准备富内容测试",
+    "target": ".new-chat",
+    "expected": "回到空态工作台",
+    "observed": "URL=http://127.0.0.1:5321/；空态已显示",
+    "ok": true,
+    "screenshot": "51-rich-new-chat-after.png"
+  },
+  {
+    "step": 52,
+    "action": "发送消息（SSE 注入：代码块 + 来源 + A2UI）",
+    "target": ".composer-input / .send-btn",
+    "expected": "渲染代码块、思考来源折叠面板与 A2UI 卡片",
+    "observed": "代码块 1 个、复制按钮 1 个；来源 0 条；A2UI surface 1 个；渲染错误 0 个",
+    "ok": true,
+    "screenshot": "52-rich-send-after.png"
+  },
+  {
+    "step": 53,
+    "action": "点击代码块右上角「复制」",
+    "target": ".dt-code-copy",
+    "expected": "按钮变为「已复制」，剪贴板得到代码文本",
+    "observed": "按钮「已复制」；剪贴板含 def bubble_sort",
+    "ok": true,
+    "screenshot": "53-code-copy-after.png"
+  },
+  {
+    "step": 54,
+    "action": "点击「思考/来源」面板标题展开",
+    "target": ".thinking-head",
+    "expected": "面板展开，显示推理内容与 2 条来源链接",
+    "observed": "aria-expanded false→true；来源 2 条，首条「MDN Web Docs · JavaScript」",
+    "ok": true,
+    "screenshot": "54-sources-expand-after.png"
+  },
+  {
+    "step": 55,
+    "action": "再次点击面板标题收起",
+    "target": ".thinking-head",
+    "expected": "面板收起，来源隐藏",
+    "observed": "aria-expanded=false，来源面板已隐藏",
+    "ok": true,
+    "screenshot": "55-sources-collapse-after.png"
+  },
+  {
+    "step": 56,
+    "action": "点击 A2UI 卡片中的按钮",
+    "target": ".a2ui-surface button",
+    "expected": "A2UI 卡片按钮可点击并有可见反馈（状态变化/toast/事件）",
+    "observed": "找到 1 个按钮，点击后卡片文本无变化；toast=0",
+    "ok": false,
+    "screenshot": "56-a2ui-click-after.png"
+  },
+  {
+    "step": 57,
+    "action": "点击侧栏「新建对话」",
+    "target": ".new-chat",
+    "expected": "回到空态并清空搜索/草稿",
+    "observed": "URL=http://127.0.0.1:5321/；搜索框已清空",
+    "ok": true,
+    "screenshot": "57-sidebar-new-chat-after.png"
+  },
+  {
+    "step": 58,
+    "action": "发送一条侧栏测试消息创建会话",
+    "target": ".composer-input / .send-btn",
+    "expected": "生成完成，侧栏出现一条可搜索的会话",
+    "observed": "会话项 16 条，首条「这是一段模拟回答：侧栏测试会话：请简短回答」",
+    "ok": true,
+    "screenshot": "58-sidebar-seed-after.png"
+  },
+  {
+    "step": 59,
+    "action": "在搜索框输入「侧栏测试」",
+    "target": "input[aria-label=\"搜索对话\"]",
+    "expected": "300ms 防抖后按标题过滤，仅显示匹配会话",
+    "observed": "结果 1 条：今天 这是一段模拟回答：侧栏测试会话：请简短回答",
+    "ok": true,
+    "screenshot": "59-search-type-after.png"
+  },
+  {
+    "step": 60,
+    "action": "查看搜索结果并确认清空按钮",
+    "target": ".history-item",
+    "expected": "结果标题包含关键词，搜索框出现清空按钮",
+    "observed": "结果 1 条，首条「这是一段模拟回答：侧栏测试会话：请简短回答」；清空按钮 1 个",
+    "ok": true,
+    "screenshot": "60-search-result-after.png"
+  },
+  {
+    "step": 61,
+    "action": "点击搜索框清空按钮",
+    "target": ".ant-input-clear-icon",
+    "expected": "关键词清空，恢复完整会话列表",
+    "observed": "搜索框已清空；会话数 1→16",
+    "ok": true,
+    "screenshot": "61-search-clear-after.png"
+  },
+  {
+    "step": 62,
+    "action": "点击历史会话项切换会话",
+    "target": ".history-item",
+    "expected": "URL 变为 /chat/:id 并加载该会话消息",
+    "observed": "打开「这是一段模拟回答：侧栏测试会话：请简短回答」；URL=http://127.0.0.1:5321/chat/22d4fb4620b21aa5b83b0ba2d31ae15e；消息 2 条；顶栏标题「这是一段模拟回答：侧栏测试会话：请简短回答」",
+    "ok": true,
+    "screenshot": "62-conversation-open-after.png"
+  },
+  {
+    "step": 63,
+    "action": "点击会话项「更多」按钮",
+    "target": ".history-item .more",
+    "expected": "出现「重命名 / 删除」菜单（无分享项）",
+    "observed": "菜单： 重命名 删除；含分享项=false",
+    "ok": true,
+    "screenshot": "63-item-menu-open-after.png"
+  },
+  {
+    "step": 64,
+    "action": "点击菜单「重命名」",
+    "target": "菜单项 重命名",
+    "expected": "弹出「重命名对话」弹窗，输入框预填当前标题",
+    "observed": "弹窗「重命名对话」，预填「这是一段模拟回答：侧栏测试会话：请简短回答」",
+    "ok": true,
+    "screenshot": "64-rename-open-after.png"
+  },
+  {
+    "step": 65,
+    "action": "输入新标题并点击「保存」",
+    "target": "弹窗「保存」",
+    "expected": "重命名成功，Toast「已重命名」，侧栏与顶栏标题更新",
+    "observed": "Toast「已重命名」；侧栏「重命名后的对话-QA」；顶栏「重命名后的对话-QA」",
+    "ok": true,
+    "screenshot": "65-rename-submit-after.png"
+  },
+  {
+    "step": 66,
+    "action": "再次打开会话菜单并点击「删除」",
+    "target": "菜单项 删除",
+    "expected": "弹出二次确认框「删除这个对话？」",
+    "observed": "确认框：删除这个对话？ 「重命名后的对话-QA」及其消息将被永久删除，无法恢复。 取 消删 除",
+    "ok": true,
+    "screenshot": "66-delete-open-after.png"
+  },
+  {
+    "step": 67,
+    "action": "点击确认框「取消」",
+    "target": "确认框 取消",
+    "expected": "弹窗关闭，会话仍保留",
+    "observed": "确认框已关闭；会话仍存在（1 项）",
+    "ok": true,
+    "screenshot": "67-delete-cancel-after.png"
+  },
+  {
+    "step": 68,
+    "action": "再次点击「删除」并确认",
+    "target": "确认框 删除",
+    "expected": "会话被删除，Toast「对话已删除」，当前页回到空态",
+    "observed": "Toast「对话已删除」；会话已消失；回到空态=true",
+    "ok": true,
+    "screenshot": "68-delete-confirm-after.png"
+  },
+  {
+    "step": 69,
+    "action": "点击底部账号卡片",
+    "target": ".user-card",
+    "expected": "弹出账号菜单（账号与密码 / 退出登录）",
+    "observed": "菜单：ux-user 免费版 账号与密码 退出登录",
+    "ok": true,
+    "screenshot": "69-account-menu-open-after.png"
+  },
+  {
+    "step": 70,
+    "action": "点击「账号与密码」",
+    "target": "菜单项 账号与密码",
+    "expected": "弹出「账号设置」弹窗，含账号信息与 3 个改密输入框",
+    "observed": "弹窗「账号设置」；改密输入框 3 个",
+    "ok": true,
+    "screenshot": "70-account-modal-open-after.png"
+  },
+  {
+    "step": 71,
+    "action": "填写两次不一致的新密码并提交",
+    "target": "账号设置-更新密码",
+    "expected": "表单内提示「两次输入的新密码不一致」，不发起改密",
+    "observed": "表单错误「两次输入的新密码不一致」",
+    "ok": true,
+    "screenshot": "71-password-mismatch-after.png"
+  },
+  {
+    "step": 72,
+    "action": "修正确认密码、使用错误的当前密码提交",
+    "target": "账号设置-更新密码",
+    "expected": "服务端拒绝并提示当前密码错误，密码不变",
+    "observed": "服务端错误提示「当前密码不正确」",
+    "ok": true,
+    "screenshot": "72-password-wrong-old-after.png"
+  },
+  {
+    "step": 73,
+    "action": "点击弹窗右上角关闭",
+    "target": ".ant-modal-close",
+    "expected": "账号设置弹窗关闭，回到工作台",
+    "observed": "账号设置弹窗已关闭",
+    "ok": true,
+    "screenshot": "73-account-modal-close-after.png"
+  },
+  {
+    "step": 74,
+    "action": "检查「安装到桌面」入口",
+    "target": "账号菜单",
+    "expected": "如浏览器支持安装，菜单出现「安装到桌面」；否则记录不可用",
+    "observed": "账号菜单未出现「安装到桌面」；headless 环境不触发 beforeinstallprompt，属环境限制",
+    "ok": true,
+    "screenshot": "74-install-check-after.png"
+  },
+  {
+    "step": 75,
+    "action": "打开账号菜单并点击「退出登录」",
+    "target": "菜单项 退出登录",
+    "expected": "出现退出确认弹窗，可取消（任务预期）",
+    "observed": "点击后直接跳转 /login（确认弹窗：点击前 0 个、点击后 0 个）——缺少二次确认",
+    "ok": false,
+    "screenshot": "75-logout-after.png"
+  },
+  {
+    "step": 76,
+    "action": "深色模式下打开登录页",
+    "target": "/login",
+    "expected": "页面使用深色配色，表单可正常输入",
+    "observed": "body 背景亮度=0.08（<0.35 视为深色）；输入框背景=rgb(25, 28, 35)",
+    "ok": true,
+    "screenshot": "76-dark-login-after.png"
+  },
+  {
+    "step": 77,
+    "action": "深色模式登录并查看空态",
+    "target": "/",
+    "expected": "聊天空态使用深色主题，文字对比可读",
+    "observed": "背景亮度=0.11；问候文字颜色=rgb(230, 233, 239)",
+    "ok": true,
+    "screenshot": "77-dark-empty-after.png"
+  },
+  {
+    "step": 78,
+    "action": "深色模式发送消息并等待回答",
+    "target": ".composer-input / .send-btn",
+    "expected": "消息气泡、代码/操作栏在深色下正常渲染",
+    "observed": "背景亮度=0.11；助手消息 1 条；正文 30 字",
+    "ok": true,
+    "screenshot": "78-dark-session-after.png"
+  },
+  {
+    "step": 79,
+    "action": "深色模式查看侧栏与消息操作栏",
+    "target": ".chat-sidebar",
+    "expected": "侧栏、会话项、账号卡片在深色下对比清晰",
+    "observed": "侧栏背景亮度=0.10；会话项 16 条；操作栏已悬停显示",
+    "ok": true,
+    "screenshot": "79-dark-sidebar-after.png"
+  },
+  {
+    "step": 80,
+    "action": "移动视口打开登录页",
+    "target": "/login",
+    "expected": "单列布局，表单与按钮在 390px 内完整显示、无横向滚动",
+    "observed": "横向溢出=0px；登录按钮宽=354px",
+    "ok": true,
+    "screenshot": "80-mobile-login-after.png"
+  },
+  {
+    "step": 81,
+    "action": "移动端登录进入空态",
+    "target": "/",
+    "expected": "顶栏出现菜单按钮，输入区适配底部安全区",
+    "observed": "菜单按钮 1 个；横向溢出=0px",
+    "ok": true,
+    "screenshot": "81-mobile-empty-after.png"
+  },
+  {
+    "step": 82,
+    "action": "点击顶栏菜单按钮",
+    "target": ".chat-topbar .menu-btn",
+    "expected": "侧栏以抽屉形式滑出，带遮罩",
+    "observed": "抽屉已打开；宽度=280px；遮罩 1 个",
+    "ok": true,
+    "screenshot": "82-mobile-drawer-open-after.png"
+  },
+  {
+    "step": 83,
+    "action": "点击遮罩关闭抽屉",
+    "target": ".sidebar-backdrop",
+    "expected": "抽屉收起，回到聊天区",
+    "observed": "抽屉已关闭",
+    "ok": true,
+    "screenshot": "83-mobile-drawer-close-after.png"
+  },
+  {
+    "step": 84,
+    "action": "移动端发送消息并等待回答",
+    "target": ".composer-input / .send-btn",
+    "expected": "消息、操作栏与输入区在 390px 下正常布局",
+    "observed": "横向溢出=0px；输入区宽度=366px",
+    "ok": true,
+    "screenshot": "84-mobile-session-after.png"
+  },
+  {
+    "step": 85,
+    "action": "会话页打开侧栏抽屉",
+    "target": ".chat-topbar .menu-btn",
+    "expected": "会话页可打开抽屉，会话项可点",
+    "observed": "抽屉打开，会话项 17 条",
+    "ok": true,
+    "screenshot": "85-mobile-sidebar-after.png"
+  },
+  {
+    "step": 86,
+    "action": "移动端打开模型下拉",
+    "target": ".model-select",
+    "expected": "下拉在 390px 内完整展示可选模型",
+    "observed": "下拉位置 x=197 w=151，选项 1 个",
+    "ok": true,
+    "screenshot": "86-mobile-model-open-after.png"
+  },
+  {
+    "step": 87,
+    "action": "移动端点击输入框并输入文本",
+    "target": ".composer-input",
+    "expected": "输入框聚焦、可输入，发送按钮可用",
+    "observed": "输入值「移动端输入测试」；聚焦=true",
+    "ok": true,
+    "screenshot": "87-mobile-input-focus-after.png"
+  }
+]

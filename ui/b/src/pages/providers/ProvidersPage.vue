@@ -14,7 +14,7 @@ import {
   RightOutlined,
   SafetyCertificateOutlined,
 } from '@ant-design/icons-vue'
-import { formatChangeTime, formatContext } from '@deeptalk/shared'
+import { formatChangeTime, formatContext, del } from '@deeptalk/shared'
 import type { AdminModel, AuditItem, HealthInfo, ProviderInfo, Routing } from '@deeptalk/shared'
 import {
   fetchAuditLogs,
@@ -294,6 +294,17 @@ async function applyModelToggle(model: AdminModel, enabled: boolean): Promise<vo
 }
 
 /** 模型开关变化。 */
+/** 删除模型：二次确认后调用 DELETE /b/models/:id。 */
+async function onModelDelete(model: AdminModel): Promise<void> {
+  try {
+    await del(`/b/models/${model.id}`)
+    models.value = models.value.filter((item) => item.id !== model.id)
+    message.success('模型已删除')
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : '删除失败')
+  }
+}
+
 function onModelSwitch(model: AdminModel, checked: unknown): void {
   onModelToggle(model, Boolean(checked))
 }
@@ -449,6 +460,7 @@ onBeforeUnmount(() => {
                     <th class="col-context">上下文</th>
                     <th class="col-concurrency">并发</th>
                     <th class="col-status">状态</th>
+                    <th class="col-actions">操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -483,6 +495,16 @@ onBeforeUnmount(() => {
                         :aria-label="`${model.model_id} 启用开关`"
                         @change="onModelSwitch(model, $event)"
                       />
+                    </td>
+                    <td class="col-actions" @click.stop>
+                      <a-popconfirm
+                        title="删除后不可恢复，确定删除该模型？"
+                        ok-text="删除"
+                        cancel-text="取消"
+                        @confirm="onModelDelete(model)"
+                      >
+                        <a-button type="link" danger size="small" :aria-label="`删除 ${model.model_id}`">删除</a-button>
+                      </a-popconfirm>
                     </td>
                   </tr>
                 </tbody>
@@ -1356,5 +1378,10 @@ onBeforeUnmount(() => {
   .col-status {
     width: 20%;
   }
+}
+
+.col-actions {
+  width: 76px;
+  text-align: right;
 }
 </style>

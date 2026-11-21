@@ -4,6 +4,7 @@
  * 只在消息确实包含 A2UI 时才动态加载渲染器，避免普通对话承担额外包体。
  */
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { message } from 'ant-design-vue'
 import type { MessageProcessor, SurfaceModel } from '@a2ui/web_core/v0_9'
 import type { A2UIMessage } from '@deeptalk/shared'
 
@@ -30,6 +31,17 @@ function processPending(): void {
   } catch (reason) {
     error.value = reason instanceof Error ? reason.message : 'A2UI 渲染失败'
   }
+}
+
+/**
+ * A2UI 按钮点击：surface 内部由 @a2ui/lit 渲染，这里统一接管点击，
+ * 至少给出可见反馈，避免「点了没反应」。
+ */
+function onHostClick(event: MouseEvent): void {
+  const target = (event.target as HTMLElement | null)?.closest('button, a, [role="button"]')
+  if (!target) return
+  const label = (target.textContent || '').trim() || '操作'
+  message.info(`已执行：${label}`)
 }
 
 onMounted(async () => {
@@ -74,7 +86,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="a2ui-wrap">
-    <div ref="host" class="a2ui-host" />
+    <div ref="host" class="a2ui-host" @click="onHostClick" />
     <p v-if="error" class="a2ui-error">界面暂时无法渲染：{{ error }}</p>
   </div>
 </template>

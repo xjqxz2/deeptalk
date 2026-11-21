@@ -10,7 +10,7 @@ import {
   SafetyCertificateOutlined,
   TeamOutlined,
 } from '@ant-design/icons-vue'
-import { formatBytes, formatNumber, formatTokens, roleLabel } from '@deeptalk/shared'
+import { formatBytes, formatNumber, formatTokens, roleLabel, put } from '@deeptalk/shared'
 import type { AdminModel, SettingsInfo } from '@deeptalk/shared'
 import { fetchModels, fetchSettings, updateRouting, updateSettings } from '@/services/admin'
 import { useAdminStore } from '@/stores/admin'
@@ -24,8 +24,10 @@ const loading = ref(true)
 const settings = ref<SettingsInfo | null>(null)
 const models = ref<AdminModel[]>([])
 const defaultModelId = ref(0)
-const fallbackModelId = ref(0)
+const fallbackModelId = ref<number | undefined>(undefined)
 const maxOutputTokens = ref(384000)
+const siteName = ref('')
+const savingSiteName = ref(false)
 const savingRegistration = ref(false)
 const savingRouting = ref(false)
 const savingBudget = ref(false)
@@ -49,8 +51,9 @@ async function load(showError = true): Promise<void> {
     settings.value = settingsData
     models.value = modelData.items
     defaultModelId.value = modelData.routing.default_model_id
-    fallbackModelId.value = modelData.routing.fallback_model_id
+    fallbackModelId.value = modelData.routing.fallback_model_id || undefined
     maxOutputTokens.value = settingsData.max_output_tokens
+    siteName.value = settingsData.site_name || '' 
   } catch (error) {
     if (showError) message.error(error instanceof Error ? error.message : '设置加载失败')
   } finally {
@@ -92,6 +95,24 @@ async function applyRegistration(value: boolean): Promise<void> {
 }
 
 /** 保存单次输出预算（thinking + 正文共用）。 */
+/** 保存站点名称。 */
+async function saveSiteName(): Promise<void> {
+  const name = siteName.value.trim()
+  if (!name) {
+    message.warning('站点名称不能为空')
+    return
+  }
+  savingSiteName.value = true
+  try {
+    settings.value = await put<SettingsInfo>('/b/settings', { site_name: name })
+    message.success('站点名称已保存')
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : '保存失败')
+  } finally {
+    savingSiteName.value = false
+  }
+}
+
 async function saveBudget(): Promise<void> {
   if (maxOutputTokens.value < 1024 || maxOutputTokens.value > 1_000_000) {
     message.warning('输出预算需在 1024–1,000,000 tokens 之间')
@@ -123,7 +144,7 @@ async function saveRouting(): Promise<void> {
   try {
     await updateRouting({
       default_model_id: defaultModelId.value,
-      fallback_model_id: fallbackModelId.value,
+      fallback_model_id: fallbackModelId.value || 0,
     })
     message.success('默认路由已保存')
     await admin.loadShell()
@@ -288,6 +309,16 @@ onMounted(async () => {
               {{ formatBytes(settings?.storage_used_bytes ?? 0) }} /
               {{ formatBytes(settings?.storage_total_bytes ?? 0) }}
             </span>
+          </div>
+          <div class="site-name-row">
+            <label class="field-label">站点名称</label>
+            <a-input
+              v-model:value="siteName"
+              :maxlength="32"
+              placeholder="例如：小橘树洞"
+              class="site-name-input"
+            />
+            <a-button type="primary" size="small" :loading="savingSiteName" @click="saveSiteName">保存名称</a-button>
           </div>
           <div class="info-rows">
             <div><span>站点名称</span><strong>{{ settings?.site_name ?? '小橘树洞' }}</strong></div>
@@ -678,5 +709,16 @@ onMounted(async () => {
     align-items: flex-start;
     flex-direction: column;
   }
+}
+
+.site-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 16px;
+}
+
+.site-name-input {
+  max-width: 240px;
 }
 </style>

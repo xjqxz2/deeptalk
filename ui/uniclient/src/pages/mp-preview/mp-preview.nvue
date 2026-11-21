@@ -1,5 +1,14 @@
 <template>
   <view class="page">
+    <!-- 小程序授权登录页预览（真机为 #ifdef MP-WEIXIN 分支） -->
+    <view class="wx-login-card">
+      <image class="wx-login-logo" src="/static/logo.png" mode="aspectFit" />
+      <text class="wx-login-title">小橘树洞</text>
+      <text class="wx-login-sub">微信授权即可开始对话</text>
+      <view class="wx-login-action"><text class="wx-login-action-text">微信一键登录</text></view>
+      <text class="wx-login-agree">登录即表示同意《服务条款》与《隐私政策》</text>
+    </view>
+
     <view class="status-spacer" style="height: 44px" />
     <view class="topbar">
       <view class="topbar-menu">
@@ -40,4 +49,47 @@ const messages = ref([
 
 <style>
 @import '../../styles/nvue-chat.css';
+
+.wx-login-card {
+  padding: 48rpx 40rpx 40rpx;
+  align-items: center;
+  background-color: #f7f8fa;
+  border-bottom-width: 1rpx;
+  border-bottom-style: solid;
+  border-bottom-color: #eaecf0;
+}
+.wx-login-logo {
+  width: 120rpx;
+  height: 120rpx;
+}
+.wx-login-title {
+  margin-top: 16rpx;
+  color: #101828;
+  font-size: 34rpx;
+  font-weight: bold;
+}
+.wx-login-sub {
+  margin-top: 8rpx;
+  color: #667085;
+  font-size: 22rpx;
+}
+.wx-login-action {
+  margin-top: 24rpx;
+  width: 80%;
+  height: 72rpx;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16rpx;
+  background-color: #07c160;
+}
+.wx-login-action-text {
+  color: #ffffff;
+  font-size: 26rpx;
+  font-weight: bold;
+}
+.wx-login-agree {
+  margin-top: 16rpx;
+  color: #b0b7c3;
+  font-size: 20rpx;
+}
 </style>

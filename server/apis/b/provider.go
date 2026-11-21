@@ -283,3 +283,18 @@ func (h *ProviderController) Health(c *gin.Context) {
 	}
 	responses.OK(c, health)
 }
+
+// DeleteModel 删除单个模型；预置模型不可删除。
+func (h *ProviderController) DeleteModel(c *gin.Context) {
+	id, ok := parseID(c.Param("id"))
+	if !ok {
+		responses.Fail(c, responses.CodeInvalidArgument, "模型 ID 不合法")
+		return
+	}
+	if err := h.providers.DeleteModel(c.Request.Context(), id); err != nil {
+		responses.FromError(c, err)
+		return
+	}
+	recordAudit(c, h.audits, "model.delete", "model", id, "删除模型")
+	responses.OK(c, nil)
+}

@@ -1,0 +1,24 @@
+{
+ "pageErrors": [],
+ "consoleErrors": [
+  {
+   "label": "chat",
+   "type": "warning",
+   "text": "文件选择器对话框只能在由用户激活时显示",
+   "at": "2026-11-21T13:51:12.881Z"
+  },
+  {
+   "label": "chat",
+   "type": "error",
+   "text": "TypeError: e.onRate is not a function\n    at onRate (http://127.0.0.1:5323/assets/pages-chat-chat.oiz0VQ8V.js:7:278019)\n    at Wn (http://127.0.0.1:5323/assets/index-BB0zq0OE.js:18:10153)\n    at qn (http://127.0.0.1:5323/assets/index-BB0zq0OE.js:18:10223)\n    at uo (http://127.0.0.1:5323/assets/index-BB0zq0OE.js:18:12125)\n    at e.message.role.N.value.s.onClick.n.<computed>.n.<computed> (http://127.0.0.1:5323/assets/pages-chat-chat.oiz0VQ8V.js:7:236292)\n    at Wn (http://127.0.0.1:5323/assets/index-BB0zq0OE.js:18:10153)\n    at qn (http://127.0.0.1:5323/assets/index-BB0zq0OE.js:18:10223)\n    at",
+   "at": "2026-11-21T13:51:25.091Z"
+  },
+  {
+   "label": "chat",
+   "type": "error",
+   "text": "TypeError: e.onRate is not a function\n    at onRate (http://127.0.0.1:5323/assets/pages-chat-chat.oiz0VQ8V.js:7:278019)\n    at Wn (http://127.0.0.1:5323/assets/index-BB0zq0OE.js:18:10153)\n    at qn (http://127.0.0.1:5323/assets/index-BB0zq0OE.js:18:10223)\n    at uo (http://127.0.0.1:5323/assets/index-BB0zq0OE.js:18:12125)\n    at e.message.role.N.value.s.onClick.n.<computed>.n.<computed> (http://127.0.0.1:5323/assets/pages-chat-chat.oiz0VQ8V.js:7:236476)\n    at Wn (http://127.0.0.1:5323/assets/index-BB0zq0OE.js:18:10153)\n    at qn (http://127.0.0.1:5323/assets/index-BB0zq0OE.js:18:10223)\n    at",
+   "at": "2026-11-21T13:51:26.897Z"
+  }
+ ],
+ "httpErrors": []
+}

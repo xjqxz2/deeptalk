@@ -876,3 +876,29 @@ func validHeaderName(name string) bool {
 	}
 	return true
 }
+
+// DeleteModel 删除单个模型；预置模型只允许停用，不能删除。
+func (s *Service) DeleteModel(ctx context.Context, id uint) error {
+	var model Model
+	if err := s.db.WithContext(ctx).First(&model, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrModelNotFound
+		}
+		return err
+	}
+	var prov Provider
+	if err := s.db.WithContext(ctx).First(&prov, model.ProviderID).Error; err != nil {
+		return err
+	}
+	if prov.IsBuiltin && prov.IsDefault && model.IsDefault {
+		return ErrBuiltinDelete
+	}
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if model.IsDefault || model.IsFallback {
+			if err := s.SetRouting(ctx, 0, 0); err != nil {
+				return err
+			}
+		}
+		return tx.Delete(&Model{}, id).Error
+	})
+}

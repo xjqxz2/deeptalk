@@ -1,0 +1,127 @@
+{
+  "generated_at": "2026-11-21T13:46:00Z",
+  "target": "DeepTalk 管理端（B 端）逐交互点 UI 测试",
+  "base_url": "http://127.0.0.1:5322",
+  "api_base": "http://127.0.0.1:9861 (5322 代理 /api)",
+  "account": "xjqxz_2@163.com",
+  "totals": {
+    "steps": 95,
+    "passed": 87,
+    "failed": 8,
+    "screenshots": 216
+  },
+  "failures": [
+    {
+      "step": 2,
+      "action": "点击登录页底部「返回对话工作台」链接",
+      "target": "a.workspace-link",
+      "expected": "跳转到 C 端对话工作台页面",
+      "observed": "点击后 URL=/login?redirect=/overview；页面标题=\"登录平台控制台\"；未离开后台登录页（5322 根路径即后台应用，链接被路由守卫弹回）",
+      "ok": false,
+      "screenshot": "03-02-返回对话工作台链接-操作后.png"
+    },
+    {
+      "step": 24,
+      "action": "点击侧栏「返回对话工作台」",
+      "target": ".sidebar-nav a.back-link",
+      "expected": "跳转到 C 端对话工作台",
+      "observed": "跳转后 URL=/overview；页面标题=\"概览\"（href=\"/\" 在 5322 被后台路由接管，仍停留在控制台）",
+      "ok": false,
+      "screenshot": "41-24-侧栏返回对话工作台-操作后.png"
+    },
+    {
+      "step": 25,
+      "action": "在概览页寻找时间范围切换控件",
+      "target": "概览页 PageHeader / 用量趋势面板",
+      "expected": "概览页提供时间范围切换（如 7/14/30 天）",
+      "observed": "概览页 segmented=0、范围按钮=0；趋势面板副标题固定为\"最近 14 天 tokens 与消息量\"（时间范围只在「用量统计」页提供）",
+      "ok": false,
+      "screenshot": "44-25-概览时间范围切换-操作后.png"
+    },
+    {
+      "step": 48,
+      "action": "打开 qa-model-2 的编辑弹窗，查找删除模型入口",
+      "target": "模型编辑弹窗（ModelFormModal）",
+      "expected": "模型应提供删除操作",
+      "observed": "弹窗\"编辑模型\"按钮=[\"取 消\",\"保 存\"]；删除模型入口=0（模型表行内也无删除项，后端路由仅 POST/PUT/PATCH，无 DELETE）",
+      "ok": false,
+      "screenshot": "214-104-复验2-删除模型入口缺失-操作后.png"
+    },
+    {
+      "step": 77,
+      "action": "检查按天明细表是否支持点击表头排序",
+      "target": ".usage-table thead th",
+      "expected": "表格支持排序（表头可点击）",
+      "observed": "可排序表头=0（原生 table，无排序控件）；表头=\"日期\t消息数\ttokens\t单条均值\t占总量\"；点击表头无任何反馈",
+      "ok": false,
+      "screenshot": "163-77-用量表格排序检查-操作后.png"
+    },
+    {
+      "step": 78,
+      "action": "在用量页查找导出按钮",
+      "target": "/usage 页头操作区",
+      "expected": "用量统计提供导出（下载）入口",
+      "observed": "导出按钮=0；页头操作=\"、7 天 / 14 天 / 30 天 / 刷新\"（导出仅存在于用户管理页）",
+      "ok": false,
+      "screenshot": "164-78-用量导出按钮检查-操作后.png"
+    },
+    {
+      "step": 81,
+      "action": "在设置页查找「站点名称」输入框",
+      "target": "设置页右侧「存储与运行」面板",
+      "expected": "站点名称可输入并保存",
+      "observed": "侧栏输入框数量=0；站点名称以只读文本展示：\"站点名称 / 小橘树洞\"（无编辑入口）",
+      "ok": false,
+      "screenshot": "171-81-站点名称可编辑性检查-操作后.png"
+    },
+    {
+      "step": 93,
+      "action": "进入系统设置，查看「兜底模型」下拉在未设置时的显示",
+      "target": "/settings .routing-select 第二个（兜底模型）",
+      "expected": "未设置兜底时应显示占位文案「不设置兜底」",
+      "observed": "下拉数量=2；默认模型=\"DeepSeek-V4.1-Flash · DeepSeek\"；兜底模型=\"0\"（fallback_model_id=0 被当作合法值渲染成 \"0\"，未显示占位「不设置兜底」）",
+      "ok": false,
+      "screenshot": "205-101-兜底模型下拉占位显示检查-操作后.png"
+    }
+  ],
+  "console": {
+    "pageerror": [],
+    "console_error": [
+      {
+        "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "count": 5,
+        "url": "/api/v1/c/auth/me",
+        "note": "登录前 bootstrap 会话探测，属预期（未登录→401），不阻塞使用"
+      },
+      {
+        "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+        "count": 2,
+        "url": "/api/v1/c/auth/login",
+        "note": "用例「07-错误密码登录」故意提交错误密码，前端已用 .form-error 展示「邮箱或密码不正确」"
+      }
+    ]
+  },
+  "api": [
+    {
+      "status": 401,
+      "method": "GET",
+      "url": "/api/v1/c/auth/me",
+      "count": 5,
+      "note": "未登录会话探测（预期）"
+    },
+    {
+      "status": 400,
+      "method": "POST",
+      "url": "/api/v1/c/auth/login",
+      "count": 2,
+      "note": "错误密码用例（预期）"
+    }
+  ],
+  "server_errors_5xx": 0,
+  "failed_requests": [],
+  "notes": [
+    "全程未出现 pageerror / Vue 警告级错误，无 5xx 与网络失败。",
+    "截图命名 NN-说明-操作前/操作后.png，与服务端截图前缀连续编号。",
+    "测试期间写入的数据（临时厂商、模型、套餐限额、额度、预算）均已还原为基线；仅审计日志与用例产生的额外测试账号（其他代理）存在。"
+  ]
+}

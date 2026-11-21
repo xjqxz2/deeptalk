@@ -177,7 +177,7 @@ func (h *AuthController) Config(c *gin.Context) {
 	responses.OK(c, gin.H{
 		"allow_registration": allow,
 		"has_users":          count > 0,
-		"site_name":          "小橘树洞",
+		"site_name":          h.settings.Get(c.Request.Context(), setting.KeySiteName, "小橘树洞"),
 		"web_search_enabled": h.searchEnabled,
 	})
 }
