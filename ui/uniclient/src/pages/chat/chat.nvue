@@ -72,7 +72,8 @@
   <!-- #ifndef H5 -->
   <view class="page">
     <!-- 顶栏 -->
-    <view class="topbar" :style="topbarStyle">
+    <view class="status-spacer" :style="statusBarStyle" />
+    <view class="topbar">
       <view class="topbar-menu" @click="drawerOpen = true">
         <view class="bar" />
         <view class="bar" />
@@ -238,7 +239,7 @@
  * 生成走 WebSocket；与 Web 端共享同一套后端接口与事件。
  */
 import { computed, ref, nextTick, onMounted } from 'vue'
-import { onReady, onShow } from '@dcloudio/uni-app'
+import { onLoad, onReady, onShow } from '@dcloudio/uni-app'
 import MessageItem from '@/components/message-item.nvue'
 import Composer from '@/components/composer.nvue'
 
@@ -281,10 +282,8 @@ const scroller = ref(null)
 // 自定义导航栏：需要自己给状态栏留高度，并避开右上角的胶囊按钮
 const statusBarHeight = ref(0)
 const capsuleInset = ref(0)
-const topbarStyle = computed(() => {
-  if (!statusBarHeight.value) return ''
-  return `padding-top:${statusBarHeight.value}px;height:${statusBarHeight.value + 44}px;`
-})
+// 状态栏占位：拿不到系统值时按 20px 兜底，避免内容压到状态栏上
+const statusBarStyle = computed(() => `height:${statusBarHeight.value || 0}px;`)
 const avatarStyle = computed(() => (capsuleInset.value ? `margin-right:${capsuleInset.value}px;` : ''))
 const drawerOpen = ref(false)
 const scrollTarget = ref('')
@@ -500,7 +499,7 @@ function measureChrome() {
   // #ifndef H5
   try {
     const info = uni.getSystemInfoSync()
-    statusBarHeight.value = info.statusBarHeight || 0
+    statusBarHeight.value = info.statusBarHeight || 20
     if (typeof uni.getMenuButtonBoundingClientRect === 'function') {
       const capsule = uni.getMenuButtonBoundingClientRect()
       if (capsule && capsule.left) {
@@ -515,12 +514,16 @@ function measureChrome() {
 
 // 首帧渲染完再判断登录态：微信里在 onLaunch / onMounted 阶段 reLaunch 会报
 // "routeDone with a webviewId N is not found"
+// 首帧之前量好状态栏与胶囊，避免内容先画到状态栏上再跳一下
+onLoad(() => {
+  measureChrome()
+})
+
 onReady(() => {
   if (!isLoggedIn()) goLogin()
 })
 
 onMounted(async () => {
-  measureChrome()
   // 没登录就不发任何请求：否则会同时打出 3 个 401，进而触发多次跳转
   if (!isLoggedIn()) return
   chatSocket.connect()
@@ -543,8 +546,12 @@ onShow(() => {
   overflow: hidden;
   background-color: #ffffff;
 }
+.status-spacer {
+  flex-shrink: 0;
+  background-color: #ffffff;
+}
 .topbar {
-  height: 88rpx;
+  height: 96rpx;
   flex-shrink: 0;
   flex-direction: row;
   align-items: center;

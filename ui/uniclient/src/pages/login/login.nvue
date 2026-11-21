@@ -6,7 +6,8 @@
   <!-- #ifndef H5 -->
   <view class="page">
     <!-- 顶部：品牌 + 注册入口 -->
-    <view class="topbar" :style="topbarStyle">
+    <view class="status-spacer" :style="statusBarStyle" />
+    <view class="topbar">
       <view class="brand">
         <image class="brand-logo" src="/static/shark.png" mode="aspectFit" />
         <text class="brand-name">DeepTalk</text>
@@ -95,9 +96,7 @@ const canSubmit = computed(() => email.value.trim().length > 0 && password.value
 
 // 自定义导航栏：小程序端要给状态栏留出高度
 const statusBarHeight = ref(0)
-const topbarStyle = computed(() =>
-  statusBarHeight.value ? `padding-top:${statusBarHeight.value}px;height:${statusBarHeight.value + 44}px;` : '',
-)
+const statusBarStyle = computed(() => `height:${statusBarHeight.value || 0}px;`)
 
 onReady(() => {
   // 已经有登录态就直接进聊天页
@@ -107,7 +106,7 @@ onReady(() => {
 onMounted(() => {
   // #ifndef H5
   try {
-    statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0
+    statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 20
   } catch {
     /* 忽略 */
   }
@@ -140,6 +139,10 @@ async function submit() {
   flex: 1;
   height: 100%;
   padding: 0 48rpx;
+  background-color: #ffffff;
+}
+.status-spacer {
+  flex-shrink: 0;
   background-color: #ffffff;
 }
 .topbar {
