@@ -17,6 +17,7 @@ import (
 	"deeptalk/internal/provider"
 	"deeptalk/internal/setting"
 	"deeptalk/internal/user"
+	"deeptalk/internal/wechat"
 	"deeptalk/web"
 
 	"github.com/gin-gonic/gin"
@@ -39,6 +40,7 @@ type Deps struct {
 	Attachments *attachment.Service // 图片附件
 	Settings    *setting.Service    // 设置
 	Audits      *audit.Service      // 审计
+	WeChat      *wechat.Manager     // 小程序 access_token（未配置时为 nil）
 }
 
 // NewRouter 装配全部路由、中间件与静态资源。

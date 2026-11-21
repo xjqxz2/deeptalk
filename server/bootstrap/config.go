@@ -25,6 +25,7 @@ type Config struct {
 	WebSearch WebSearchConfig `yaml:"web_search"` // 联网检索策略
 	MCP       MCPConfig       `yaml:"mcp"`        // MCP client（当前对接 Obscura）
 	Uploads   UploadsConfig   `yaml:"uploads"`    // 图片附件存储
+	WeChat    WeChatConfig    `yaml:"wechat"`     // 小程序凭据（access_token 管理）
 	Context   ContextConfig   `yaml:"context"`    // 长上下文压缩
 }
 
@@ -109,6 +110,16 @@ type MCPConfig struct {
 	Env             map[string]string `yaml:"env"`              // 追加/覆盖子进程环境变量
 	ProtocolVersion string            `yaml:"protocol_version"` // MCP 协议版本
 	TimeoutSec      int               `yaml:"timeout_sec"`      // 连接与单次工具调用超时
+}
+
+// WeChatConfig 保存微信小程序相关配置。
+// AppID / Secret 属于凭据，生产环境请用环境变量覆盖，不要写进提交到仓库的文件。
+type WeChatConfig struct {
+	AppID       string `yaml:"app_id"`       // 小程序 AppID
+	Secret      string `yaml:"secret"`       // 小程序 AppSecret
+	TokenBuffer int    `yaml:"token_buffer"` // 提前刷新秒数
+	TimeoutSec  int    `yaml:"timeout_sec"`  // 单次请求超时秒数
+	Enabled     bool   `yaml:"enabled"`      // 是否启用（缺凭据时自动关闭）
 }
 
 // UploadsConfig 保存图片附件配置。
@@ -226,6 +237,17 @@ func applyEnvOverrides(cfg *Config) {
 	}
 	if v := os.Getenv("DEEPTALK_REASONING_EFFORT"); v != "" {
 		cfg.Upstream.ReasoningEffort = strings.ToLower(v)
+	}
+	if v := os.Getenv("DEEPTALK_WECHAT_APPID"); v != "" {
+		cfg.WeChat.AppID = v
+	}
+	if v := os.Getenv("DEEPTALK_WECHAT_SECRET"); v != "" {
+		cfg.WeChat.Secret = v
+	}
+	if v := os.Getenv("DEEPTALK_WECHAT_TOKEN_BUFFER"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			cfg.WeChat.TokenBuffer = n
+		}
 	}
 	if v := os.Getenv("DEEPTALK_UPLOAD_DIR"); v != "" {
 		cfg.Uploads.Dir = v
@@ -350,6 +372,15 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.Uploads.Dir == "" {
 		cfg.Uploads.Dir = "data/uploads"
+	}
+	if strings.TrimSpace(cfg.WeChat.AppID) != "" && strings.TrimSpace(cfg.WeChat.Secret) != "" {
+		cfg.WeChat.Enabled = true
+	}
+	if cfg.WeChat.TokenBuffer <= 0 {
+		cfg.WeChat.TokenBuffer = 300
+	}
+	if cfg.WeChat.TimeoutSec <= 0 {
+		cfg.WeChat.TimeoutSec = 10
 	}
 	if cfg.Uploads.MaxMB <= 0 {
 		cfg.Uploads.MaxMB = 8

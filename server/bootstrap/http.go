@@ -93,6 +93,7 @@ func (a *App) startHTTP(ctx context.Context) error {
 		Attachments: attachments,
 		Settings:    settings,
 		Audits:      audits,
+		WeChat:      a.WeChat,
 	}, a.Log)
 
 	listener, err := net.Listen("tcp", cfg.App.Addr)
