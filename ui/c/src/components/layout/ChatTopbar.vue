@@ -178,7 +178,7 @@ async function logout(): Promise<void> {
   padding: env(safe-area-inset-top) calc(18px + env(safe-area-inset-right)) 0
     calc(20px + env(safe-area-inset-left));
   border-bottom: 1px solid var(--dt-line);
-  background: #fff;
+  background: var(--dt-surface);
 }
 
 .topbar-left {
@@ -203,7 +203,7 @@ async function logout(): Promise<void> {
 }
 
 .menu-btn:hover {
-  background: #f4f6fa;
+  background: var(--dt-hover);
 }
 
 .title {
@@ -255,7 +255,7 @@ async function logout(): Promise<void> {
 }
 
 .more-btn:hover:not(:disabled) {
-  background: #f4f6fa;
+  background: var(--dt-hover);
 }
 
 .more-btn:disabled {
@@ -283,7 +283,7 @@ async function logout(): Promise<void> {
   padding: 2px 7px;
   border: 1px solid var(--dt-line);
   border-radius: 6px;
-  background: #f9fafc;
+  background: var(--dt-bg);
   color: var(--dt-text-muted);
   font-family: var(--dt-mono);
   font-size: 10.4px;

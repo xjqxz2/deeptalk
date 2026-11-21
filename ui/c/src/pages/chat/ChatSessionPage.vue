@@ -220,7 +220,7 @@ watch(
           :attachments="chat.attachments"
           :uploading="chat.uploading"
           :generating="chat.generating"
-          :placeholder="chat.generating ? '正在生成中，可随时停止…' : '继续追问，或让 DeepTalk 补充更多细节…'"
+          :placeholder="chat.generating ? '正在生成中，可随时停止…' : '继续追问，或让 小橘树洞 补充更多细节…'"
           @add-files="handleAddFiles"
           @remove-attachment="chat.removeAttachment"
           @send="handleSend"
@@ -330,14 +330,14 @@ watch(
 
 .back-to-bottom:hover {
   color: var(--dt-brand-hover);
-  border-color: #cfd9ff;
+  border-color: var(--dt-focus-ring);
 }
 
 .composer-dock {
   flex: 0 0 auto;
   padding: 8px calc(24px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom))
     calc(24px + env(safe-area-inset-left));
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #ffffff 26%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, var(--dt-surface) 26%);
 }
 
 .composer-inner {

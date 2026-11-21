@@ -56,7 +56,7 @@ onMounted(async () => {
     config.value = await fetchAuthConfig()
   } catch {
     // 配置接口失败时按开放注册处理，提交阶段仍会得到服务端真实结果
-    config.value = { allow_registration: true, has_users: true, site_name: 'DeepTalk', web_search_enabled: true }
+    config.value = { allow_registration: true, has_users: true, site_name: '小橘树洞', web_search_enabled: true }
   }
 })
 
@@ -250,7 +250,7 @@ async function onSubmit(): Promise<void> {
 }
 
 .rules li :deep(svg) {
-  color: #d0d5dd;
+  color: var(--dt-line);
   font-size: 10px;
 }
 
@@ -265,7 +265,7 @@ async function onSubmit(): Promise<void> {
 .form-error {
   margin: -4px 0 12px;
   padding: 9px 12px;
-  border: 1px solid #fee4e2;
+  border: 1px solid var(--dt-danger-soft);
   border-radius: 9px;
   background: var(--dt-danger-soft);
   color: var(--dt-danger-text);

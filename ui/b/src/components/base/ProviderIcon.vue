@@ -34,7 +34,7 @@ const label = computed(() => {
   justify-content: center;
   border-radius: 9px;
   border: 1px solid var(--dt-line-soft);
-  background: #f7f8fa;
+  background: var(--dt-bg);
   color: var(--dt-text-secondary);
   font-family: var(--dt-mono);
   font-size: 11px;
@@ -44,19 +44,19 @@ const label = computed(() => {
 }
 
 .provider-icon.deepseek {
-  background: #eef2ff;
+  background: var(--dt-brand-soft);
   border-color: #e0e7ff;
-  color: #3b5bdb;
+  color: var(--dt-brand-hover);
 }
 
 .provider-icon.openai {
-  background: #f2f4f7;
+  background: var(--dt-hover);
   border-color: #e7eaef;
   color: #101828;
 }
 
 .provider-icon.aliyun {
-  background: #fff4ed;
+  background: var(--dt-warning-soft);
   border-color: #ffe4d5;
   color: #c2410c;
 }

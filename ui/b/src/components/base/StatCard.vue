@@ -28,7 +28,7 @@ withDefaults(
   padding: 14px 18px;
   border: 1px solid var(--dt-line);
   border-radius: var(--dt-radius-card);
-  background: #fff;
+  background: var(--dt-surface);
   box-shadow: var(--dt-shadow-card);
 }
 

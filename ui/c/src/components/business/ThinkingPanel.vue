@@ -148,7 +148,7 @@ const hasBody = computed(() => Boolean(props.reasoning) || viewedSources.value.l
   margin: 10px 0 12px;
   border: 1px solid var(--dt-line-soft);
   border-radius: 10px;
-  background: #fafbfd;
+  background: var(--dt-sidebar);
   overflow: hidden;
 }
 
@@ -169,7 +169,7 @@ const hasBody = computed(() => Boolean(props.reasoning) || viewedSources.value.l
 }
 
 .thinking-head:hover {
-  background: #f7f8fb;
+  background: var(--dt-hover);
 }
 
 .mark {

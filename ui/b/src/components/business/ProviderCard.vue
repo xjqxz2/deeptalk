@@ -100,7 +100,7 @@ function onToggle(checked: boolean): void {
   padding: 14px 16px 12px;
   border: 1px solid var(--dt-line);
   border-radius: 14px;
-  background: #fff;
+  background: var(--dt-surface);
   box-shadow: var(--dt-shadow-card);
   cursor: pointer;
   transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
@@ -108,7 +108,7 @@ function onToggle(checked: boolean): void {
 }
 
 .provider-card:hover {
-  border-color: #cfd9ff;
+  border-color: var(--dt-focus-ring);
   box-shadow: 0 10px 22px rgba(16, 24, 40, 0.07);
   transform: translateY(-1px);
 }
@@ -184,7 +184,7 @@ function onToggle(checked: boolean): void {
 }
 
 .status.disabled {
-  background: #f2f4f7;
+  background: var(--dt-hover);
   color: var(--dt-text-muted);
 }
 
@@ -243,7 +243,7 @@ function onToggle(checked: boolean): void {
 }
 
 .tag.custom {
-  background: #f2f4f7;
+  background: var(--dt-hover);
   color: var(--dt-text-muted);
 }
 

@@ -21,7 +21,7 @@
     <block v-else>
       <view class="head">
         <image class="head-logo" src="/static/shark.png" mode="aspectFit" />
-        <text class="head-name">DeepTalk</text>
+        <text class="head-name">小橘树洞</text>
         <text class="head-model">{{ message.model_name || 'DeepSeek' }}</text>
       </view>
 
@@ -360,5 +360,52 @@ function copy(text) {
   text-align: right;
   color: #d0d5dd;
   font-size: 20rpx;
+}
+
+@media (prefers-color-scheme: dark) {
+  .bubble {
+    background-color: #23272f;
+  }
+  .bubble-text,
+  .paragraph,
+  .span {
+    color: #e6e9ef;
+  }
+  .head-name,
+  .h1,
+  .span-bold {
+    color: #f2f4f8;
+  }
+  .head-model,
+  .msg-time,
+  .typing,
+  .action,
+  .action-meta {
+    color: #7b8494;
+  }
+  .list-bullet,
+  .list-text,
+  .quote {
+    color: #c9cfda;
+  }
+  .code {
+    background-color: #0d0f14;
+  }
+  .code-head {
+    border-bottom-color: #23272f;
+  }
+  .notice {
+    background-color: #33260f;
+  }
+  .notice-text {
+    color: #fcd34d;
+  }
+  .error {
+    background-color: #3a1a1c;
+  }
+  .error-text,
+  .error-retry {
+    color: #fca5a5;
+  }
 }
 </style>

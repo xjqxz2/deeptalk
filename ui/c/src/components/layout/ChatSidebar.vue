@@ -269,7 +269,7 @@ function conversationTime(item: Conversation): string {
           <button type="button" class="user-card" aria-label="账号菜单">
             <span class="user-avatar">{{ user?.avatar_text ?? 'U' }}</span>
             <span class="user-meta">
-              <span class="user-name">{{ user?.nickname ?? '未登录' }}</span>
+              <span class="user-name">{{ user?.display_name || user?.nickname || user?.email || '未登录' }}</span>
               <span class="user-email" :title="user?.email">{{ user?.email }}</span>
             </span>
             <MoreOutlined class="user-more" />
@@ -410,7 +410,7 @@ function conversationTime(item: Conversation): string {
 }
 
 .collapse-btn:hover {
-  background: #eef1f6;
+  background: var(--dt-line-soft);
   color: var(--dt-text);
 }
 
@@ -429,9 +429,9 @@ function conversationTime(item: Conversation): string {
   width: 100%;
   height: 38px;
   padding: 0 11px;
-  border: 1px solid #e4e7ee;
+  border: 1px solid var(--dt-line);
   border-radius: 10px;
-  background: #fff;
+  background: var(--dt-surface);
   color: var(--dt-text-secondary);
   font-size: 12.4px;
   font-weight: 600;
@@ -467,12 +467,12 @@ function conversationTime(item: Conversation): string {
   margin: 10px 0 6px;
   height: 34px;
   border-radius: 9px;
-  background: #fff;
+  background: var(--dt-surface);
 }
 
 .search-input :deep(.ant-input-affix-wrapper) {
   border-color: #e7eaf0;
-  background: #fff;
+  background: var(--dt-surface);
   border-radius: 9px;
   padding-inline: 10px;
 }
@@ -521,7 +521,7 @@ function conversationTime(item: Conversation): string {
 }
 
 .history-item:hover {
-  background: #f1f3f8;
+  background: var(--dt-hover);
 }
 
 .history-item.active {
@@ -573,7 +573,7 @@ function conversationTime(item: Conversation): string {
 }
 
 .more:hover {
-  background: #fff;
+  background: var(--dt-surface);
 }
 
 .history-empty {
@@ -605,7 +605,7 @@ function conversationTime(item: Conversation): string {
 }
 
 .user-card:hover {
-  background: #f1f3f8;
+  background: var(--dt-hover);
 }
 
 .user-avatar,
@@ -698,12 +698,12 @@ function conversationTime(item: Conversation): string {
 }
 
 .rail-btn:hover {
-  background: #eef1f6;
+  background: var(--dt-line-soft);
   color: var(--dt-text);
 }
 
 .rail-btn.primary {
-  background: #fff;
+  background: var(--dt-surface);
   border: 1px solid #e3e7ef;
   color: var(--dt-brand);
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
@@ -732,7 +732,7 @@ function conversationTime(item: Conversation): string {
 }
 
 .rail-conv:hover {
-  background: #eef1f6;
+  background: var(--dt-line-soft);
 }
 
 .rail-conv.active {

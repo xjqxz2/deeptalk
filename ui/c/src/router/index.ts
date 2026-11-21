@@ -35,7 +35,7 @@ router.beforeEach(async (to) => {
 })
 
 router.afterEach((to) => {
-  const title = to.meta.title ? `${to.meta.title} · DeepTalk` : 'DeepTalk · AI 对话工作台'
+  const title = to.meta.title ? `${to.meta.title} · 小橘树洞` : '小橘树洞 · AI 对话工作台'
   document.title = title
 })
 

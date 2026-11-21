@@ -22,22 +22,22 @@ withDefaults(defineProps<{ plan: string }>(), { plan: 'free' })
 }
 
 .plan-tag.free {
-  background: #f2f4f7;
+  background: var(--dt-hover);
   color: #475467;
 }
 
 .plan-tag.pro {
-  background: #eef2ff;
-  color: #3b5bdb;
+  background: var(--dt-brand-soft);
+  color: var(--dt-brand-hover);
 }
 
 .plan-tag.team {
-  background: #ecfdf3;
+  background: var(--dt-success-soft);
   color: #067647;
 }
 
 .plan-tag.unlimited {
-  background: #fff4ed;
-  color: #b93815;
+  background: var(--dt-warning-soft);
+  color: var(--dt-danger-text);
 }
 </style>

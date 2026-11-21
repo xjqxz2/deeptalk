@@ -371,12 +371,48 @@ export const useChatStore = defineStore('chat', () => {
    * 发送消息或重新生成。
    * 调用前必须已有 current 会话；同一会话生成中禁止重复提交。
    */
+  /**
+   * 插话：生成过程中补一句话。
+   * 本地先挂一条"排队中"的消息，服务端在当前轮结束后把它并入对话并继续生成。
+   */
+  async function interject(conversationID: number, content: string): Promise<void> {
+    const run = currentRun.value
+    if (!run) return
+    const optimistic: ChatMessage = reactive({
+      id: -Date.now(),
+      role: 'user',
+      content,
+      reasoning: '',
+      status: 'queued',
+      model_name: '',
+      input_tokens: 0,
+      output_tokens: 0,
+      duration_ms: 0,
+      feedback: '',
+      interjection: true,
+      created_at: new Date().toISOString(),
+    })
+    run.messages.push(optimistic)
+    try {
+      await chatApi.interject(conversationID, content)
+    } catch (error) {
+      optimistic.status = 'error'
+      throw error
+    }
+  }
+
   async function send(content: string, options: { regenerate?: boolean } = {}): Promise<void> {
     const conversation = current.value
     const run = currentRun.value
-    if (!conversation || !run || run.generating) return
+    if (!conversation || !run) return
     const regenerate = options.regenerate === true
     const text = content.trim()
+    // 生成中不再拒绝输入：改为插话，服务端在当前轮结束后接着处理
+    if (run.generating && !regenerate && text) {
+      await interject(conversation.id, text)
+      return
+    }
+    if (run.generating) return
     const pendingAttachments = regenerate ? [] : [...attachments.value]
     if (!regenerate && !text && pendingAttachments.length === 0) return
     if (!selectedModelId.value) {
@@ -442,6 +478,19 @@ export const useChatStore = defineStore('chat', () => {
       switch (block.event) {
         case 'meta': {
           const meta = payload as StreamMeta
+          // 插话轮：把本地"排队中"的消息换成服务端落库后的真实消息
+          if (meta.user_message?.interjection) {
+            for (let index = targetMessages.length - 1; index >= 0; index -= 1) {
+              const candidate = targetMessages[index]
+              if (candidate.role === 'user' && candidate.status === 'queued') {
+                candidate.id = meta.user_message.id
+                candidate.created_at = meta.user_message.created_at
+                candidate.input_tokens = meta.user_message.input_tokens
+                candidate.status = 'complete'
+                break
+              }
+            }
+          }
           assistant.id = meta.assistant_message_id
           assistant.model_name = meta.model_name
           assistant.created_at = meta.user_message?.created_at ?? assistant.created_at

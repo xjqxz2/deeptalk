@@ -62,7 +62,7 @@ async function signOutCurrent(): Promise<void> {
     <div class="login-card">
       <div class="brand">
         <BrandMark :size="34" :radius="9.5" />
-        <span class="brand-name">DeepTalk</span>
+        <span class="brand-name">小橘树洞</span>
         <span class="admin-badge">ADMIN</span>
       </div>
 
@@ -126,7 +126,7 @@ async function signOutCurrent(): Promise<void> {
       </a>
     </div>
 
-    <p class="copyright">© 2026 DeepTalk · Admin Console v1.0.0</p>
+    <p class="copyright">© 2026 小橘树洞 · Admin Console v1.0.0</p>
   </div>
 </template>
 
@@ -141,15 +141,15 @@ async function signOutCurrent(): Promise<void> {
   padding: 32px;
   overflow: hidden;
   background:
-    radial-gradient(circle at 18% 12%, #e8eeff 0%, rgba(232, 238, 255, 0) 46%),
-    radial-gradient(circle at 82% 88%, #eef3ff 0%, rgba(238, 243, 255, 0) 42%),
-    #f7f8fa;
+    radial-gradient(circle at 18% 12%, color-mix(in srgb, var(--dt-brand) 12%, transparent) 0%, transparent 46%),
+    radial-gradient(circle at 82% 88%, var(--dt-brand-soft) 0%, transparent 42%),
+    var(--dt-bg);
 }
 
 .grid-bg {
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(#d6dce6 1px, transparent 1px);
+  background-image: radial-gradient(var(--dt-line) 1px, transparent 1px);
   background-size: 26px 26px;
   opacity: 0.45;
   mask-image: radial-gradient(circle at 50% 45%, #000 0%, transparent 72%);
@@ -161,9 +161,9 @@ async function signOutCurrent(): Promise<void> {
   width: 420px;
   max-width: 100%;
   padding: 30px 30px 24px;
-  border: 1px solid #e7eaf1;
+  border: 1px solid var(--dt-line);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.96);
+  background: color-mix(in srgb, var(--dt-surface) 96%, transparent);
   box-shadow: 0 20px 44px rgba(16, 24, 40, 0.1);
   backdrop-filter: blur(8px);
 }
@@ -243,7 +243,7 @@ h1 {
 .form-error {
   margin: -2px 0 12px;
   padding: 8px 11px;
-  border: 1px solid #fee4e2;
+  border: 1px solid var(--dt-danger-soft);
   border-radius: 8px;
   background: var(--dt-danger-soft);
   color: var(--dt-danger-text);
@@ -265,7 +265,7 @@ h1 {
   gap: 9px;
   margin-bottom: 18px;
   padding: 11px 12px;
-  border: 1px solid #fee4e2;
+  border: 1px solid var(--dt-danger-soft);
   border-radius: 10px;
   background: var(--dt-danger-soft);
   color: var(--dt-danger-text);

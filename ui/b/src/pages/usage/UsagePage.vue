@@ -178,7 +178,7 @@ onMounted(() => {
   padding: 16px 18px;
   border: 1px solid var(--dt-line);
   border-radius: var(--dt-radius-card);
-  background: #fff;
+  background: var(--dt-surface);
   box-shadow: var(--dt-shadow-card);
   margin-bottom: 16px;
 }
@@ -261,7 +261,7 @@ onMounted(() => {
 }
 
 .bar-slot:hover .bar {
-  background: linear-gradient(180deg, #8b9dff 0%, #3b5bdb 100%);
+  background: linear-gradient(180deg, var(--dt-brand) 0%, var(--dt-brand-hover) 100%);
 }
 
 .bar-label {
@@ -315,7 +315,7 @@ onMounted(() => {
   height: 4px;
   margin-right: 6px;
   border-radius: 999px;
-  background: #eef0f4;
+  background: var(--dt-line);
   overflow: hidden;
   vertical-align: middle;
 }

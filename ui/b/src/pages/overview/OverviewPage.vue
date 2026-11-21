@@ -311,7 +311,7 @@ onMounted(async () => {
   padding: 16px 18px;
   border: 1px solid var(--dt-line);
   border-radius: var(--dt-radius-card);
-  background: #fff;
+  background: var(--dt-surface);
   box-shadow: var(--dt-shadow-card);
 }
 
@@ -388,7 +388,7 @@ onMounted(async () => {
 }
 
 .bar-slot:hover .bar {
-  background: linear-gradient(180deg, #8b9dff 0%, #3b5bdb 100%);
+  background: linear-gradient(180deg, var(--dt-brand) 0%, var(--dt-brand-hover) 100%);
 }
 
 .bar-label {
@@ -436,7 +436,7 @@ onMounted(async () => {
 }
 
 .shortcut:hover {
-  background: #fafbff;
+  background: var(--dt-brand-softer);
 }
 
 .shortcut-icon {
@@ -488,7 +488,7 @@ onMounted(async () => {
   height: 5px;
   border-radius: 50%;
   background: var(--dt-success);
-  box-shadow: 0 0 0 2px #ecfdf3;
+  box-shadow: 0 0 0 2px var(--dt-success-soft);
 }
 
 .health-metrics {
@@ -654,7 +654,7 @@ onMounted(async () => {
   padding: 40px;
   border: 1px solid var(--dt-line);
   border-radius: 14px;
-  background: #fff;
+  background: var(--dt-surface);
 }
 
 .error-state {

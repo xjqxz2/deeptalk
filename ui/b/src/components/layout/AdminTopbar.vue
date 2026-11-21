@@ -188,7 +188,7 @@ async function logout(): Promise<void> {
   flex: 0 0 60px;
   padding: 0 28px 0 24px;
   border-bottom: 1px solid var(--dt-line);
-  background: #fff;
+  background: var(--dt-surface);
 }
 
 .topbar-left {
@@ -227,7 +227,7 @@ async function logout(): Promise<void> {
 }
 
 .slash {
-  color: #d0d5dd;
+  color: var(--dt-line);
 }
 
 .topbar-right {
@@ -241,14 +241,14 @@ async function logout(): Promise<void> {
   width: 360px;
   height: 34px;
   border-radius: 9px;
-  background: #f7f8fa;
+  background: var(--dt-bg);
 }
 
 .global-search :deep(.ant-input-affix-wrapper) {
   height: 34px;
   border-color: transparent;
   border-radius: 9px;
-  background: #f7f8fa;
+  background: var(--dt-bg);
   padding-inline: 11px;
 }
 
@@ -278,7 +278,7 @@ async function logout(): Promise<void> {
 }
 
 .icon-btn:hover {
-  background: #f5f7fb;
+  background: var(--dt-hover);
 }
 
 .notice-badge {
@@ -305,7 +305,7 @@ async function logout(): Promise<void> {
 }
 
 .account:hover {
-  background: #f5f7fb;
+  background: var(--dt-hover);
 }
 
 .avatar {

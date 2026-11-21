@@ -148,7 +148,7 @@ watch(open, (value) => {
   padding: 6px 8px 6px 10px;
   border: 1px solid var(--dt-line);
   border-radius: 10px;
-  background: #f9fafc;
+  background: var(--dt-bg);
 }
 
 .share-link-icon {

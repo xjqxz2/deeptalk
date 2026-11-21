@@ -30,6 +30,12 @@ export interface User {
   last_login_city: string
   last_login_ip: string
   avatar_text: string
+  /** 头像地址（小程序上传后） */
+  avatar_url?: string
+  /** 展示名：昵称优先，否则邮箱 */
+  display_name?: string
+  /** 邮箱是系统占位，尚未由用户补全 */
+  email_placeholder?: boolean
   conversation_count: number
   message_count: number
   quota_reset_days: number
@@ -77,7 +83,7 @@ export interface Attachment {
 }
 
 /** 消息状态。 */
-export type MessageStatus = 'complete' | 'streaming' | 'stopped' | 'error'
+export type MessageStatus = 'complete' | 'streaming' | 'stopped' | 'error' | 'queued'
 
 /** 联网检索来源。 */
 export interface SearchSource {
@@ -138,6 +144,8 @@ export interface ChatMessage {
   notice?: string
   tokens_per_sec?: number
   character_count?: number
+  /** 生成过程中插入的一句话：服务端在当前轮结束后再处理 */
+  interjection?: boolean
 }
 
 /** 注册开关等公开配置。 */
@@ -334,6 +342,8 @@ export interface StreamMeta {
     created_at: string
     input_tokens: number
     attachments?: Attachment[]
+    /** 这条用户消息是否是生成过程中的插话 */
+    interjection?: boolean
   }
   model_name: string
   model_id: number

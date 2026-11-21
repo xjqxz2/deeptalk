@@ -144,6 +144,39 @@ function streamingMessage() {
 // ---- WebSocket 事件 -------------------------------------------------------
 
 chatSocket.on('meta', (payload) => {
+  // 插话轮：上一轮已结束，把排队的用户消息落定，再挂一条新的助手消息继续接收
+  if (payload.user_message?.interjection) {
+    const queued = chat.messages.find((item) => item.role === 'user' && item.status === 'queued')
+    if (queued) {
+      queued.id = payload.user_message.id
+      queued.status = 'complete'
+      queued.created_at = payload.user_message.created_at || queued.created_at
+    } else {
+      pushMessage({
+        id: payload.user_message.id,
+        role: 'user',
+        content: payload.user_message.content || '',
+        reasoning: '',
+        status: 'complete',
+        interjection: true,
+        sources: [],
+        attachments: payload.user_message.attachments || [],
+        created_at: payload.user_message.created_at || new Date().toISOString(),
+      })
+    }
+    pushMessage({
+      id: payload.assistant_message_id,
+      role: 'assistant',
+      content: '',
+      reasoning: '',
+      status: 'streaming',
+      model_name: payload.model_name || '',
+      sources: [],
+      attachments: [],
+      created_at: new Date().toISOString(),
+    })
+    return
+  }
   const assistant = streamingMessage()
   if (!assistant) return
   assistant.id = payload.assistant_message_id || assistant.id
@@ -248,8 +281,13 @@ function applyTitle(title) {
  * @param {number[]} attachmentIds 已上传的图片
  */
 export async function send(content, attachmentIds = []) {
-  if (chat.generating) return
   const text = String(content || '').trim()
+  // 生成中不再拒绝输入：作为插话发给服务端，等这一轮结束后继续
+  if (chat.generating) {
+    if (!text || !chat.conversation?.id) return
+    interject(text)
+    return
+  }
   if (!text && !attachmentIds.length) return
   const conversation = await ensureConversation()
   pushMessage({
@@ -285,7 +323,34 @@ export async function send(content, attachmentIds = []) {
   })
 }
 
-/** 停止生成。 */
+/**
+ * 插话：生成过程中补一句话。
+ * 本地先挂一条"排队中"的消息，服务端在当前轮结束后处理并继续生成。
+ */
+export function interject(content) {
+  const conversationID = chat.conversation?.id
+  if (!conversationID) return
+  const message = {
+    id: -Date.now(),
+    role: 'user',
+    content,
+    reasoning: '',
+    status: 'queued',
+    interjection: true,
+    sources: [],
+    attachments: [],
+    created_at: new Date().toISOString(),
+  }
+  pushMessage(message)
+  chatSocket.send(
+    JSON.stringify({
+      type: 'interject',
+      conversation_id: String(conversationID),
+      content,
+    }),
+  )
+}
+
 export function stop() {
   stopGenerationWatchdog()
   chatSocket.send({ type: 'stop' })

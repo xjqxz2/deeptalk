@@ -1,4 +1,4 @@
-# DeepTalk 小程序 / APP 客户端（uni-app）
+# 小橘树洞 小程序 / APP 客户端（uni-app）
 
 面向**微信小程序**，并预留 **APP（App-Plus）** 能力。技术栈：uni-app（Vue 3 + Vite）+ Vant，
 页面与组件**优先使用 `.nvue`**，以便后续直接复用到 APP 的原生渲染层。

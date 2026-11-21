@@ -201,7 +201,7 @@ func (h *ChatController) Stream(c *gin.Context) {
 	if clientIP == "" {
 		clientIP = c.ClientIP()
 	}
-	err = h.chats.Stream(c.Request.Context(), current.ID, id, chat.StreamInput{
+	input := chat.StreamInput{
 		Content:       req.Content,
 		ModelID:       req.ModelID,
 		DeepThinking:  req.DeepThinking,
@@ -210,7 +210,27 @@ func (h *ChatController) Stream(c *gin.Context) {
 		Regenerate:    req.Regenerate,
 		ClientIP:      clientIP,
 		Platform:      clientPlatform(c),
-	}, emit)
+	}
+	for {
+		err = h.chats.Stream(c.Request.Context(), current.ID, id, input, emit)
+		if err != nil {
+			break
+		}
+		// 生成期间用户可能插了话：当前轮结束后接着处理，不打断连接
+		next, ok, popErr := h.chats.PopInterjection(c.Request.Context(), current.ID, id)
+		if popErr != nil || !ok {
+			break
+		}
+		input = chat.StreamInput{
+			Content:      next.Content,
+			ModelID:      req.ModelID,
+			DeepThinking: req.DeepThinking,
+			WebSearch:    req.WebSearch,
+			ClientIP:     clientIP,
+			Platform:     clientPlatform(c),
+			Interjection: true,
+		}
+	}
 
 	close(stopHeartbeat)
 	<-heartbeatDone

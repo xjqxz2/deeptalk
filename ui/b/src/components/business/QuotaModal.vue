@@ -103,7 +103,7 @@ async function save(): Promise<void> {
   gap: 3px;
   padding: 10px 12px;
   border-radius: 9px;
-  background: #fafbfd;
+  background: var(--dt-sidebar);
   border: 1px solid var(--dt-line-soft);
 }
 

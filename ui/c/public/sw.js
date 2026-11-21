@@ -1,5 +1,5 @@
 /**
- * DeepTalk C 端 Service Worker。
+ * 小橘树洞 C 端 Service Worker。
  * 只缓存公开的静态资源与离线页，不缓存 /api（对话、SSE、账号数据永不落盘到 Cache Storage）。
  * 构建时由 config/vite.ts 注入本次构建版本。
  */

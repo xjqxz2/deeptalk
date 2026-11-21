@@ -95,7 +95,7 @@ func (h *SettingsController) snapshot(c *gin.Context) responses.SettingsResponse
 		DefaultModelID:    routing.DefaultModelID,
 		FallbackModelID:   routing.FallbackModelID,
 		MaxOutputTokens:   h.settings.Int(ctx, setting.KeyMaxOutputTokens, 384000),
-		SiteName:          "DeepTalk",
+		SiteName:          "小橘树洞",
 		Version:           "v1.0.0",
 		StorageUsedBytes:  used,
 		StorageTotalBytes: 10 * 1024 * 1024 * 1024,

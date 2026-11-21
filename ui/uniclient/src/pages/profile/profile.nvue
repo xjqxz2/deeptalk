@@ -1,0 +1,360 @@
+<template>
+  <view class="page">
+    <view class="status-spacer" :style="statusBarStyle" />
+    <view class="topbar">
+      <text class="title">完善资料</text>
+    </view>
+
+    <scroll-view class="content" scroll-y>
+      <view class="section">
+        <text class="section-title">头像与昵称</text>
+        <text class="section-hint">用于对话列表与网页端显示，随时可以再改。</text>
+
+        <view class="avatar-row">
+          <!-- #ifdef MP-WEIXIN -->
+          <button class="avatar-btn" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">
+            <image v-if="avatarUrl" class="avatar" :src="avatarUrl" mode="aspectFill" />
+            <view v-else class="avatar avatar-empty"><text class="avatar-plus">＋</text></view>
+          </button>
+          <!-- #endif -->
+          <!-- #ifndef MP-WEIXIN -->
+          <view class="avatar-btn" @click="pickLocalAvatar">
+            <image v-if="avatarUrl" class="avatar" :src="avatarUrl" mode="aspectFill" />
+            <view v-else class="avatar avatar-empty"><text class="avatar-plus">＋</text></view>
+          </view>
+          <!-- #endif -->
+          <view class="avatar-meta">
+            <text class="avatar-hint">{{ uploading ? '头像上传中…' : '点击选择头像' }}</text>
+            <text class="avatar-sub">不设置也可以，昵称为空时会显示邮箱</text>
+          </view>
+        </view>
+
+        <!-- #ifdef MP-WEIXIN -->
+        <input
+          class="field"
+          type="nickname"
+          placeholder="设置昵称"
+          placeholder-class="field-placeholder"
+          :value="nickname"
+          @input="nickname = $event.detail.value"
+        />
+        <!-- #endif -->
+        <!-- #ifndef MP-WEIXIN -->
+        <input
+          class="field"
+          type="text"
+          placeholder="设置昵称"
+          placeholder-class="field-placeholder"
+          :value="nickname"
+          @input="nickname = $event.detail.value"
+        />
+        <!-- #endif -->
+
+        <view class="submit" :class="{ 'submit-off': saving }" @click="saveProfile">
+          <text class="submit-text">{{ saving ? '保存中…' : '保存并进入' }}</text>
+        </view>
+      </view>
+
+      <view class="section">
+        <text class="section-title">补全邮箱与密码</text>
+        <text class="section-hint">补全后可以用邮箱密码登录电脑版（PWA），无需邮件验证。</text>
+
+        <input
+          class="field"
+          type="text"
+          placeholder="邮箱"
+          placeholder-class="field-placeholder"
+          :value="email"
+          @input="email = $event.detail.value"
+        />
+        <input
+          class="field"
+          type="password"
+          placeholder="密码（至少 8 位）"
+          placeholder-class="field-placeholder"
+          :value="password"
+          @input="password = $event.detail.value"
+        />
+        <text v-if="error" class="error">{{ error }}</text>
+        <view class="submit submit-ghost" :class="{ 'submit-off': completing }" @click="completeEmail">
+          <text class="submit-ghost-text">{{ completing ? '提交中…' : '补全邮箱密码' }}</text>
+        </view>
+      </view>
+
+      <text class="skip" @click="goChat">稍后再说</text>
+    </scroll-view>
+  </view>
+</template>
+
+<script setup>
+/**
+ * 小程序授权后的资料页：
+ * 1) 头像昵称（微信提供 chooseAvatar / type=nickname，一次授权即可拿到）
+ * 2) 补全邮箱密码，之后可在 PC / PWA 用邮箱登录
+ */
+import { computed, onMounted, ref } from 'vue'
+import { updateProfile, completeProfile } from '@/api/auth'
+import { uploadFile } from '@/api/http'
+import { session, setSession, isLoggedIn } from '@/store/session'
+import { goChat as goChatPage, goLogin } from '@/utils/nav'
+
+const nickname = ref('')
+const avatarUrl = ref('')
+const uploading = ref(false)
+const saving = ref(false)
+const email = ref('')
+const password = ref('')
+const error = ref('')
+const completing = ref(false)
+const statusBarHeight = ref(0)
+const statusBarStyle = computed(() => `height:${statusBarHeight.value || 0}px;`)
+
+onMounted(() => {
+  // #ifndef H5
+  try {
+    statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 20
+  } catch {
+    /* 忽略 */
+  }
+  // #endif
+  if (!isLoggedIn()) {
+    goLogin()
+    return
+  }
+  nickname.value = session.user?.nickname || ''
+  avatarUrl.value = session.user?.avatar_url || ''
+})
+
+/** 微信头像选择：拿到临时文件后上传到自己的附件存储。 */
+async function onChooseAvatar(event) {
+  const path = event?.detail?.avatarUrl
+  if (!path) return
+  await uploadAvatar(path)
+}
+
+/** H5 / APP 端用系统相册兜底。 */
+function pickLocalAvatar() {
+  uni.chooseImage({
+    count: 1,
+    success: async (res) => {
+      const path = res.tempFilePaths?.[0]
+      if (path) await uploadAvatar(path)
+    },
+  })
+}
+
+async function uploadAvatar(path) {
+  uploading.value = true
+  try {
+    const asset = await uploadFile(path)
+    avatarUrl.value = asset.url
+  } catch (err) {
+    uni.showToast({ title: err?.message || '头像上传失败', icon: 'none' })
+  } finally {
+    uploading.value = false
+  }
+}
+
+async function saveProfile() {
+  if (saving.value) return
+  saving.value = true
+  try {
+    const data = await updateProfile({ nickname: nickname.value.trim(), avatar_url: avatarUrl.value })
+    setSession(session.token, data.user)
+    goChat()
+  } catch (err) {
+    uni.showToast({ title: err?.message || '保存失败', icon: 'none' })
+  } finally {
+    saving.value = false
+  }
+}
+
+async function completeEmail() {
+  error.value = ''
+  if (!email.value.trim() || password.value.length < 8) {
+    error.value = '请填写邮箱与至少 8 位密码'
+    return
+  }
+  completing.value = true
+  try {
+    const data = await completeProfile(email.value.trim(), password.value)
+    setSession(session.token, data.user)
+    uni.showToast({ title: '已可在电脑端登录', icon: 'none' })
+  } catch (err) {
+    error.value = err?.message || '提交失败'
+  } finally {
+    completing.value = false
+  }
+}
+
+function goChat() {
+  goChatPage()
+}
+</script>
+
+<style>
+.page {
+  flex: 1;
+  flex-direction: column;
+  height: 100%;
+  background-color: #ffffff;
+}
+.status-spacer {
+  flex-shrink: 0;
+  background-color: #ffffff;
+}
+.topbar {
+  height: 96rpx;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-bottom-width: 1rpx;
+  border-bottom-style: solid;
+  border-bottom-color: #eaecf0;
+}
+.title {
+  color: #101828;
+  font-size: 30rpx;
+  font-weight: 650;
+}
+.content {
+  flex: 1;
+  height: 0;
+}
+.section {
+  padding: 32rpx;
+  border-bottom-width: 1rpx;
+  border-bottom-style: solid;
+  border-bottom-color: #f0f2f5;
+}
+.section-title {
+  color: #101828;
+  font-size: 30rpx;
+  font-weight: 650;
+}
+.section-hint {
+  margin-top: 10rpx;
+  margin-bottom: 24rpx;
+  color: #98a2b3;
+  font-size: 24rpx;
+}
+.avatar-row {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 24rpx;
+}
+.avatar-btn {
+  padding: 0;
+  margin: 0;
+  border-width: 0;
+  background-color: transparent;
+  line-height: normal;
+}
+.avatar {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 60rpx;
+  background-color: #f2f4f7;
+}
+.avatar-empty {
+  align-items: center;
+  justify-content: center;
+}
+.avatar-plus {
+  color: #98a2b3;
+  font-size: 44rpx;
+}
+.avatar-meta {
+  flex: 1;
+  margin-left: 24rpx;
+}
+.avatar-hint {
+  color: #475467;
+  font-size: 26rpx;
+}
+.avatar-sub {
+  margin-top: 8rpx;
+  color: #98a2b3;
+  font-size: 22rpx;
+}
+.field {
+  height: 96rpx;
+  margin-bottom: 20rpx;
+  padding: 0 24rpx;
+  border-radius: 18rpx;
+  border-width: 1rpx;
+  border-style: solid;
+  border-color: #e4e7ec;
+  background-color: #ffffff;
+  color: #101828;
+  font-size: 28rpx;
+}
+.field-placeholder {
+  color: #98a2b3;
+}
+.error {
+  margin-bottom: 16rpx;
+  color: #d92d20;
+  font-size: 24rpx;
+}
+.submit {
+  height: 92rpx;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18rpx;
+  background-color: #4d6bfe;
+}
+.submit-off {
+  opacity: 0.6;
+}
+.submit-text {
+  color: #ffffff;
+  font-size: 28rpx;
+  font-weight: 650;
+}
+.submit-ghost {
+  background-color: #eef2ff;
+}
+.submit-ghost-text {
+  color: #4d6bfe;
+  font-size: 28rpx;
+  font-weight: 650;
+}
+.skip {
+  margin: 32rpx;
+  text-align: center;
+  color: #98a2b3;
+  font-size: 24rpx;
+}
+
+@media (prefers-color-scheme: dark) {
+  .page,
+  .status-spacer {
+    background-color: #12151b;
+  }
+  .topbar {
+    background-color: #171a21;
+    border-bottom-color: #2a2f3a;
+  }
+  .title,
+  .section-title,
+  .field {
+    color: #e6e9ef;
+  }
+  .field {
+    background-color: #191c23;
+    border-color: #2a2f3a;
+  }
+  .section {
+    border-bottom-color: #23272f;
+  }
+  .section-hint,
+  .avatar-hint,
+  .skip {
+    color: #9aa3b2;
+  }
+  .submit-ghost {
+    background-color: #232c45;
+  }
+}
+</style>

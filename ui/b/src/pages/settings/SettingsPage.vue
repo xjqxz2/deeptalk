@@ -290,7 +290,7 @@ onMounted(async () => {
             </span>
           </div>
           <div class="info-rows">
-            <div><span>站点名称</span><strong>{{ settings?.site_name ?? 'DeepTalk' }}</strong></div>
+            <div><span>站点名称</span><strong>{{ settings?.site_name ?? '小橘树洞' }}</strong></div>
             <div><span>版本</span><strong>{{ settings?.version ?? 'v1.0.0' }}</strong></div>
             <div><span>数据库</span><strong>SQLite · WAL</strong></div>
             <div><span>监听</span><strong>0.0.0.0:9821</strong></div>
@@ -355,7 +355,7 @@ onMounted(async () => {
   padding: 16px 18px;
   border: 1px solid var(--dt-line);
   border-radius: var(--dt-radius-card);
-  background: #fff;
+  background: var(--dt-surface);
   box-shadow: var(--dt-shadow-card);
 }
 
@@ -411,7 +411,7 @@ onMounted(async () => {
 }
 
 .status-pill.off {
-  background: #f2f4f7;
+  background: var(--dt-hover);
   color: var(--dt-text-muted);
 }
 
@@ -423,7 +423,7 @@ onMounted(async () => {
   padding: 12px 14px;
   border: 1px solid var(--dt-line);
   border-radius: 10px;
-  background: #fafbfd;
+  background: var(--dt-sidebar);
 }
 
 .setting-copy strong {
@@ -520,7 +520,7 @@ onMounted(async () => {
   height: 28px;
   border-radius: 8px;
   background: var(--dt-brand-softer);
-  border: 1px solid #e4e9f8;
+  border: 1px solid var(--dt-line);
   color: var(--dt-brand);
   font-size: 12px;
   flex: 0 0 auto;
@@ -542,7 +542,7 @@ onMounted(async () => {
 .storage-bar {
   height: 6px;
   border-radius: 999px;
-  background: #eef0f4;
+  background: var(--dt-line);
   overflow: hidden;
 }
 
@@ -607,7 +607,7 @@ onMounted(async () => {
   padding: 10px 12px;
   border: 1px solid var(--dt-line-soft);
   border-radius: 10px;
-  background: #fafbfd;
+  background: var(--dt-sidebar);
 }
 
 .avatar {
@@ -646,7 +646,7 @@ onMounted(async () => {
 
 .note-panel {
   background: var(--dt-brand-softer);
-  border-color: #e4e9f8;
+  border-color: var(--dt-line);
 }
 
 .note-panel p {

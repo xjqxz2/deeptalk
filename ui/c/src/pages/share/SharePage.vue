@@ -18,7 +18,7 @@ const data = ref<SharedConversation | null>(null)
 const loading = ref(true)
 const error = ref('')
 
-const ownerLabel = computed(() => data.value?.owner || '一位 DeepTalk 用户')
+const ownerLabel = computed(() => data.value?.owner || '一位 小橘树洞 用户')
 const sharedAt = computed(() => (data.value ? formatDate(data.value.shared_at) : ''))
 
 /** 访客登录后只能开始自己的对话，不会接管被分享的会话。 */
@@ -43,7 +43,7 @@ onMounted(async () => {
     <header class="share-header">
       <div class="share-brand">
         <BrandMark :size="26" :radius="8" />
-        <span class="share-brand-name">DeepTalk</span>
+        <span class="share-brand-name">小橘树洞</span>
       </div>
       <a-button size="small" @click="startOwnChat">登录后开始对话</a-button>
     </header>
@@ -98,7 +98,7 @@ onMounted(async () => {
   overflow-y: auto;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
-  background: #fff;
+  background: var(--dt-surface);
 }
 
 .share-header {

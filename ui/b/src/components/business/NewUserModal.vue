@@ -143,8 +143,8 @@ async function save(): Promise<void> {
   height: 32px;
   padding: 0 11px;
   border-radius: 8px;
-  background: #fff7ed;
-  color: #b93815;
+  background: var(--dt-warning-soft);
+  color: var(--dt-danger-text);
   font-size: 11.5px;
 }
 

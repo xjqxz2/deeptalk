@@ -66,7 +66,7 @@ async function logout(): Promise<void> {
   <aside class="admin-sidebar" aria-label="控制台导航">
     <div class="sidebar-brand">
       <BrandMark :size="30" :radius="8.4" />
-      <span class="brand-name">DeepTalk</span>
+      <span class="brand-name">小橘树洞</span>
       <span class="admin-badge">ADMIN</span>
     </div>
 
@@ -153,7 +153,7 @@ async function logout(): Promise<void> {
   height: 100vh;
   height: 100dvh;
   border-right: 1px solid var(--dt-line);
-  background: #fff;
+  background: var(--dt-surface);
   z-index: 40;
 }
 
@@ -213,7 +213,7 @@ async function logout(): Promise<void> {
 }
 
 .nav-item:hover {
-  background: #f5f7fb;
+  background: var(--dt-hover);
   color: var(--dt-text);
 }
 
@@ -257,7 +257,7 @@ async function logout(): Promise<void> {
   width: 100%;
   border: 1px solid var(--dt-line);
   border-radius: 10px;
-  background: #fff;
+  background: var(--dt-surface);
   text-align: left;
   cursor: pointer;
   padding: 10px 11px;
@@ -292,7 +292,7 @@ async function logout(): Promise<void> {
   height: 4px;
   margin: 8px 0 6px;
   border-radius: 999px;
-  background: #eef0f4;
+  background: var(--dt-line);
   overflow: hidden;
 }
 

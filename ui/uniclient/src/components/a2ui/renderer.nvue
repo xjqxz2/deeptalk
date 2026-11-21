@@ -196,4 +196,37 @@ function onAction(item) {
   color: #98a2b3;
   font-size: 24rpx;
 }
+
+@media (prefers-color-scheme: dark) {
+  .a2ui-card {
+    background-color: #191c23;
+    border-color: #2a2f3a;
+  }
+  .a2ui-text,
+  .a2ui-text-h4 {
+    color: #e6e9ef;
+  }
+  .a2ui-text-h1,
+  .a2ui-text-h2,
+  .a2ui-text-h3 {
+    color: #f2f4f8;
+  }
+  .a2ui-text-caption {
+    color: #7b8494;
+  }
+  .a2ui-divider {
+    background-color: #2a2f3a;
+  }
+  .a2ui-button {
+    background-color: #191c23;
+    border-color: #2a2f3a;
+  }
+  .a2ui-button-text {
+    color: #c9cfda;
+  }
+  .a2ui-button-primary {
+    background-color: #7c93ff;
+    border-color: #7c93ff;
+  }
+}
 </style>

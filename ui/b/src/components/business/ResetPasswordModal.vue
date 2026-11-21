@@ -113,7 +113,7 @@ async function copyPassword(): Promise<void> {
   gap: 10px;
   padding: 10px 12px;
   border-radius: 10px;
-  background: #fafbfd;
+  background: var(--dt-sidebar);
   border: 1px solid var(--dt-line-soft);
 }
 
@@ -151,7 +151,7 @@ async function copyPassword(): Promise<void> {
   align-items: flex-start;
   gap: 8px;
   padding: 10px 12px;
-  border: 1px solid #fee4e2;
+  border: 1px solid var(--dt-danger-soft);
   border-radius: 9px;
   background: var(--dt-danger-soft);
   color: var(--dt-danger-text);
@@ -169,7 +169,7 @@ async function copyPassword(): Promise<void> {
 
 .password-box {
   padding: 12px;
-  border: 1px solid #d1fadf;
+  border: 1px solid var(--dt-success);
   border-radius: 10px;
   background: var(--dt-success-soft);
 }
@@ -192,7 +192,7 @@ async function copyPassword(): Promise<void> {
   padding: 9px 11px;
   border: 1px dashed #a6f4c5;
   border-radius: 8px;
-  background: #fff;
+  background: var(--dt-surface);
 }
 
 .password-value code {

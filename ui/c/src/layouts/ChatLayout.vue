@@ -95,7 +95,7 @@ onBeforeUnmount(() => {
   height: 100svh;
   height: 100dvh;
   overflow: hidden;
-  background: #fff;
+  background: var(--dt-surface);
 }
 
 .chat-main {
@@ -103,7 +103,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   flex: 1;
   min-width: 0;
-  background: #fff;
+  background: var(--dt-surface);
 }
 
 .chat-content {

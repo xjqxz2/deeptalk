@@ -37,7 +37,7 @@ router.beforeEach(async (to) => {
 })
 
 router.afterEach((to) => {
-  document.title = to.meta.title ? `${to.meta.title} · DeepTalk Admin` : 'DeepTalk Admin'
+  document.title = to.meta.title ? `${to.meta.title} · 小橘树洞 Admin` : '小橘树洞 Admin'
 })
 
 export default router

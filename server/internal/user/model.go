@@ -43,23 +43,25 @@ var (
 // User 是 C 端账号模型。
 // 邮箱统一小写且唯一；用量按自然月统计在 used_tokens 上。
 type User struct {
-	ID             uint       `gorm:"primaryKey"`                            // 主键
-	Email          string     `gorm:"size:190;uniqueIndex;not null"`         // 邮箱（小写唯一）
-	Nickname       string     `gorm:"size:64;not null"`                      // 昵称
-	PasswordHash   string     `gorm:"size:255;not null"`                     // Argon2id 哈希串
-	Role           string     `gorm:"size:16;not null;default:'user';index"` // admin / user
-	Plan           string     `gorm:"size:16;not null;default:'free'"`       // free / pro / team / unlimited
-	QuotaTokens    int64      `gorm:"not null;default:4000000"`              // 本月额度（tokens）
-	UsedTokens     int64      `gorm:"not null;default:0"`                    // 本月已用（tokens）
-	Disabled       bool       `gorm:"not null;default:false;index"`          // 是否限制登录
-	FailedAttempts int        `gorm:"not null;default:0"`                    // 连续登录失败次数
-	LockedUntil    *time.Time `gorm:"index"`                                 // 锁定截止时间
-	LastLoginAt    *time.Time `gorm:"index"`                                 // 最近登录时间
-	LastLoginIP    string     `gorm:"size:64;not null;default:''"`           // 最近登录 IP
-	LastLoginCity  string     `gorm:"size:32;not null;default:''"`           // 最近登录城市（粗粒度）
-	WeChatOpenID   *string    `gorm:"size:64;uniqueIndex"`                    // 小程序 openid，用于内容安全
-	CreatedAt      time.Time  `gorm:"index"`                                 // 注册时间
-	UpdatedAt      time.Time  // 更新时间
+	ID               uint       `gorm:"primaryKey"`                            // 主键
+	Email            string     `gorm:"size:190;uniqueIndex;not null"`         // 邮箱（小写唯一）
+	Nickname         string     `gorm:"size:64;not null"`                      // 昵称
+	PasswordHash     string     `gorm:"size:255;not null"`                     // Argon2id 哈希串
+	Role             string     `gorm:"size:16;not null;default:'user';index"` // admin / user
+	Plan             string     `gorm:"size:16;not null;default:'free'"`       // free / pro / team / unlimited
+	QuotaTokens      int64      `gorm:"not null;default:4000000"`              // 本月额度（tokens）
+	UsedTokens       int64      `gorm:"not null;default:0"`                    // 本月已用（tokens）
+	Disabled         bool       `gorm:"not null;default:false;index"`          // 是否限制登录
+	FailedAttempts   int        `gorm:"not null;default:0"`                    // 连续登录失败次数
+	LockedUntil      *time.Time `gorm:"index"`                                 // 锁定截止时间
+	LastLoginAt      *time.Time `gorm:"index"`                                 // 最近登录时间
+	LastLoginIP      string     `gorm:"size:64;not null;default:''"`           // 最近登录 IP
+	LastLoginCity    string     `gorm:"size:32;not null;default:''"`           // 最近登录城市（粗粒度）
+	WeChatOpenID     *string    `gorm:"size:64;uniqueIndex"`                   // 小程序 openid，用于内容安全
+	EmailPlaceholder bool       `gorm:"not null;default:false"`                // 邮箱是系统占位，尚未由用户补全
+	AvatarURL        string     `gorm:"size:512;not null;default:''"`          // 头像地址
+	CreatedAt        time.Time  `gorm:"index"`                                 // 注册时间
+	UpdatedAt        time.Time  // 更新时间
 }
 
 // Session 是服务端会话（只保存 token 的 SHA-256，泄露数据库也无法直接使用）。
@@ -238,4 +240,17 @@ func planQuota(plan string) int64 {
 // Migrate 创建账号与会话表。
 func Migrate(db *gorm.DB) error {
 	return db.AutoMigrate(&User{}, &Session{})
+}
+
+// dalFindByWeChatOpenID 按 openid 查询用户。
+func dalFindByWeChatOpenID(ctx context.Context, db *gorm.DB, openid string) (*User, error) {
+	var u User
+	err := db.WithContext(ctx).Where("wechat_open_id = ?", openid).First(&u).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return &u, nil
 }

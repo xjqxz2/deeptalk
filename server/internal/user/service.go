@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"math/big"
@@ -641,4 +642,167 @@ func truncate(s string, max int) string {
 		return s
 	}
 	return string(runes[:max])
+}
+
+// WeChatPlaceholderDomain 是小程序自动创建账号时使用的占位邮箱域名。
+const WeChatPlaceholderDomain = "wechat.local"
+
+// IsPlaceholderEmail 判断邮箱是否是系统占位（小程序自动建号，尚未补全）。
+func (u *User) IsPlaceholderEmail() bool {
+	return u != nil && (u.EmailPlaceholder || strings.HasSuffix(u.Email, "@"+WeChatPlaceholderDomain))
+}
+
+// LoginByOpenID 用小程序 openid 登录；不存在时自动建号。
+// 新账号使用占位邮箱与随机密码，用户可在小程序内补全邮箱密码后用于 PC 端登录。
+func (s *Service) LoginByOpenID(ctx context.Context, openid, nickname string, meta RequestMeta) (*User, string, error) {
+	openid = strings.TrimSpace(openid)
+	if openid == "" {
+		return nil, "", errors.New("wechat openid is required")
+	}
+	u, err := dalFindByWeChatOpenID(ctx, s.db, openid)
+	if err == nil {
+		if u.Disabled {
+			return nil, "", ErrDisabled
+		}
+		now := time.Now()
+		u.LastLoginAt = &now
+		u.LastLoginIP = meta.IP
+		u.LastLoginCity = cityFromIP(meta.IP)
+		var token string
+		if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			if err := dalUpdateUser(ctx, tx, u); err != nil {
+				return err
+			}
+			var issueErr error
+			token, issueErr = s.issueSession(ctx, tx, u.ID, meta)
+			return issueErr
+		}); err != nil {
+			return nil, "", err
+		}
+		return u, token, nil
+	}
+	if !errors.Is(err, ErrNotFound) {
+		return nil, "", err
+	}
+
+	// 首次进入：建一个占位账号
+	hash, err := HashPassword(randomSecret())
+	if err != nil {
+		return nil, "", err
+	}
+	// 不塞默认昵称：没有昵称时前端统一回退显示邮箱
+	nickname = strings.TrimSpace(nickname)
+	count, err := dalCountUsers(ctx, s.db)
+	if err != nil {
+		return nil, "", err
+	}
+	role := RoleUser
+	if count == 0 {
+		role = RoleAdmin
+	}
+	u = &User{
+		Email:            placeholderEmail(openid),
+		Nickname:         truncate(nickname, 24),
+		PasswordHash:     hash,
+		Role:             role,
+		Plan:             PlanFree,
+		QuotaTokens:      s.opt.DefaultQuota,
+		WeChatOpenID:     &openid,
+		EmailPlaceholder: true,
+	}
+	var token string
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := dalCreateUser(ctx, tx, u); err != nil {
+			// 并发首次登录：回读已创建的账号
+			existing, findErr := dalFindByWeChatOpenID(ctx, tx, openid)
+			if findErr != nil {
+				return err
+			}
+			*u = *existing
+			var issueErr error
+			token, issueErr = s.issueSession(ctx, tx, u.ID, meta)
+			return issueErr
+		}
+		var issueErr error
+		token, issueErr = s.issueSession(ctx, tx, u.ID, meta)
+		return issueErr
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	return u, token, nil
+}
+
+// CompleteProfile 补全邮箱与密码：小程序用户补全后即可在 PC / PWA 端登录。
+func (s *Service) CompleteProfile(ctx context.Context, userID uint, email, password string) (*User, error) {
+	email = NormalizeEmail(email)
+	if err := ValidateEmail(email); err != nil {
+		return nil, err
+	}
+	if err := ValidatePassword(password); err != nil {
+		return nil, err
+	}
+	u, err := s.ByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if existing, err := dalFindByEmail(ctx, s.db, email); err == nil && existing.ID != userID {
+		return nil, ErrEmailTaken
+	} else if err != nil && !errors.Is(err, ErrNotFound) {
+		return nil, err
+	}
+	hash, err := HashPassword(password)
+	if err != nil {
+		return nil, err
+	}
+	u.Email = email
+	u.PasswordHash = hash
+	u.EmailPlaceholder = false
+	u.FailedAttempts = 0
+	u.LockedUntil = nil
+	if err := dalUpdateUser(ctx, s.db, u); err != nil {
+		return nil, err
+	}
+	return u, nil
+}
+
+// placeholderEmail 生成小程序占位邮箱；同一 openid 稳定可推导。
+func placeholderEmail(openid string) string {
+	sum := sha256.Sum256([]byte(openid))
+	return "wx_" + hex.EncodeToString(sum[:8]) + "@" + WeChatPlaceholderDomain
+}
+
+// randomSecret 生成随机密码串（占位账号使用，用户补全后会被替换）。
+func randomSecret() string {
+	raw := make([]byte, 24)
+	if _, err := rand.Read(raw); err != nil {
+		return "wx-" + time.Now().Format("20060102150405")
+	}
+	return base64.RawURLEncoding.EncodeToString(raw)
+}
+
+// UpdateProfile 更新昵称与头像；两者都可单独更新，空值表示不改。
+func (s *Service) UpdateProfile(ctx context.Context, userID uint, nickname, avatarURL string) (*User, error) {
+	u, err := s.ByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	nickname = strings.TrimSpace(nickname)
+	if nickname != "" {
+		if len([]rune(nickname)) > 24 {
+			return nil, errors.New("昵称最长 24 个字符")
+		}
+		u.Nickname = nickname
+	}
+	avatarURL = strings.TrimSpace(avatarURL)
+	if avatarURL != "" {
+		if len(avatarURL) > 512 {
+			return nil, errors.New("头像地址过长")
+		}
+		u.AvatarURL = avatarURL
+	}
+	if err := dalUpdateUser(ctx, s.db, u); err != nil {
+		return nil, err
+	}
+	return u, nil
 }

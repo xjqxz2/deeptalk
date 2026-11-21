@@ -35,3 +35,18 @@ export function fetchUsage() {
 export function bindWeChat(code) {
   return request({ url: '/api/v1/c/auth/wechat/bind', method: 'POST', data: { code }, silent: true })
 }
+
+/** 小程序微信一键登录：用 wx.login 的 code 换会话（首次自动建号）。 */
+export function wechatLogin(code) {
+  return request({ url: '/api/v1/c/auth/wechat/login', method: 'POST', data: { code } })
+}
+
+/** 更新昵称与头像。 */
+export function updateProfile(payload) {
+  return request({ url: '/api/v1/c/auth/profile', method: 'PATCH', data: payload })
+}
+
+/** 补全邮箱与密码，之后可在 PWA / PC 端用邮箱登录。 */
+export function completeProfile(email, password) {
+  return request({ url: '/api/v1/c/auth/profile/complete', method: 'POST', data: { email, password } })
+}

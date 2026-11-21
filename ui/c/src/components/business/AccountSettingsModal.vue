@@ -89,7 +89,7 @@ async function logout(): Promise<void> {
       <div class="account-head">
         <span class="avatar">{{ user.avatar_text }}</span>
         <div class="identity">
-          <strong>{{ user.nickname }}</strong>
+          <strong>{{ user.display_name || user.nickname || user.email }}</strong>
           <span>{{ user.email }}</span>
         </div>
         <span class="role-tag">{{ ROLE_LABELS[user.role] ?? user.role }}</span>
@@ -150,7 +150,7 @@ async function logout(): Promise<void> {
   padding: 14px;
   border: 1px solid var(--dt-line);
   border-radius: 12px;
-  background: #fafbfd;
+  background: var(--dt-sidebar);
 }
 
 .avatar {
@@ -190,7 +190,7 @@ async function logout(): Promise<void> {
 .role-tag {
   padding: 2px 8px;
   border-radius: 999px;
-  background: #fff;
+  background: var(--dt-surface);
   border: 1px solid var(--dt-line);
   color: var(--dt-text-muted);
   font-size: 10.4px;
@@ -208,7 +208,7 @@ async function logout(): Promise<void> {
   justify-content: space-between;
   padding: 9px 12px;
   border-radius: 9px;
-  background: #f9fafc;
+  background: var(--dt-bg);
 }
 
 .info-label {

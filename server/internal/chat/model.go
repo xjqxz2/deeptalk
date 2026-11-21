@@ -79,6 +79,7 @@ type Message struct {
 	SourcesJSON     string    `gorm:"type:text;not null;default:''"`       // 联网来源 JSON，空表示未联网
 	UIJSON          string    `gorm:"type:text;not null;default:''"`       // A2UI 消息 JSON，空表示未生成界面
 	AttachmentsJSON string    `gorm:"type:text;not null;default:''"`       // 图片附件 JSON，空表示无附件
+	Interjection    bool      `gorm:"not null;default:false"`              // 是否是生成过程中插入的插话
 	CreatedAt       time.Time `gorm:"index"`                               // 创建时间
 	UpdatedAt       time.Time // 更新时间
 }
@@ -102,6 +103,7 @@ type StreamInput struct {
 	AttachmentIDs []uint // 本次消息的图片附件
 	Regenerate    bool   // 是否重新生成
 	ClientIP      string // 客户端公网 IP，用于注入当前位置
+	Interjection  bool   // 本轮是插话：用户消息允许在上一轮生成结束后紧接着问
 	Platform      string // 客户端平台标识：mp-weixin / web / app
 }
 
@@ -114,7 +116,7 @@ type DailyUsage struct {
 
 // Migrate 创建会话与消息表，并为旧会话补齐 URL 公开 ID。
 func Migrate(db *gorm.DB) error {
-	if err := db.AutoMigrate(&Conversation{}, &Message{}, &Share{}); err != nil {
+	if err := db.AutoMigrate(&Conversation{}, &Message{}, &Share{}, &Interjection{}); err != nil {
 		return err
 	}
 	var rows []Conversation
@@ -127,4 +129,14 @@ func Migrate(db *gorm.DB) error {
 		}
 	}
 	return nil
+}
+
+// Interjection 是生成过程中用户插入的一句话，等当前轮结束后再处理。
+type Interjection struct {
+	ID             uint       `gorm:"primaryKey"`
+	ConversationID uint       `gorm:"index;not null"`
+	UserID         uint       `gorm:"index;not null"`
+	Content        string     `gorm:"type:text;not null"`
+	CreatedAt      time.Time  `gorm:"index"`
+	ConsumedAt     *time.Time `gorm:"index"` // 非空表示已经被下一轮消费
 }

@@ -23,11 +23,17 @@
       "style": {
         "navigationStyle": "custom"
       }
+    },
+    {
+      "path": "pages/profile/profile",
+      "style": {
+        "navigationStyle": "custom"
+      }
     }
   ],
   "globalStyle": {
     "navigationBarTextStyle": "black",
-    "navigationBarTitleText": "DeepTalk",
+    "navigationBarTitleText": "小橘树洞",
     "navigationBarBackgroundColor": "#FFFFFF",
     "backgroundColor": "#F7F8FA"
   }

@@ -249,7 +249,7 @@ function onToggleDisabled(disabled: boolean): void {
     return
   }
   Modal.confirm({
-    title: disabled ? `限制「${user.nickname}」登录？` : `恢复「${user.nickname}」登录？`,
+    title: disabled ? `限制「${user.display_name || user.nickname || user.email}」登录？` : `恢复「${user.display_name || user.nickname || user.email}」登录？`,
     content: disabled
       ? '开启后该账号已签发的会话立即失效，用户将无法登录，可随时恢复。'
       : '恢复后用户需要重新登录，已失效的会话不会恢复。',
@@ -292,7 +292,7 @@ function onLogoutAll(): void {
   }
   Modal.confirm({
     title: '强制退出全部设备？',
-    content: `「${user.nickname}」的所有已登录会话将立即失效，需要重新登录。`,
+    content: `「${user.display_name || user.nickname || user.email}」的所有已登录会话将立即失效，需要重新登录。`,
     okText: '全部退出',
     okType: 'danger',
     cancelText: '取消',
@@ -518,7 +518,7 @@ onBeforeUnmount(() => {
                     <span class="avatar">{{ user.avatar_text }}</span>
                     <div class="user-copy">
                       <strong>
-                        {{ user.nickname }}
+                        {{ user.display_name || user.nickname || user.email }}
                         <span v-if="user.role === 'admin'" class="admin-tag">管理员</span>
                       </strong>
                       <small>{{ user.email }}</small>
@@ -658,7 +658,7 @@ onBeforeUnmount(() => {
   padding: 0;
   border: 1px solid var(--dt-line);
   border-radius: var(--dt-radius-card);
-  background: #fff;
+  background: var(--dt-surface);
   box-shadow: var(--dt-shadow-card);
   overflow: hidden;
 }
@@ -679,7 +679,7 @@ onBeforeUnmount(() => {
 .search :deep(.ant-input-affix-wrapper) {
   height: 32px;
   border-radius: 8px;
-  background: #fafbfd;
+  background: var(--dt-sidebar);
   border-color: var(--dt-line);
 }
 
@@ -698,7 +698,7 @@ onBeforeUnmount(() => {
   gap: 2px;
   padding: 2px;
   border-radius: 8px;
-  background: #f2f4f7;
+  background: var(--dt-hover);
 }
 
 .segment {
@@ -722,7 +722,7 @@ onBeforeUnmount(() => {
 }
 
 .segment.active {
-  background: #fff;
+  background: var(--dt-surface);
   color: var(--dt-text);
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
 }
@@ -807,11 +807,11 @@ onBeforeUnmount(() => {
 }
 
 .user-table tbody tr:hover {
-  background: #fafbff;
+  background: var(--dt-brand-softer);
 }
 
 .user-table tbody tr.selected {
-  background: #f7f9ff;
+  background: var(--dt-brand-softer);
   box-shadow: inset 2px 0 0 var(--dt-brand);
 }
 
@@ -887,7 +887,7 @@ onBeforeUnmount(() => {
   width: 62px;
   height: 4px;
   border-radius: 999px;
-  background: #eef0f4;
+  background: var(--dt-line);
   overflow: hidden;
   flex: 0 0 auto;
 }
@@ -974,7 +974,7 @@ onBeforeUnmount(() => {
 }
 
 .more-btn:hover {
-  background: #f2f4f7;
+  background: var(--dt-hover);
   color: var(--dt-text-secondary);
 }
 

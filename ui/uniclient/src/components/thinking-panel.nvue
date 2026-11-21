@@ -138,4 +138,21 @@ function openSource(item) {
   font-size: 25rpx;
   line-height: 36rpx;
 }
+
+@media (prefers-color-scheme: dark) {
+  .think {
+    background-color: #191c23;
+    border-color: #2a2f3a;
+  }
+  .think-text,
+  .think-source {
+    color: #9aa3b2;
+  }
+  .think-label {
+    color: #b6bdcb;
+  }
+  .think-body {
+    border-top-color: #2a2f3a;
+  }
+}
 </style>

@@ -10,7 +10,7 @@
     <view class="topbar">
       <view class="brand">
         <image class="brand-logo" src="/static/shark.png" mode="aspectFit" />
-        <text class="brand-name">DeepTalk</text>
+        <text class="brand-name">小橘树洞</text>
       </view>
       <text class="topbar-link" @click="toggleMode">
         {{ mode === 'login' ? '还没有账号？立即注册' : '已有账号？去登录' }}
@@ -20,7 +20,7 @@
     <view class="form">
       <text class="eyebrow">ACCOUNT ACCESS</text>
       <text class="title">{{ mode === 'login' ? '欢迎回来' : '创建账号' }}</text>
-      <text class="subtitle">{{ mode === 'login' ? '登录后继续你的 DeepTalk 工作台。' : '注册后自动登录，立即开始对话。' }}</text>
+      <text class="subtitle">{{ mode === 'login' ? '登录后继续你的 小橘树洞 工作台。' : '注册后自动登录，立即开始对话。' }}</text>
 
       <text class="field-label">邮箱</text>
       <input
@@ -65,7 +65,7 @@
     </view>
 
     <view class="foot">
-      <text class="foot-text">© 2026 DeepTalk</text>
+      <text class="foot-text">© 2026 小橘树洞</text>
       <text class="foot-text">隐私 · 条款</text>
     </view>
   </view>
@@ -284,5 +284,39 @@ async function submit() {
 .foot-text {
   color: #c0c5d0;
   font-size: 22rpx;
+}
+
+@media (prefers-color-scheme: dark) {
+  .page {
+    background-color: #12151b;
+  }
+  .status-spacer {
+    background-color: #12151b;
+  }
+  .topbar {
+    background-color: #12151b;
+  }
+  .brand-name,
+  .title {
+    color: #e6e9ef;
+  }
+  .eyebrow,
+  .hint-text,
+  .note,
+  .foot-text {
+    color: #7b8494;
+  }
+  .subtitle,
+  .switch {
+    color: #9aa3b2;
+  }
+  .field {
+    background-color: #191c23;
+    border-color: #2a2f3a;
+    color: #e6e9ef;
+  }
+  .notes {
+    border-top-color: #2a2f3a;
+  }
 }
 </style>

@@ -628,7 +628,7 @@ function close(): void {
   padding: 6px 8px;
   border: 1px solid var(--dt-line);
   border-radius: 9px;
-  background: #fafbfd;
+  background: var(--dt-sidebar);
 }
 
 .chip {
@@ -639,7 +639,7 @@ function close(): void {
   padding: 0 7px;
   border: 1px solid #e2e7f3;
   border-radius: 6px;
-  background: #fff;
+  background: var(--dt-surface);
   color: var(--dt-text-secondary);
   font-family: var(--dt-mono);
   font-size: 9.8px;
@@ -707,16 +707,16 @@ function close(): void {
   padding: 11px 12px;
   border: 1px solid var(--dt-line);
   border-radius: 10px;
-  background: #fafbfd;
+  background: var(--dt-sidebar);
 }
 
 .test-box.ok {
-  border-color: #d1fadf;
+  border-color: var(--dt-success);
   background: var(--dt-success-soft);
 }
 
 .test-box.fail {
-  border-color: #fee4e2;
+  border-color: var(--dt-danger-soft);
   background: var(--dt-danger-soft);
 }
 

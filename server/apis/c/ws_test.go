@@ -36,6 +36,14 @@ func (f *fakeStream) ResolveRef(_ context.Context, _ uint, ref string) (uint, er
 	return 42, nil
 }
 
+func (f *fakeStream) QueueInterjection(context.Context, uint, uint, string) (*chat.Interjection, error) {
+	return nil, chat.ErrNotGenerating
+}
+
+func (f *fakeStream) PopInterjection(context.Context, uint, uint) (*chat.Interjection, bool, error) {
+	return nil, false, nil
+}
+
 func (f *fakeStream) Stream(ctx context.Context, _ uint, _ uint, in chat.StreamInput, emit chat.Emitter) error {
 	f.called = true
 	f.content = in.Content

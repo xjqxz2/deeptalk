@@ -31,7 +31,78 @@ func NewAuthController(users *user.Service, providers *provider.Service, setting
 	return &AuthController{users: users, wechat: wx, providers: providers, settings: settings, cfg: cfg, searchEnabled: searchEnabled}
 }
 
-// BindWeChat 用工卡小程序 wx.login 的 code 绑定 openid，内容安全检测需要它。
+// WeChatLogin 用小程序 wx.login 的 code 登录：openid 不存在时自动建号。
+func (h *AuthController) WeChatLogin(c *gin.Context) {
+	if h.wechat == nil || !h.wechat.Enables() {
+		responses.Fail(c, responses.CodeInternal, "小程序凭据未配置")
+		return
+	}
+	var req struct {
+		Code string `json:"code"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || strings.TrimSpace(req.Code) == "" {
+		responses.Fail(c, responses.CodeInvalidArgument, "缺少登录凭证")
+		return
+	}
+	session, err := h.wechat.Code2Session(c.Request.Context(), req.Code)
+	if err != nil {
+		responses.Fail(c, responses.CodeInvalidArgument, "小程序授权失败，请重试")
+		return
+	}
+	current, token, err := h.users.LoginByOpenID(c.Request.Context(), session.OpenID, "", user.RequestMeta{
+		IP:        c.ClientIP(),
+		UserAgent: c.Request.UserAgent(),
+	})
+	if err != nil {
+		responses.FromError(c, err)
+		return
+	}
+	middleware.SetSessionCookie(c, h.cfg, token)
+	responses.OK(c, gin.H{
+		"user":  responses.NewUser(current),
+		"token": token,
+	})
+}
+
+// UpdateProfile 更新昵称与头像（小程序端在授权后调用）。
+func (h *AuthController) UpdateProfile(c *gin.Context) {
+	current := middleware.CurrentUser(c)
+	var req struct {
+		Nickname  string `json:"nickname"`
+		AvatarURL string `json:"avatar_url"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		responses.Fail(c, responses.CodeInvalidArgument, "请求内容不合法")
+		return
+	}
+	updated, err := h.users.UpdateProfile(c.Request.Context(), current.ID, req.Nickname, req.AvatarURL)
+	if err != nil {
+		responses.FromError(c, err)
+		return
+	}
+	responses.OK(c, gin.H{"user": responses.NewUser(updated)})
+}
+
+// CompleteProfile 补全邮箱与密码：补全后可用邮箱在 PC / PWA 端登录。
+func (h *AuthController) CompleteProfile(c *gin.Context) {
+	current := middleware.CurrentUser(c)
+	var req struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		responses.Fail(c, responses.CodeInvalidArgument, "请求内容不合法")
+		return
+	}
+	updated, err := h.users.CompleteProfile(c.Request.Context(), current.ID, req.Email, req.Password)
+	if err != nil {
+		responses.FromError(c, err)
+		return
+	}
+	responses.OK(c, gin.H{"user": responses.NewUser(updated)})
+}
+
+// BindWeChat 用小程序 wx.login 的 code 绑定 openid，内容安全检测需要它。
 func (h *AuthController) BindWeChat(c *gin.Context) {
 	current := middleware.CurrentUser(c)
 	if h.wechat == nil || !h.wechat.Enables() {
@@ -68,7 +139,7 @@ func (h *AuthController) Config(c *gin.Context) {
 	responses.OK(c, gin.H{
 		"allow_registration": allow,
 		"has_users":          count > 0,
-		"site_name":          "DeepTalk",
+		"site_name":          "小橘树洞",
 		"web_search_enabled": h.searchEnabled,
 	})
 }

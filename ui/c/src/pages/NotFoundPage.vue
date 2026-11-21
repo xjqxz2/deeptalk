@@ -29,7 +29,7 @@ const target = computed(() => (userStore.isLoggedIn ? '/' : '/login'))
   gap: 12px;
   min-height: 100vh;
   padding: 32px;
-  background: linear-gradient(180deg, #f7f9ff 0%, #ffffff 52%);
+  background: linear-gradient(180deg, var(--dt-brand-softer) 0%, var(--dt-surface) 52%);
   text-align: center;
 }
 

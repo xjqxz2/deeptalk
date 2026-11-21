@@ -29,7 +29,7 @@ withDefaults(
       </div>
       <div class="brand-copy">
         <h2>让每一次对话，<br />都更接近答案。</h2>
-        <p>DeepTalk 是你的个人 AI 工作台，<br />写代码、读文档、做分析，也能一起头脑风暴。</p>
+        <p>小橘树洞 是你的个人 AI 工作台，<br />写代码、读文档、做分析，也能一起头脑风暴。</p>
         <ul class="features">
           <li>
             <span class="feature-icon"><ThunderboltOutlined /></span>
@@ -46,7 +46,7 @@ withDefaults(
         </ul>
       </div>
       <footer class="brand-foot">
-        <span>© 2026 DeepTalk</span>
+        <span>© 2026 小橘树洞</span>
         <span>隐私 · 条款</span>
       </footer>
     </section>
@@ -78,7 +78,7 @@ withDefaults(
   grid-template-columns: 620px minmax(0, 1fr);
   min-height: 100vh;
   min-height: 100dvh;
-  background: #fff;
+  background: var(--dt-surface);
 }
 
 .auth-brand {
@@ -87,7 +87,7 @@ withDefaults(
   flex-direction: column;
   overflow: hidden;
   padding: 48px 60px 40px;
-  background: linear-gradient(160deg, #f3f6ff 0%, #f8faff 55%, #ffffff 100%);
+  background: linear-gradient(160deg, #f3f6ff 0%, #f8faff 55%, var(--dt-surface) 100%);
   border-right: 1px solid #eef1f7;
 }
 
@@ -102,7 +102,7 @@ withDefaults(
   height: 560px;
   top: -230px;
   left: -120px;
-  background: radial-gradient(circle at 40% 40%, #dfe8ff 0%, #eef3ff 45%, rgba(255, 255, 255, 0) 72%);
+  background: radial-gradient(circle at 40% 40%, #dfe8ff 0%, var(--dt-brand-soft) 45%, rgba(255, 255, 255, 0) 72%);
 }
 
 .blob-bottom {
@@ -288,7 +288,7 @@ withDefaults(
   .auth-panel {
     padding: calc(24px + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right))
       calc(32px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left));
-    background: linear-gradient(180deg, #f7f9ff 0%, #ffffff 38%);
+    background: linear-gradient(180deg, var(--dt-brand-softer) 0%, var(--dt-surface) 38%);
   }
 
   .compact-brand {
@@ -314,4 +314,28 @@ withDefaults(
     margin-bottom: 22px;
   }
 }
+
+@media (prefers-color-scheme: dark) {
+  .auth-shell {
+    background: var(--dt-bg);
+  }
+
+  .auth-brand {
+    background: linear-gradient(160deg, #161a23 0%, #14171e 55%, #12151b 100%);
+    border-right-color: var(--dt-line);
+  }
+
+  .blob-top {
+    background: radial-gradient(circle at 40% 40%, #1d2436 0%, #171c27 45%, rgba(18, 21, 27, 0) 72%);
+  }
+
+  .blob-bottom {
+    background: radial-gradient(circle at 55% 45%, #1b2230 0%, #161a23 48%, rgba(18, 21, 27, 0) 74%);
+  }
+
+  .auth-panel {
+    background: var(--dt-bg);
+  }
+}
+
 </style>

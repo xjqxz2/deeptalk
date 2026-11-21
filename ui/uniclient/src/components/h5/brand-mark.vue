@@ -1,5 +1,5 @@
 <template>
-  <img class="brand-mark" :src="logoSrc" :width="size" :height="size" :style="{ borderRadius: radius + 'px' }" alt="DeepTalk" />
+  <img class="brand-mark" :src="logoSrc" :width="size" :height="size" :style="{ borderRadius: radius + 'px' }" alt="小橘树洞" />
 </template>
 
 <script setup>

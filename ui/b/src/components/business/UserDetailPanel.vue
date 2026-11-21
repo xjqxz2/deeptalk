@@ -63,7 +63,7 @@ function onDisabledChange(value: unknown): void {
       <header class="detail-head">
         <span class="avatar">{{ user.avatar_text }}</span>
         <div class="identity">
-          <strong>{{ user.nickname }}</strong>
+          <strong>{{ user.display_name || user.nickname || user.email }}</strong>
           <span>{{ user.email }}</span>
         </div>
         <span class="status-pill" :class="status.tone">
@@ -170,7 +170,7 @@ function onDisabledChange(value: unknown): void {
   min-height: 420px;
   border: 1px solid var(--dt-line);
   border-radius: var(--dt-radius-card);
-  background: #fff;
+  background: var(--dt-surface);
   box-shadow: var(--dt-shadow-card);
   overflow: hidden;
 }
@@ -375,8 +375,8 @@ function onDisabledChange(value: unknown): void {
   margin-top: 10px;
   padding: 7px 9px;
   border-radius: 7px;
-  background: #fff7ed;
-  color: #b93815;
+  background: var(--dt-warning-soft);
+  color: var(--dt-danger-text);
   font-size: 10.5px;
   text-align: center;
 }
@@ -384,7 +384,7 @@ function onDisabledChange(value: unknown): void {
 .quota-bar {
   height: 5px;
   border-radius: 999px;
-  background: #eef0f4;
+  background: var(--dt-line);
   overflow: hidden;
 }
 

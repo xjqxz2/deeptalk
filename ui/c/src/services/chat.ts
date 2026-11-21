@@ -28,6 +28,11 @@ export function deleteConversation(id: number): Promise<null> {
 }
 
 /** 消息赞 / 踩。 */
+/** 生成过程中插话：入队，当前轮结束后继续。 */
+export function interject(conversationID: number | string, content: string): Promise<{ queued: boolean }> {
+  return post(`/c/conversations/${encodeURIComponent(String(conversationID))}/interjections`, { content })
+}
+
 export function sendFeedback(id: number, rating: 'up' | 'down' | ''): Promise<null> {
   return post<null>(`/c/messages/${id}/feedback`, { rating })
 }

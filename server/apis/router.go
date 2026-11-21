@@ -82,6 +82,7 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 		cPublic.GET("/config", authController.Config)
 		cPublic.POST("/register", authController.Register)
 		cPublic.POST("/login", authController.Login)
+		cPublic.POST("/wechat/login", authController.WeChatLogin)
 	}
 
 	// C 端受保护接口
@@ -91,6 +92,8 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 		cGroup.POST("/auth/logout", authController.Logout)
 		cGroup.PUT("/auth/password", authController.ChangePassword)
 		cGroup.POST("/auth/wechat/bind", authController.BindWeChat)
+		cGroup.POST("/auth/profile/complete", authController.CompleteProfile)
+		cGroup.PATCH("/auth/profile", authController.UpdateProfile)
 		cGroup.GET("/usage", authController.Usage)
 		cGroup.GET("/models", authController.Models)
 

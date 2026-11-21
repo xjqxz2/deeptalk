@@ -21,6 +21,8 @@ import (
 type StreamService interface {
 	ResolveRef(ctx context.Context, userID uint, ref string) (uint, error)
 	Stream(ctx context.Context, userID, conversationID uint, in chat.StreamInput, emit chat.Emitter) error
+	QueueInterjection(ctx context.Context, userID, conversationID uint, content string) (*chat.Interjection, error)
+	PopInterjection(ctx context.Context, userID, conversationID uint) (*chat.Interjection, bool, error)
 }
 
 // WSController 处理小程序 / APP 的 WebSocket 长连接。
@@ -116,6 +118,29 @@ func (h *WSController) Conn(c *gin.Context) {
 		switch strings.ToLower(strings.TrimSpace(req.Type)) {
 		case "", "ping":
 			_ = write(wsFrame{Type: "pong"})
+		case "interject":
+			// 生成期间用户插话：先入队，当前轮结束后由下面的循环取走
+			// 插话必须带会话：小程序端在生成中会带 conversation_id
+			convRef := req.ConversationID
+			var item *chat.Interjection
+			var err error
+			if strings.TrimSpace(convRef) == "" {
+				err = chat.ErrNotGenerating
+			} else {
+				convID, resolveErr := h.chats.ResolveRef(c.Request.Context(), current.ID, convRef)
+				if resolveErr != nil {
+					err = resolveErr
+				} else {
+					item, err = h.chats.QueueInterjection(c.Request.Context(), current.ID, convID, req.Content)
+				}
+			}
+			response := wsFrame{Type: "interjection_queued"}
+			if err != nil {
+				response = wsFrame{Type: "error", Payload: gin.H{"message": err.Error(), "code": 3005}}
+			} else {
+				response.Payload = gin.H{"id": item.ID, "content": item.Content}
+			}
+			_ = write(response)
 		case "stop":
 			stopStream()
 			_ = write(wsFrame{Type: "stopped"})
@@ -142,16 +167,30 @@ func (h *WSController) Conn(c *gin.Context) {
 				emit := func(event string, payload any) error {
 					return write(wsFrame{Type: event, Payload: payload})
 				}
-				err := h.chats.Stream(ctx, current.ID, convID, in, emit)
+				for {
+					err := h.chats.Stream(ctx, current.ID, convID, in, emit)
+					if err != nil {
+						_ = write(wsFrame{Type: "error", Payload: gin.H{"message": err.Error(), "code": 3001}})
+						break
+					}
+					// 本轮结束后检查是否有插话：有就接着在同一连接里生成
+					next, ok, popErr := h.chats.PopInterjection(ctx, current.ID, convID)
+					if popErr != nil || !ok {
+						_ = write(wsFrame{Type: "done", Payload: gin.H{"status": "complete"}})
+						break
+					}
+					in = chat.StreamInput{
+						Content:      next.Content,
+						ModelID:      in.ModelID,
+						ClientIP:     in.ClientIP,
+						Platform:     in.Platform,
+						Interjection: true,
+					}
+				}
 				cancel()
 				streamMu.Lock()
 				running = false
 				streamMu.Unlock()
-				if err != nil {
-					_ = write(wsFrame{Type: "error", Payload: gin.H{"message": err.Error(), "code": 3001}})
-					return
-				}
-				_ = write(wsFrame{Type: "done", Payload: gin.H{"status": "complete"}})
 			}(conversationID, chat.StreamInput{
 				Content:       req.Content,
 				ModelID:       req.ModelID,

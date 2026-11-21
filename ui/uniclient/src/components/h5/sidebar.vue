@@ -4,7 +4,7 @@
     <div class="sidebar-head">
       <div class="brand-block">
         <BrandMark :size="30" :radius="8" />
-        <span class="brand-text">DeepTalk</span>
+        <span class="brand-text">小橘树洞</span>
       </div>
       <Btn type="button" class="collapse-btn" aria-label="关闭侧栏" @click="emit('close')">
         <MenuUnfoldOutlined />

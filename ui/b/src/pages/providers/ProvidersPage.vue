@@ -635,7 +635,7 @@ onBeforeUnmount(() => {
   gap: 2px;
   padding: 3px;
   border-radius: 9px;
-  background: #f2f4f7;
+  background: var(--dt-hover);
 }
 
 .filter-tab {
@@ -663,7 +663,7 @@ onBeforeUnmount(() => {
 }
 
 .filter-tab.active {
-  background: #fff;
+  background: var(--dt-surface);
   color: var(--dt-text);
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
 }
@@ -703,14 +703,14 @@ onBeforeUnmount(() => {
   height: 26px;
   border: 1px solid var(--dt-line);
   border-radius: 7px;
-  background: #fff;
+  background: var(--dt-surface);
   color: var(--dt-text-muted);
   font-size: 9px;
   cursor: pointer;
 }
 
 .card-arrows button:hover {
-  border-color: #cfd9ff;
+  border-color: var(--dt-focus-ring);
   color: var(--dt-brand);
 }
 
@@ -725,7 +725,7 @@ onBeforeUnmount(() => {
   padding: 18px;
   border: 1px solid var(--dt-line);
   border-radius: 14px;
-  background: #fff;
+  background: var(--dt-surface);
 }
 
 .provider-row {
@@ -742,7 +742,7 @@ onBeforeUnmount(() => {
 /* 保留一条细滚动条：鼠标用户可以拖动，也能看出这一行可以横向滚动 */
 .provider-row {
   scrollbar-width: thin;
-  scrollbar-color: #d7dce7 transparent;
+  scrollbar-color: var(--dt-line) transparent;
 }
 
 .provider-row::-webkit-scrollbar {
@@ -755,7 +755,7 @@ onBeforeUnmount(() => {
 
 .provider-row::-webkit-scrollbar-thumb {
   border-radius: 3px;
-  background: #d7dce7;
+  background: var(--dt-line);
 }
 
 .provider-row::-webkit-scrollbar-thumb:hover {
@@ -858,7 +858,7 @@ onBeforeUnmount(() => {
   padding: 14px 16px;
   border: 1px solid var(--dt-line);
   border-radius: var(--dt-radius-card);
-  background: #fff;
+  background: var(--dt-surface);
   box-shadow: var(--dt-shadow-card);
 }
 
@@ -933,7 +933,7 @@ onBeforeUnmount(() => {
 }
 
 .model-table tbody tr:hover {
-  background: #fafbff;
+  background: var(--dt-brand-softer);
 }
 
 .model-table tbody tr.disabled {
@@ -981,7 +981,7 @@ onBeforeUnmount(() => {
 }
 
 .model-dot.off {
-  background: #d0d5dd;
+  background: var(--dt-line);
 }
 
 .model-copy {
@@ -1026,7 +1026,7 @@ onBeforeUnmount(() => {
 }
 
 .tag.fallback {
-  background: #f2f4f7;
+  background: var(--dt-hover);
   color: var(--dt-text-muted);
 }
 
@@ -1036,7 +1036,7 @@ onBeforeUnmount(() => {
   height: 20px;
   padding: 0 7px;
   border-radius: 5px;
-  background: #f2f4f7;
+  background: var(--dt-hover);
   color: var(--dt-text-secondary);
   font-size: 9.4px;
   white-space: nowrap;

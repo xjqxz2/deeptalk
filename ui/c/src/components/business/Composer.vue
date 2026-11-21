@@ -22,7 +22,7 @@ const props = withDefaults(
     disabled: false,
     attachments: () => [],
     uploading: false,
-    placeholder: '给 DeepTalk 发送消息…',
+    placeholder: '给 小橘树洞 发送消息…',
     autofocus: false,
   },
 )
@@ -46,9 +46,11 @@ const canSend = computed(
   () =>
     (props.text.trim().length > 0 || (props.attachments?.length ?? 0) > 0) &&
     !props.uploading &&
-    !props.generating &&
     !props.disabled,
 )
+
+/** 生成中按发送是"插话"，会等这一轮结束再处理。 */
+const sendLabel = computed(() => (props.generating ? '插话' : '发送消息'))
 
 /** 自适应高度：最小一行，最多 8 行（约 192px）。 */
 function resize(): void {
@@ -206,11 +208,11 @@ defineExpose({ focus })
             停止生成
           </button>
           <button
-            v-else
             type="button"
             class="send-btn"
-            :disabled="!canSend"
-            aria-label="发送消息"
+            :class="{ 'send-btn-interject': generating }"
+            :disabled="!canSend && !generating"
+            :aria-label="sendLabel"
             @click="submit"
           >
             <ArrowUpOutlined />
@@ -245,7 +247,7 @@ defineExpose({ focus })
   border: 1px solid var(--dt-line);
   border-radius: 9px;
   overflow: hidden;
-  background: #f7f8fb;
+  background: var(--dt-hover);
 }
 
 .attachment-item img {
@@ -285,16 +287,16 @@ defineExpose({ focus })
 }
 
 .composer-box {
-  border: 1px solid #e4e7ee;
+  border: 1px solid var(--dt-line);
   border-radius: 14px;
-  background: #fff;
+  background: var(--dt-surface);
   box-shadow: 0 6px 18px rgba(16, 24, 40, 0.05);
   padding: 14px 16px 12px;
   transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .composer-box:focus-within {
-  border-color: #c9d4ff;
+  border-color: var(--dt-focus-ring);
   box-shadow: 0 0 0 2px rgba(201, 212, 255, 0.55), 0 8px 20px rgba(16, 24, 40, 0.06);
 }
 
@@ -348,6 +350,11 @@ defineExpose({ focus })
   cursor: pointer;
 }
 
+.send-btn-interject {
+  background: var(--dt-brand-soft);
+  color: var(--dt-brand);
+}
+
 .icon-btn:disabled {
   color: var(--dt-text-disabled);
   cursor: not-allowed;
@@ -387,7 +394,7 @@ defineExpose({ focus })
   padding: 0 12px;
   border: 1px solid #e1e5ee;
   border-radius: 9px;
-  background: #fff;
+  background: var(--dt-surface);
   color: var(--dt-text-secondary);
   font-size: 11.8px;
   font-weight: 600;
@@ -395,7 +402,7 @@ defineExpose({ focus })
 }
 
 .stop-btn:hover {
-  border-color: #c9d4ff;
+  border-color: var(--dt-focus-ring);
   color: var(--dt-brand-hover);
 }
 

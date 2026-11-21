@@ -2,6 +2,7 @@ package responses
 
 import (
 	"encoding/json"
+	"strings"
 	"time"
 
 	"deeptalk/internal/attachment"
@@ -29,9 +30,23 @@ type UserResponse struct {
 	LastLoginCity     string     `json:"last_login_city"`    // 最近登录城市
 	LastLoginIP       string     `json:"last_login_ip"`      // 最近登录 IP
 	AvatarText        string     `json:"avatar_text"`        // 头像文字
+	AvatarURL         string     `json:"avatar_url"`         // 头像地址（小程序上传）
+	DisplayName       string     `json:"display_name"`       // 展示名：昵称优先，否则邮箱
+	EmailPlaceholder  bool       `json:"email_placeholder"`  // 邮箱是否为系统占位（待补全）
 	ConversationCount int64      `json:"conversation_count"` // 会话数（后台列表）
 	MessageCount      int64      `json:"message_count"`      // 消息数（后台详情）
 	QuotaResetDays    int        `json:"quota_reset_days"`   // 距额度重置天数（后台详情）
+}
+
+// displayName 返回展示名：有昵称用昵称，否则回退邮箱。
+func displayName(u *user.User) string {
+	if u == nil {
+		return ""
+	}
+	if strings.TrimSpace(u.Nickname) != "" {
+		return u.Nickname
+	}
+	return u.Email
 }
 
 // NewUser 构造账号响应。

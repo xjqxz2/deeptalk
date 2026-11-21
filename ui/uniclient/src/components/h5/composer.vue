@@ -13,7 +13,7 @@
       <NativeTextarea
         ref="textareaRef"
         :model-value="modelValue"
-        :placeholder="generating ? '正在生成，可以先继续输入…' : '继续追问，或让 DeepTalk 补充更多细节…'"
+        :placeholder="generating ? '生成中可以插话，会在这一轮结束后处理…' : '继续追问，或让 小橘树洞 补充更多细节…'"
         @update:model-value="(value) => emit('update:modelValue', value)"
         @submit="submit"
       />

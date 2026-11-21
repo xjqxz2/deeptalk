@@ -34,7 +34,7 @@ const resetDays = computed(() => props.usage?.reset_days ?? 0)
 .usage-card {
   border: 1px solid var(--dt-line);
   border-radius: 10px;
-  background: #fff;
+  background: var(--dt-surface);
   padding: 10px 12px 11px;
 }
 
@@ -61,7 +61,7 @@ const resetDays = computed(() => props.usage?.reset_days ?? 0)
   height: 4px;
   margin: 8px 0 7px;
   border-radius: 999px;
-  background: #eef0f4;
+  background: var(--dt-line);
   overflow: hidden;
 }
 
@@ -75,7 +75,7 @@ const resetDays = computed(() => props.usage?.reset_days ?? 0)
 
 .usage-unlimited {
   margin: 8px 0 7px;
-  color: #b93815;
+  color: var(--dt-danger-text);
   font-size: 10.3px;
 }
 

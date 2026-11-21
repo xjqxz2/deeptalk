@@ -119,7 +119,7 @@ watch(html, () => {
           <BrandMark :size="24" :radius="7" />
         </div>
         <div class="assistant-head">
-          <span class="assistant-name">DeepTalk</span>
+          <span class="assistant-name">小橘树洞</span>
           <span class="assistant-model">
             {{ message.model_name || 'DeepSeek' }}
           </span>
@@ -193,7 +193,9 @@ watch(html, () => {
             <DislikeOutlined />
           </button>
           <span class="spacer" />
-          <span v-if="message.status === 'stopped'" class="stats">已停止生成</span>
+          <span v-if="message.interjection" class="interject-tag">插话</span>
+        <span v-if="message.status === 'queued'" class="interject-pending">排队中，本轮结束后处理</span>
+        <span v-if="message.status === 'stopped'" class="stats">已停止生成</span>
           <span v-else-if="message.status === 'complete'" class="stats">
             已生成 {{ formatNumber(characterCount) }} 字
             <template v-if="tokensPerSec"> · {{ tokensPerSec }} tok/s</template>
@@ -229,7 +231,7 @@ watch(html, () => {
   overflow: hidden;
   border: 1px solid var(--dt-line);
   border-radius: 10px;
-  background: #f7f8fb;
+  background: var(--dt-hover);
 }
 
 .user-image :deep(img) {
@@ -240,7 +242,7 @@ watch(html, () => {
   max-width: 78%;
   padding: 11px 16px;
   border-radius: 14px;
-  background: #f3f5fa;
+  background: var(--dt-hover);
   color: var(--dt-text);
   font-size: 13.4px;
   line-height: 23px;
@@ -386,7 +388,7 @@ watch(html, () => {
   gap: 9px;
   margin-top: 12px;
   padding: 9px 12px;
-  border: 1px solid #fee4e2;
+  border: 1px solid var(--dt-danger-soft);
   border-radius: 10px;
   background: var(--dt-danger-soft);
   color: var(--dt-danger-text);
@@ -433,7 +435,7 @@ watch(html, () => {
 }
 
 .action:hover:not(:disabled) {
-  background: #f4f6fa;
+  background: var(--dt-hover);
   color: var(--dt-text-secondary);
 }
 
@@ -479,5 +481,22 @@ watch(html, () => {
   .assistant {
     gap: 9px;
   }
+}
+
+.interject-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 5px;
+  background: var(--dt-brand-soft);
+  color: var(--dt-brand);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.interject-pending {
+  color: var(--dt-text-muted);
+  font-size: 11.5px;
 }
 </style>
