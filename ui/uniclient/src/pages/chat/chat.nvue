@@ -238,7 +238,7 @@
  * 生成走 WebSocket；与 Web 端共享同一套后端接口与事件。
  */
 import { computed, ref, nextTick, onMounted } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onReady, onShow } from '@dcloudio/uni-app'
 import MessageItem from '@/components/message-item.nvue'
 import Composer from '@/components/composer.nvue'
 
@@ -269,6 +269,7 @@ import {
 import { chatSocket } from '@/utils/ws'
 import { uploadFile } from '@/api/http'
 import { session, clearSession, isLoggedIn } from '@/store/session'
+import { goLogin } from '@/utils/nav'
 import { errorState, clearError } from '@/utils/errors'
 import { toast, confirm } from '@/utils/ui'
 import { logout as logoutApi } from '@/api/auth'
@@ -487,7 +488,7 @@ async function logout() {
   chatSocket.close()
   clearSession()
   drawerOpen.value = false
-  uni.reLaunch({ url: '/pages/login/login', fail: () => {} })
+  goLogin()
 }
 
 function loadMore() {
@@ -512,13 +513,16 @@ function measureChrome() {
   // #endif
 }
 
+// 首帧渲染完再判断登录态：微信里在 onLaunch / onMounted 阶段 reLaunch 会报
+// "routeDone with a webviewId N is not found"
+onReady(() => {
+  if (!isLoggedIn()) goLogin()
+})
+
 onMounted(async () => {
   measureChrome()
-  // 没登录就不发任何请求：否则会同时打出 3 个 401，进而触发多次 reLaunch
-  if (!isLoggedIn()) {
-    uni.reLaunch({ url: '/pages/login/login', fail: () => {} })
-    return
-  }
+  // 没登录就不发任何请求：否则会同时打出 3 个 401，进而触发多次跳转
+  if (!isLoggedIn()) return
   chatSocket.connect()
   await Promise.all([loadModels(), loadConversations(), loadUsage()])
   if (chat.conversations.length) {

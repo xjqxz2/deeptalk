@@ -2,7 +2,8 @@
 /**
  * 应用入口：恢复登录态，未登录直接跳登录页。
  */
-import { session, isLoggedIn, setSession } from '@/store/session'
+import { session, isLoggedIn, setSession, clearSession } from '@/store/session'
+import { goLogin } from '@/utils/nav'
 import { fetchMe } from '@/api/auth'
 
 export default {
@@ -11,18 +12,16 @@ export default {
     // #ifdef H5
     if (typeof location !== 'undefined' && location.hash.includes('mp-preview')) return
     // #endif
-    if (!isLoggedIn()) {
-      uni.reLaunch({ url: '/pages/login/login', fail: () => {} })
-      return
-    }
+    // 启动阶段不做跳转：微信端首屏路由还没完成时 reLaunch 会报
+    // "routeDone with a webviewId N is not found"，交给首屏页面自己判断
+    if (!isLoggedIn()) return
     // 校验 token 是否还有效，并刷新额度信息
-    let redirected = false
     fetchMe()
       .then((data) => setSession(session.token, data.user))
       .catch(() => {
-        if (redirected) return
-        redirected = true
-        uni.reLaunch({ url: '/pages/login/login', fail: () => {} })
+        // 会话失效：清掉本地登录态，跳转统一交给 goLogin 去重
+        clearSession()
+        goLogin()
       })
   },
 }

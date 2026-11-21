@@ -3,6 +3,7 @@
  */
 import { BASE_URL } from '@/config/env'
 import { getToken, clearSession } from '@/store/session'
+import { goLogin } from '@/utils/nav'
 
 // 并发请求同时 401 时只跳一次登录页，避免连续 reLaunch 把页面来回重建
 let redirecting = false
@@ -19,15 +20,7 @@ function gotoLogin() {
   if (redirecting || onLoginPage()) return
   redirecting = true
   clearSession()
-  uni.reLaunch({
-    url: '/pages/login/login',
-    fail: () => {},
-    complete: () => {
-      setTimeout(() => {
-        redirecting = false
-      }, 1000)
-    },
-  })
+  goLogin()
 }
 
 /**

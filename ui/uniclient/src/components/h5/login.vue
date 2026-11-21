@@ -69,6 +69,7 @@
 import { computed, ref } from 'vue'
 import { login, register } from '@/api/auth'
 import { setSession } from '@/store/session'
+import { goChat } from '@/utils/nav'
 import Btn from './btn.vue'
 import NativeInput from './native-input.vue'
 
@@ -94,7 +95,7 @@ async function submit() {
       ? await login(email.value.trim(), password.value)
       : await register(email.value.trim(), password.value)
     setSession(data.token, data.user)
-    uni.reLaunch({ url: '/pages/chat/chat', fail: () => {} })
+    goChat()
   } catch (err) {
     error.value = err?.message || '操作失败，请重试'
   } finally {

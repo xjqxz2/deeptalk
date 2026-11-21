@@ -77,11 +77,13 @@
  * 左上品牌、右上注册入口、左对齐标题、带标签的输入框与底部说明。
  */
 import { ref, computed, onMounted } from 'vue'
+import { onReady } from '@dcloudio/uni-app'
 import { login, register } from '@/api/auth'
 // #ifdef H5
 import LoginH5 from '@/components/h5/login.vue'
 // #endif
-import { setSession } from '@/store/session'
+import { setSession, isLoggedIn } from '@/store/session'
+import { goChat } from '@/utils/nav'
 
 const mode = ref('login')
 const email = ref('')
@@ -96,6 +98,11 @@ const statusBarHeight = ref(0)
 const topbarStyle = computed(() =>
   statusBarHeight.value ? `padding-top:${statusBarHeight.value}px;height:${statusBarHeight.value + 44}px;` : '',
 )
+
+onReady(() => {
+  // 已经有登录态就直接进聊天页
+  if (isLoggedIn()) goChat()
+})
 
 onMounted(() => {
   // #ifndef H5
@@ -119,7 +126,7 @@ async function submit() {
   try {
     const data = mode.value === 'login' ? await login(email.value.trim(), password.value) : await register(email.value.trim(), password.value)
     setSession(data.token, data.user)
-    uni.reLaunch({ url: '/pages/chat/chat', fail: () => {} })
+    goChat()
   } catch (err) {
     error.value = err?.message || '操作失败，请重试'
   } finally {
