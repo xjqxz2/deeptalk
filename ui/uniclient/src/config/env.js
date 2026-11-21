@@ -15,7 +15,8 @@ export const BASE_URL = ENV_BASE !== undefined ? ENV_BASE : DEV ? '' : 'https://
 
 /** WebSocket 地址：小程序不支持自定义请求头之外的能力，token 走 query */
 export function wsURL(token) {
-  const base = BASE_URL || window.location.origin
+  // 小程序 / APP 没有 window，这里必须兜底，否则取 origin 会直接抛错
+  const base = BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')
   const url = `${base.replace(/^http/, 'ws')}/api/v1/c/ws?token=${encodeURIComponent(token)}`
   return url
 }

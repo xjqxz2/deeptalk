@@ -63,6 +63,30 @@ npm run preview:h5                  # 0.0.0.0:5274，静态文件 + /api + WebSo
 PORT=5275 PROXY_TARGET=http://127.0.0.1:9821 npm run preview:h5   # 指向本地后端
 ```
 
+## 微信小程序
+
+```bash
+npm run build:mp-weixin     # 产物：dist/build/mp-weixin
+```
+
+产物约 300KB（zip 80KB），已确认不含 antd / markdown-it / highlight.js / DOMPurify / Vant 这些 H5 专用依赖。
+
+导入微信开发者工具的步骤：
+
+1. 打开「微信开发者工具 → 导入项目」，目录选 `ui/uniclient/dist/build/mp-weixin`
+2. `project.config.json` 里默认是 `touristappid`（游客模式，能看界面不能真机调试）；正式调试要填自己的 AppID
+   （`src/manifest.json` 的 `mp-weixin.appid`，重新构建即可）
+3. 在公众平台「开发管理 → 开发设置 → 服务器域名」里把下面两个域名加进去：
+   - request 合法域名：`https://deeptalk.peon.top`
+   - socket 合法域名：`wss://deeptalk.peon.top`
+4. 开发阶段可以先在开发者工具「详情 → 本地设置」勾选「不校验合法域名」直接跑
+
+小程序端与 H5 共用同一套业务代码，差异只在：
+
+- 页面/组件走 `.nvue` 分支（uni 组件 + rpx 样式），不加载 PWA 的 DOM 样式与图标库
+- 流式回答走 `uni.connectSocket`（H5 走浏览器原生 WebSocket），协议与事件名完全一致
+- 登录态存本地存储，请求带 `Authorization: Bearer`，WebSocket 用 `?token=` 连接
+
 ## 构建
 
 ```bash
