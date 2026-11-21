@@ -6,7 +6,7 @@
   <!-- #ifndef H5 -->
   <view class="page">
     <!-- 顶部：品牌 + 注册入口 -->
-    <view class="topbar">
+    <view class="topbar" :style="topbarStyle">
       <view class="brand">
         <image class="brand-logo" src="/static/shark.png" mode="aspectFit" />
         <text class="brand-name">DeepTalk</text>
@@ -76,7 +76,7 @@
  * 登录 / 注册页，布局对齐 PWA 手机端：
  * 左上品牌、右上注册入口、左对齐标题、带标签的输入框与底部说明。
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { login, register } from '@/api/auth'
 // #ifdef H5
 import LoginH5 from '@/components/h5/login.vue'
@@ -90,6 +90,22 @@ const error = ref('')
 const loading = ref(false)
 
 const canSubmit = computed(() => email.value.trim().length > 0 && password.value.length > 0)
+
+// 自定义导航栏：小程序端要给状态栏留出高度
+const statusBarHeight = ref(0)
+const topbarStyle = computed(() =>
+  statusBarHeight.value ? `padding-top:${statusBarHeight.value}px;height:${statusBarHeight.value + 44}px;` : '',
+)
+
+onMounted(() => {
+  // #ifndef H5
+  try {
+    statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0
+  } catch {
+    /* 忽略 */
+  }
+  // #endif
+})
 
 function toggleMode() {
   mode.value = mode.value === 'login' ? 'register' : 'login'

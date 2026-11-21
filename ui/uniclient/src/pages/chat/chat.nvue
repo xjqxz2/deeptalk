@@ -72,14 +72,14 @@
   <!-- #ifndef H5 -->
   <view class="page">
     <!-- 顶栏 -->
-    <view class="topbar">
+    <view class="topbar" :style="topbarStyle">
       <view class="topbar-menu" @click="drawerOpen = true">
         <view class="bar" />
         <view class="bar" />
         <view class="bar" />
       </view>
       <text class="topbar-title">{{ currentTitle }}</text>
-      <view class="topbar-avatar" @click="onAvatar">
+      <view class="topbar-avatar" :style="avatarStyle" @click="onAvatar">
         <text class="topbar-avatar-text">{{ avatarText }}</text>
       </view>
     </view>
@@ -277,6 +277,14 @@ const draft = ref('')
 const keyword = ref('')
 const composerRef = ref(null)
 const scroller = ref(null)
+// 自定义导航栏：需要自己给状态栏留高度，并避开右上角的胶囊按钮
+const statusBarHeight = ref(0)
+const capsuleInset = ref(0)
+const topbarStyle = computed(() => {
+  if (!statusBarHeight.value) return ''
+  return `padding-top:${statusBarHeight.value}px;height:${statusBarHeight.value + 44}px;`
+})
+const avatarStyle = computed(() => (capsuleInset.value ? `margin-right:${capsuleInset.value}px;` : ''))
 const drawerOpen = ref(false)
 const scrollTarget = ref('')
 const attachments = ref([])
@@ -486,7 +494,26 @@ function loadMore() {
   // 占位：历史消息分页由服务端一次返回
 }
 
+/** 读取状态栏高度与胶囊位置，只有小程序 / APP 需要。 */
+function measureChrome() {
+  // #ifndef H5
+  try {
+    const info = uni.getSystemInfoSync()
+    statusBarHeight.value = info.statusBarHeight || 0
+    if (typeof uni.getMenuButtonBoundingClientRect === 'function') {
+      const capsule = uni.getMenuButtonBoundingClientRect()
+      if (capsule && capsule.left) {
+        capsuleInset.value = Math.max(0, (info.windowWidth || info.screenWidth) - capsule.left + 8)
+      }
+    }
+  } catch {
+    /* 读不到就退回默认样式 */
+  }
+  // #endif
+}
+
 onMounted(async () => {
+  measureChrome()
   // 没登录就不发任何请求：否则会同时打出 3 个 401，进而触发多次 reLaunch
   if (!isLoggedIn()) {
     uni.reLaunch({ url: '/pages/login/login', fail: () => {} })
@@ -513,11 +540,11 @@ onShow(() => {
   background-color: #ffffff;
 }
 .topbar {
-  height: 104rpx;
+  height: 88rpx;
   flex-shrink: 0;
   flex-direction: row;
   align-items: center;
-  padding: 0 36rpx 0 40rpx;
+  padding: 0 24rpx 0 32rpx;
   border-bottom-width: 1rpx;
   border-bottom-style: solid;
   border-bottom-color: #eaecf0;
@@ -556,6 +583,13 @@ onShow(() => {
   font-size: 28rpx;
   font-weight: bold;
 }
+
+/* 微信右上角是胶囊按钮，头像会叠上去；账号入口保留在侧栏底部 */
+/* #ifdef MP-WEIXIN */
+.topbar-avatar {
+  display: none;
+}
+/* #endif */
 /* 微信的 scroll-view 需要可收缩高度：height:0 + flex:1 才能把输入框留在屏幕内 */
 .messages {
   flex: 1;
