@@ -161,7 +161,7 @@ function copy(text) {
 
 <style>
 .msg {
-  padding: 22rpx 32rpx;
+  padding: 16rpx 0 36rpx 0;
 }
 .msg-user {
   align-items: flex-end;
@@ -181,40 +181,41 @@ function copy(text) {
   border-radius: 12rpx;
 }
 .bubble {
-  max-width: 580rpx;
-  padding: 22rpx 30rpx;
-  border-radius: 24rpx;
+  max-width: 78%;
+  padding: 22rpx 32rpx;
+  border-radius: 28rpx;
   background-color: #f3f5fa;
 }
 .bubble-text {
   color: #101828;
-  font-size: 32rpx;
+  font-size: 27rpx;
   line-height: 46rpx;
 }
 .msg-time {
-  margin-top: 10rpx;
+  margin-top: 12rpx;
   color: #98a2b3;
-  font-size: 24rpx;
+  font-size: 20rpx;
 }
 .head {
   flex-direction: row;
   align-items: center;
-  margin-bottom: 18rpx;
+  margin-bottom: 16rpx;
 }
 .head-logo {
-  width: 44rpx;
-  height: 44rpx;
-  margin-right: 14rpx;
+  width: 48rpx;
+  height: 48rpx;
+  margin-right: 16rpx;
+  border-radius: 14rpx;
 }
 .head-name {
   color: #101828;
-  font-size: 30rpx;
-  font-weight: bold;
+  font-size: 26rpx;
+  font-weight: 650;
 }
 .head-model {
-  margin-left: 14rpx;
+  margin-left: 12rpx;
   color: #98a2b3;
-  font-size: 25rpx;
+  font-size: 21rpx;
 }
 .blocks {
   margin-top: 6rpx;
@@ -223,15 +224,15 @@ function copy(text) {
   margin-bottom: 18rpx;
 }
 .paragraph {
-  color: #1d2939;
-  font-size: 30rpx;
-  line-height: 50rpx;
+  color: #101828;
+  font-size: 27rpx;
+  line-height: 48rpx;
 }
 .h1 {
   color: #101828;
   font-size: 34rpx;
   font-weight: bold;
-  line-height: 50rpx;
+  line-height: 48rpx;
 }
 .quote {
   padding-left: 20rpx;
@@ -248,19 +249,19 @@ function copy(text) {
 .list-item {
   flex-direction: row;
   align-items: flex-start;
-  margin-bottom: 12rpx;
+  margin-bottom: 8rpx;
 }
 .list-bullet {
-  width: 38rpx;
-  color: #1d2939;
-  font-size: 30rpx;
-  line-height: 50rpx;
+  width: 32rpx;
+  color: #101828;
+  font-size: 27rpx;
+  line-height: 48rpx;
 }
 .list-text {
   flex: 1;
-  color: #1d2939;
-  font-size: 30rpx;
-  line-height: 50rpx;
+  color: #101828;
+  font-size: 27rpx;
+  line-height: 48rpx;
 }
 .code {
   margin-top: 8rpx;
@@ -290,15 +291,15 @@ function copy(text) {
   font-family: Menlo, monospace;
 }
 .span {
-  color: #1d2939;
-  font-size: 30rpx;
-  line-height: 50rpx;
+  color: #101828;
+  font-size: 27rpx;
+  line-height: 48rpx;
 }
 .span-bold {
   color: #101828;
-  font-size: 30rpx;
+  font-size: 27rpx;
   font-weight: bold;
-  line-height: 50rpx;
+  line-height: 48rpx;
 }
 .span-code {
   color: #b42318;
@@ -344,12 +345,12 @@ function copy(text) {
 .actions {
   flex-direction: row;
   align-items: center;
-  margin-top: 22rpx;
+  margin-top: 16rpx;
 }
 .action {
-  margin-right: 30rpx;
+  margin-right: 32rpx;
   color: #98a2b3;
-  font-size: 25rpx;
+  font-size: 21rpx;
 }
 .action-on {
   color: #4d6bfe;
@@ -358,6 +359,6 @@ function copy(text) {
   flex: 1;
   text-align: right;
   color: #d0d5dd;
-  font-size: 23rpx;
+  font-size: 20rpx;
 }
 </style>

@@ -102,6 +102,20 @@ A2UI 是 agent 产出声明式 UI 的协议。官方渲染器 `@a2ui/lit` 依赖
 已知限制：A2UI 里的 `Button` 点击不会回传动作（PWA 端由 Lit 渲染器派发事件），
 小程序端点击只给出提示；如果需要，可以接成「把动作名作为用户消息发回模型」。
 
+## 检查小程序端的排版
+
+小程序端的样式（`.nvue` 分支）可以用同一个 H5 构建来预览：
+
+```text
+http://<host>:5274/#/pages/mp-preview/mp-preview
+```
+
+这个页面直接引用 `components/message-item.nvue` 与 `components/composer.nvue`，用固定的示例消息渲染，
+不依赖登录与后端。改 `.nvue` 样式后刷新即可看到效果，比反复走微信开发者工具快。
+手机上布局的关键点：`.page` 必须是 `flex-direction: column` + `height: 100%`，
+`scroll-view` 必须是 `flex: 1; height: 0`（微信里只写 `flex: 1` 不会收缩，会把输入框顶出屏幕），
+并打开 `enable-flex`。
+
 ## 构建
 
 ```bash

@@ -94,6 +94,7 @@
     <scroll-view
       class="messages"
       scroll-y
+      enable-flex
       :scroll-into-view="scrollTarget"
       :scroll-with-animation="true"
       @scrolltoupper="loadMore"
@@ -506,19 +507,20 @@ onShow(() => {
 <style>
 .page {
   flex: 1;
+  flex-direction: column;
   height: 100%;
   overflow: hidden;
   background-color: #ffffff;
 }
 .topbar {
-  height: 96rpx;
+  height: 104rpx;
   flex-shrink: 0;
   flex-direction: row;
   align-items: center;
-  padding: 0 24rpx;
+  padding: 0 36rpx 0 40rpx;
   border-bottom-width: 1rpx;
   border-bottom-style: solid;
-  border-bottom-color: #f0f2f5;
+  border-bottom-color: #eaecf0;
   background-color: #ffffff;
 }
 .topbar-menu {
@@ -535,14 +537,15 @@ onShow(() => {
 .topbar-title {
   flex: 1;
   color: #101828;
-  font-size: 32rpx;
-  font-weight: bold;
+  font-size: 27rpx;
+  font-weight: 650;
+  letter-spacing: -0.2rpx;
   lines: 1;
   text-overflow: ellipsis;
 }
 .topbar-avatar {
-  width: 64rpx;
-  height: 64rpx;
+  width: 60rpx;
+  height: 60rpx;
   border-radius: 32rpx;
   align-items: center;
   justify-content: center;
@@ -553,8 +556,10 @@ onShow(() => {
   font-size: 28rpx;
   font-weight: bold;
 }
+/* 微信的 scroll-view 需要可收缩高度：height:0 + flex:1 才能把输入框留在屏幕内 */
 .messages {
   flex: 1;
+  height: 0;
   min-height: 0;
   background-color: #ffffff;
 }
@@ -588,6 +593,7 @@ onShow(() => {
   max-width: 760px;
   margin-left: auto;
   margin-right: auto;
+  padding: 16rpx 32rpx 12rpx 32rpx;
 }
 .composer-wrap {
   width: 100%;

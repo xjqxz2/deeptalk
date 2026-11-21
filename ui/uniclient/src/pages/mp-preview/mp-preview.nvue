@@ -1,0 +1,42 @@
+<template>
+  <view class="page">
+    <view class="topbar">
+      <view class="topbar-menu">
+        <view class="bar" /><view class="bar" /><view class="bar" />
+      </view>
+      <text class="topbar-title">小红书怎么挂商品链接</text>
+      <view class="topbar-avatar"><text class="topbar-avatar-text">U</text></view>
+    </view>
+
+    <scroll-view class="messages" scroll-y enable-flex>
+      <view class="list-inner">
+        <MessageItem v-for="item in messages" :key="item.id" :message="item" :activity="null" />
+      </view>
+    </scroll-view>
+
+    <view class="composer-wrap">
+      <Composer v-model="draft" :generating="false" model-name="DeepSeek-V4.1-Flash-1017" />
+    </view>
+  </view>
+</template>
+
+<script setup>
+import MessageItem from '@/components/message-item.nvue'
+import Composer from '@/components/composer.nvue'
+import { ref } from 'vue'
+
+const draft = ref('')
+const messages = ref([
+  { id: 1, role: 'user', content: '小红书个人号怎么挂商品链接？', status: 'complete', sources: [], attachments: [], created_at: '2026-11-21T10:00:00+08:00' },
+  {
+    id: 2, role: 'assistant', content: '个人号需要先开通**专业号**并缴纳保证金，才能在笔记里挂商品链接。\n\n- 先开通专业号，完成实名与保证金缴纳\n- 在创作中心绑定店铺，商品才会出现在选品库\n\n```bash\nopen https://creator.xiaohongshu.com\n```\n\n具体门槛以官方最新规则为准[1]。',
+    reasoning: '用户问的是小红书个人号挂商品链接，属于平台规则，需要确认最新要求。',
+    status: 'complete', model_name: 'DeepSeek-V4.1-Flash', output_tokens: 328, duration_ms: 12400,
+    sources: [{ title: '示例来源', url: 'https://example.com', viewed: true }], attachments: [], created_at: '2026-11-21T10:00:01+08:00',
+  },
+])
+</script>
+
+<style>
+@import '../../styles/nvue-chat.css';
+</style>

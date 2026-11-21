@@ -17,6 +17,12 @@
           "titleNView": false
         }
       }
+    },
+    {
+      "path": "pages/mp-preview/mp-preview",
+      "style": {
+        "navigationStyle": "custom"
+      }
     }
   ],
   "globalStyle": {

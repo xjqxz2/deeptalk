@@ -7,6 +7,10 @@ import { fetchMe } from '@/api/auth'
 
 export default {
   onLaunch() {
+    // 仅供本地预览页（pages/mp-preview）跳过登录重定向
+    // #ifdef H5
+    if (typeof location !== 'undefined' && location.hash.includes('mp-preview')) return
+    // #endif
     if (!isLoggedIn()) {
       uni.reLaunch({ url: '/pages/login/login', fail: () => {} })
       return
