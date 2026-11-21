@@ -164,6 +164,7 @@ chatSocket.on('meta', (payload) => {
         created_at: payload.user_message.created_at || new Date().toISOString(),
       })
     }
+    chat.generating = true
     pushMessage({
       id: payload.assistant_message_id,
       role: 'assistant',
