@@ -59,13 +59,12 @@
     <div class="sidebar-foot">
       <div class="usage-card">
         <div class="usage-head">
-          <span class="usage-title">本月用量</span>
-          <span class="usage-percent">{{ usageLabel }}</span>
+          <span class="usage-title">{{ planName }}</span>
+          <span class="usage-percent">本月 ¥{{ spend }} / ¥{{ spendLimit }}</span>
         </div>
-        <div class="usage-bar"><span class="usage-bar-fill" :style="{ width: usagePercent + '%' }" /></div>
-        <div class="usage-meta">
-          <span class="usage-tokens">{{ usageTokens }}</span>
-          <span class="usage-reset">{{ usageReset }}</span>
+        <div v-if="limits" class="usage-meta">
+          <span class="usage-tokens">5 小时 / 本周 / 本月</span>
+          <span class="usage-reset">{{ limits.requests_short }} / {{ limits.requests_week }} / {{ limits.requests_month }}</span>
         </div>
       </div>
       <Btn type="button" class="user-card" aria-label="账号菜单" @click="emit('account')">
@@ -109,18 +108,8 @@ const emit = defineEmits(['close', 'new', 'search', 'open', 'actions', 'account'
 /** 简单分组：全部归到「今天」，与手机端一致，不再按日期拆多组。 */
 const groups = computed(() => (props.conversations.length ? [{ label: '今天', items: props.conversations }] : []))
 
-const usagePercent = computed(() => {
-  const usage = props.usage
-  if (!usage) return 0
-  if (usage.quota_tokens > 0) return Math.min(100, Math.round((usage.used_tokens / usage.quota_tokens) * 100))
-  return Math.min(100, usage.used_percent || 0)
-})
-const usageLabel = computed(() => (props.usage?.quota_tokens ? `${usagePercent.value}%` : '不限'))
-const usageTokens = computed(() => {
-  const usage = props.usage
-  if (!usage) return '—'
-  const fmt = (n) => (n >= 1000000 ? `${(n / 1000000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}K` : String(n))
-  return usage.quota_tokens ? `${fmt(usage.used_tokens)} / ${fmt(usage.quota_tokens)} tokens` : `${fmt(usage.used_tokens)} tokens`
-})
-const usageReset = computed(() => (props.usage?.reset_days ? `重置 ${props.usage.reset_days} 天` : '不设月度上限'))
+const limits = computed(() => props.usage?.limits ?? null)
+const planName = computed(() => props.usage?.limits?.plan?.name || '免费版')
+const spend = computed(() => ((props.usage?.limits?.spend_cents ?? 0) / 100).toFixed(2))
+const spendLimit = computed(() => ((props.usage?.limits?.spend_limit_cents ?? 0) / 100).toFixed(2))
 </script>
