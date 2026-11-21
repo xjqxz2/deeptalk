@@ -136,12 +136,17 @@ function onKeydown(event) {
 }
 .tool-icon {
   width: 64rpx;
+  flex-shrink: 0;
   color: #667085;
   font-size: 24rpx;
 }
 .tool-model {
+  width: 0;
   flex: 1;
+  flex-shrink: 1;
   text-align: center;
+  lines: 1;
+  text-overflow: ellipsis;
   color: #475467;
   font-size: 23rpx;
   font-weight: 620;
@@ -161,6 +166,7 @@ function onKeydown(event) {
 }
 .send-btn-slot {
   width: 64rpx;
+  flex-shrink: 0;
   align-items: flex-end;
 }
 .send-btn {

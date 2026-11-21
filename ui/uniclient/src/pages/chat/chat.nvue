@@ -88,7 +88,7 @@
     <!-- 运行错误提示：出现未捕获异常时不要只留白屏 -->
     <view v-if="errorState.message" class="err-bar">
       <text class="err-text">{{ errorState.message }}</text>
-      <text class="err-close" @click="clearError">关闭</text>
+      <text class="err-close" @click="onClearError">关闭</text>
     </view>
 
     <!-- 消息列表 -->
@@ -275,7 +275,7 @@ import { chatSocket } from '@/utils/ws'
 import { uploadFile } from '@/api/http'
 import { session, clearSession, isLoggedIn, getSignKey } from '@/store/session'
 import { goLogin } from '@/utils/nav'
-import { errorState, clearError } from '@/utils/errors'
+import { errorState, clearError as clearPageError } from '@/utils/errors'
 import { toast, confirm } from '@/utils/ui'
 import { logout as logoutApi, bindWeChat, fetchSignKey } from '@/api/auth'
 
@@ -307,6 +307,208 @@ const spend = computed(() => ((limits.value?.spend_cents || 0) / 100).toFixed(2)
 const spendLimit = computed(() => ((limits.value?.spend_limit_cents || 0) / 100).toFixed(2))
 
 
+
+
+
+/** 打开某个会话（抽屉点击 / 首屏自动恢复）。 */
+async function openItem(item) {
+  drawerOpen.value = false
+  await openConversation(item.public_id || item.id)
+  scrollToBottom()
+}
+
+/** 新建对话：清空当前草稿与消息。 */
+function newChat() {
+  startDraft()
+  drawerOpen.value = false
+  draft.value = ''
+  attachments.value = []
+}
+
+/** 会话搜索：交给服务端按标题模糊查询。 */
+async function onSearch() {
+  await loadConversations(keyword.value.trim())
+}
+
+/** 会话长按 / 更多：重命名、分享、删除。 */
+function onItemLongPress(item) {
+  const actions = ['重命名', '分享链接', '删除']
+  uni.showActionSheet({
+    itemList: actions,
+    success: async (res) => {
+      if (res.tapIndex === 0) {
+        uni.showModal({
+          title: '重命名',
+          editable: true,
+          placeholderText: item.title,
+          success: async (input) => {
+            const title = String(input?.content || '').trim()
+            if (input?.confirm && title) await rename(item.id, title)
+          },
+        })
+      } else if (res.tapIndex === 1) {
+        const url = await shareCurrent()
+        if (url) uni.showToast({ title: '分享链接已复制', icon: 'none' })
+      } else if (res.tapIndex === 2) {
+        const ok = await confirm({ title: '删除对话', content: `确定删除「${item.title}」？`, danger: true })
+        if (ok) await removeConversation(item.id)
+      }
+    },
+  })
+}
+
+/** 头像 / 账号入口：退出登录、切换账号。 */
+function onAvatar() {
+  uni.showActionSheet({
+    itemList: ['退出登录'],
+    success: async (res) => {
+      if (res.tapIndex !== 0) return
+      try {
+        await logoutApi()
+      } finally {
+        clearSession()
+        drawerOpen.value = false
+        goLogin()
+      }
+    },
+  })
+}
+
+/** 重新生成上一条回答。 */
+function onRegenerate() {
+  regenerate()
+}
+
+/** 模型选择确认（H5 的 van-picker）。 */
+function onModelConfirm(payload) {
+  const value = payload?.detail?.value ?? payload?.value
+  const id = typeof value === 'object' ? value?.value ?? value?.id : value
+  if (id) selectModel(Number(id))
+  modelPickerOpen.value = false
+}
+
+/** 移除待发送的附件。 */
+function removeAttachment(item) {
+  attachments.value = attachments.value.filter((entry) => entry.id !== item.id)
+}
+
+/** 上拉加载更早的消息（当前一次性加载，保留入口避免报错）。 */
+function loadMore() {
+  // 消息一次性加载，暂不做分页；保留空实现以兼容模板绑定
+}
+
+/**
+ * 读取状态栏高度与胶囊位置，只有小程序 / APP 需要。
+ * 自定义导航栏下页面从 y=0 开始，必须自己给状态栏留白。
+ */
+function measureChrome() {
+  // #ifndef H5
+  try {
+    const info = uni.getSystemInfoSync()
+    statusBarHeight.value = info.statusBarHeight || 20
+    if (typeof uni.getMenuButtonBoundingClientRect === 'function') {
+      const capsule = uni.getMenuButtonBoundingClientRect()
+      if (capsule && capsule.left) {
+        capsuleInset.value = Math.max(0, (info.windowWidth || info.screenWidth) - capsule.left + 8)
+      }
+    }
+  } catch {
+    statusBarHeight.value = 20
+  }
+  // #endif
+}
+
+/**
+ * 小程序端把 wx.login 的 code 换成 openid 并绑定到当前账号：
+ * 微信的文本内容安全接口（msgSecCheck v2）要求带 openid。
+ */
+function bindWeChatOpenID() {
+  // #ifdef MP-WEIXIN
+  uni.login({
+    provider: 'weixin',
+    success: (res) => {
+      if (!res.code) return
+      bindWeChat(res.code).catch(() => {
+        // 绑定失败不阻断使用，服务端会按策略降级
+      })
+    },
+  })
+  // #endif
+}
+
+/** 发送当前输入；生成中则由 store 转成插话。 */
+async function onSend() {
+  const text = draft.value.trim()
+  const ids = attachments.value.map((item) => item.id)
+  if (!text && !ids.length) return
+  draft.value = ''
+  const pending = attachments.value
+  attachments.value = []
+  try {
+    await send(text, ids)
+    scrollToBottom()
+  } catch (err) {
+    // 发送失败把内容还给用户
+    draft.value = text
+    attachments.value = pending
+    toast(err?.message || '发送失败，请重试')
+  }
+}
+
+/** 停止当前生成。 */
+function onStop() {
+  stop()
+}
+
+/** 选择图片并上传，作为本轮消息的附件。 */
+async function pickImage() {
+  const picked = await new Promise((resolve) => {
+    uni.chooseImage({ count: 1, sizeType: ['compressed'], success: resolve, fail: () => resolve(null) })
+  })
+  const path = picked?.tempFilePaths?.[0]
+  if (!path) return
+  try {
+    const asset = await uploadFile(path)
+    attachments.value = [...attachments.value, asset]
+  } catch (err) {
+    toast(err?.message || '图片上传失败')
+  }
+}
+
+/** 选择模型：H5 用 van-picker，小程序与 APP 用原生 ActionSheet。 */
+function pickModel() {
+  // #ifdef H5
+  modelPickerOpen.value = true
+  // #endif
+  // #ifndef H5
+  if (!chat.models.length) {
+    toast('管理员还没有配置可用模型')
+    return
+  }
+  uni.showActionSheet({
+    itemList: chat.models.map((item) => item.display_name),
+    success: (res) => selectModel(chat.models[res.tapIndex].id),
+  })
+  // #endif
+}
+
+/** 滚到底部：消息列表使用 scroll-into-view，target 变化才会触发。 */
+function scrollToBottom() {
+  nextTick(() => {
+    scrollTarget.value = ''
+    nextTick(() => {
+      scrollTarget.value = 'msg-end'
+    })
+  })
+}
+
+// 首帧之前量好状态栏与胶囊，避免内容先画到状态栏上再跳一下
+onLoad(() => {
+  measureChrome()
+  if (isLoggedIn() && !getSignKey()) {
+    fetchSignKey().catch(() => {})
+  }
+})
 
 onReady(() => {
   if (!isLoggedIn()) goLogin()
