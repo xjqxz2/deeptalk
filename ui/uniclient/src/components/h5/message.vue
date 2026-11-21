@@ -37,6 +37,12 @@
           :sources="message.sources"
         />
 
+        <A2uiRenderer
+          v-if="message.a2ui && message.a2ui.length"
+          :messages="message.a2ui"
+          @action="emit('a2ui-action', $event)"
+        />
+
         <div v-if="message.notice" class="dt-inline-notice notice">
           <WarningOutlined />
           {{ message.notice }}
@@ -109,6 +115,7 @@ import {
 import Thinking from './thinking.vue'
 import Btn from './btn.vue'
 import BrandMark from './brand-mark.vue'
+import A2uiRenderer from '@/components/a2ui/renderer.nvue'
 import { enhanceMarkdown, renderMarkdown } from '@/utils/pwa-markdown.js'
 
 const props = defineProps({
@@ -116,7 +123,7 @@ const props = defineProps({
   busy: { type: Boolean, default: false },
   activity: { type: Object, default: null },
 })
-const emit = defineEmits(['regenerate', 'rate', 'retry'])
+const emit = defineEmits(['regenerate', 'rate', 'retry', 'a2ui-action'])
 
 const proseRef = ref(null)
 const copied = ref(false)

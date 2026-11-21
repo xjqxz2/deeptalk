@@ -1,0 +1,199 @@
+<template>
+  <view v-if="sections.length" class="a2ui">
+    <view
+      v-for="section in sections"
+      :key="section.id"
+      :class="section.kind === 'card' ? 'a2ui-card' : 'a2ui-section'"
+    >
+      <template v-for="item in section.items" :key="item.id">
+        <text v-if="item.kind === 'text'" :class="textClass(item)">{{ item.text }}</text>
+
+        <view v-else-if="item.kind === 'divider'" class="a2ui-divider" />
+
+        <view
+          v-else-if="item.kind === 'row' || item.kind === 'list'"
+          :class="item.kind === 'row' ? 'a2ui-row' : 'a2ui-list'"
+        >
+          <template v-for="sub in item.items" :key="sub.id">
+            <text v-if="sub.kind === 'text'" :class="textClass(sub)">{{ sub.text }}</text>
+            <view v-else-if="sub.kind === 'button'" :class="buttonClass(sub)" @click="onAction(sub)">
+              <text class="a2ui-button-text">{{ sub.label }}</text>
+            </view>
+            <view v-else-if="sub.kind === 'divider'" class="a2ui-divider" />
+            <image
+              v-else-if="sub.kind === 'image'"
+              class="a2ui-image"
+              :src="sub.url"
+              mode="widthFix"
+            />
+          </template>
+        </view>
+
+        <view v-else-if="item.kind === 'button'" :class="buttonClass(item)" @click="onAction(item)">
+          <text class="a2ui-button-text">{{ item.label }}</text>
+        </view>
+
+        <image v-else-if="item.kind === 'image'" class="a2ui-image" :src="item.url" mode="widthFix" />
+
+        <text v-else-if="item.kind === 'unsupported'" class="a2ui-unsupported">
+          暂不支持 {{ item.name }} 组件
+        </text>
+      </template>
+    </view>
+  </view>
+</template>
+
+<script setup>
+/**
+ * A2UI 渲染器（小程序 / APP / H5 通用）。
+ *
+ * 官方 @a2ui/lit 需要 Web Components + DOM，小程序里跑不了；
+ * A2UI 消息本身是声明式的，这里用 utils/a2ui.js 折叠成「区块 → 条目」，
+ * 再用 uni 的 view/text/button 渲染，样式走设计令牌，观感与正文一致。
+ */
+import { computed } from 'vue'
+import { buildSections } from '@/utils/a2ui'
+
+const props = defineProps({
+  messages: { type: Array, default: () => [] },
+})
+const emit = defineEmits(['action'])
+
+const sections = computed(() => buildSections(props.messages || []))
+
+/** 文本样式：variant 决定层级，weight 决定加粗。 */
+function textClass(item) {
+  const variant = item.variant || 'body'
+  const weight = item.weight === 'bold' || item.weight === 'strong' ? ' a2ui-text-bold' : ''
+  return `a2ui-text a2ui-text-${variant}${weight}`
+}
+
+/** 按钮样式：primary / borderless / default。 */
+function buttonClass(item) {
+  const variant = item.variant || 'default'
+  return `a2ui-button a2ui-button-${variant}`
+}
+
+function onAction(item) {
+  emit('action', { id: item.id, label: item.label, action: item.action })
+}
+</script>
+
+<style>
+.a2ui {
+  margin: 12rpx 0 4rpx 0;
+}
+.a2ui-section {
+  margin-bottom: 12rpx;
+}
+.a2ui-card {
+  margin-bottom: 16rpx;
+  padding: 22rpx 24rpx;
+  border-radius: 18rpx;
+  border-width: 1rpx;
+  border-style: solid;
+  border-color: #eef1f6;
+  background-color: #fbfcfe;
+}
+.a2ui-text {
+  color: #1d2939;
+  font-size: 30rpx;
+  line-height: 48rpx;
+}
+.a2ui-text-h1 {
+  color: #101828;
+  font-size: 40rpx;
+  font-weight: bold;
+  line-height: 56rpx;
+}
+.a2ui-text-h2 {
+  color: #101828;
+  font-size: 36rpx;
+  font-weight: bold;
+  line-height: 52rpx;
+}
+.a2ui-text-h3 {
+  color: #101828;
+  font-size: 32rpx;
+  font-weight: bold;
+  line-height: 48rpx;
+}
+.a2ui-text-h4 {
+  color: #344054;
+  font-size: 30rpx;
+  font-weight: bold;
+  line-height: 46rpx;
+}
+.a2ui-text-caption {
+  color: #98a2b3;
+  font-size: 24rpx;
+  line-height: 36rpx;
+}
+.a2ui-text-label {
+  color: #667085;
+  font-size: 26rpx;
+}
+.a2ui-text-bold {
+  font-weight: bold;
+}
+.a2ui-divider {
+  height: 1rpx;
+  margin: 16rpx 0;
+  background-color: #eef1f6;
+}
+.a2ui-row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 8rpx 0;
+}
+.a2ui-row .a2ui-text {
+  margin-right: 18rpx;
+}
+.a2ui-list {
+  flex-direction: column;
+  margin: 6rpx 0;
+  padding-left: 24rpx;
+}
+.a2ui-list .a2ui-text {
+  position: relative;
+  margin-bottom: 6rpx;
+}
+.a2ui-button {
+  margin: 10rpx 12rpx 10rpx 0;
+  padding: 16rpx 30rpx;
+  border-radius: 14rpx;
+  border-width: 1rpx;
+  border-style: solid;
+  border-color: #e4e7ec;
+  background-color: #ffffff;
+}
+.a2ui-button-primary {
+  border-color: #4d6bfe;
+  background-color: #4d6bfe;
+}
+.a2ui-button-borderless {
+  border-color: transparent;
+  background-color: transparent;
+}
+.a2ui-button-text {
+  color: #475467;
+  font-size: 27rpx;
+}
+.a2ui-button-primary .a2ui-button-text {
+  color: #ffffff;
+  font-weight: bold;
+}
+.a2ui-button-borderless .a2ui-button-text {
+  color: #4d6bfe;
+}
+.a2ui-image {
+  width: 100%;
+  margin: 12rpx 0;
+  border-radius: 14rpx;
+}
+.a2ui-unsupported {
+  color: #98a2b3;
+  font-size: 24rpx;
+}
+</style>

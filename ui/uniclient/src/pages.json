@@ -4,14 +4,18 @@
       "path": "pages/chat/chat",
       "style": {
         "navigationStyle": "custom",
-        "app-plus": { "titleNView": false }
+        "app-plus": {
+          "titleNView": false
+        }
       }
     },
     {
       "path": "pages/login/login",
       "style": {
         "navigationStyle": "custom",
-        "app-plus": { "titleNView": false }
+        "app-plus": {
+          "titleNView": false
+        }
       }
     }
   ],

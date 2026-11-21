@@ -19,6 +19,7 @@
           @regenerate="onRegenerate"
           @rate="(rating) => onRate(item, rating)"
           @retry="onRegenerate"
+          @a2ui-action="onA2uiAction"
         />
       </div>
     </div>
@@ -111,6 +112,7 @@
           @regenerate="onRegenerate"
           @rate="(rating) => onRate(item, rating)"
           @retry="onRegenerate"
+          @a2ui-action="onA2uiAction"
         />
       </view>
       <view id="msg-end" class="list-end" />
@@ -333,6 +335,11 @@ async function onSend(payload) {
   } catch (err) {
     toast(err?.message || '发送失败')
   }
+}
+
+/** A2UI 里的按钮：小程序端暂不接回传动作，给一条明确提示而不是无反应。 */
+function onA2uiAction(payload) {
+  toast(`「${payload.label || '该按钮'}」需要在 Web 端完成操作`)
 }
 
 function onStop() {

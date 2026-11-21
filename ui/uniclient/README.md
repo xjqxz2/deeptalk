@@ -87,6 +87,21 @@ npm run build:mp-weixin     # 产物：dist/build/mp-weixin
 - 流式回答走 `uni.connectSocket`（H5 走浏览器原生 WebSocket），协议与事件名完全一致
 - 登录态存本地存储，请求带 `Authorization: Bearer`，WebSocket 用 `?token=` 连接
 
+## A2UI
+
+A2UI 是 agent 产出声明式 UI 的协议。官方渲染器 `@a2ui/lit` 依赖 Web Components 与 DOM，
+**微信小程序跑不了**；但 A2UI 消息本身是纯 JSON（`createSurface` / `updateComponents` /
+`updateDataModel`），所以在小程序端自己实现了渲染层：
+
+- `src/utils/a2ui.js`：把消息折叠成「区块 → 条目」两层结构，解析 `{path}` / `{literal}` 取值
+- `src/components/a2ui/renderer.nvue`：用 `view / text / button / image` 渲染，三端通用
+- 支持的基础 catalog 组件：`Text`（含 h1–h4 / caption 变体）、`Column`、`Row`、`List`、
+  `Card`、`Divider`、`Image`、`Button`；其它类型降级成一行提示，不会白屏
+- 线上真实用到的只有 `Column / Card / Text / Row / List / Divider / Button` 七种，已全部覆盖
+
+已知限制：A2UI 里的 `Button` 点击不会回传动作（PWA 端由 Lit 渲染器派发事件），
+小程序端点击只给出提示；如果需要，可以接成「把动作名作为用户消息发回模型」。
+
 ## 构建
 
 ```bash

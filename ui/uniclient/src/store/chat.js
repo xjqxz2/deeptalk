@@ -168,6 +168,14 @@ chatSocket.on('activity', (payload) => {
   chat.activity = payload
 })
 
+chatSocket.on('a2ui', (payload) => {
+  const assistant = streamingMessage()
+  if (!assistant) return
+  const incoming = payload.messages || []
+  if (!incoming.length) return
+  assistant.a2ui = [...(assistant.a2ui || []), ...incoming]
+})
+
 chatSocket.on('sources', (payload) => {
   const assistant = streamingMessage()
   if (!assistant) return
