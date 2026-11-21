@@ -13,6 +13,7 @@ import (
 	"deeptalk/apis/responses"
 	"deeptalk/internal/attachment"
 	"deeptalk/internal/audit"
+	"deeptalk/internal/billing"
 	"deeptalk/internal/chat"
 	"deeptalk/internal/provider"
 	"deeptalk/internal/security"
@@ -44,6 +45,7 @@ type Deps struct {
 	Settings    *setting.Service    // 设置
 	Audits      *audit.Service      // 审计
 	WeChat      *wechat.Manager     // 小程序 access_token（未配置时为 nil）
+	Billing     *billing.Service    // 套餐限额与计费
 }
 
 // NewRouter 装配全部路由、中间件与静态资源。
@@ -68,7 +70,7 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 	auth := middleware.Auth(deps.Users, cfg.Auth)
 	admin := middleware.AdminOnly()
 
-	authController := capi.NewAuthController(deps.Users, deps.Providers, deps.Settings, cfg.Auth, cfg.WebSearchEnabled, deps.WeChat, signVerifier)
+	authController := capi.NewAuthController(deps.Users, deps.Providers, deps.Settings, cfg.Auth, cfg.WebSearchEnabled, deps.WeChat, signVerifier, deps.Billing)
 	chatController := capi.NewChatController(deps.Chats)
 	wsController := capi.NewWSController(deps.Chats, deps.Users, cfg.Auth)
 	attachmentController := capi.NewAttachmentController(deps.Attachments)
@@ -76,6 +78,7 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 	overviewController := b.NewOverviewController(deps.Users, deps.Providers, deps.Chats, deps.Audits)
 	usageController := b.NewUsageController(deps.Chats)
 	providerController := b.NewProviderController(deps.Providers, deps.Audits)
+	billingController := b.NewBillingController(deps.Billing)
 	userController := b.NewUserController(deps.Users, deps.Chats, deps.Audits)
 	settingsController := b.NewSettingsController(deps.Settings, deps.Providers, deps.Audits, cfg.DBPath)
 
@@ -85,6 +88,7 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 	cPublic := api.Group("/c/auth")
 	{
 		cPublic.GET("/config", authController.Config)
+		cPublic.GET("/plans", authController.Plans)
 		cPublic.POST("/register", authController.Register)
 		cPublic.POST("/login", authController.Login)
 		cPublic.POST("/wechat/login", authController.WeChatLogin)
@@ -138,6 +142,8 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 		bGroup.GET("/audit-logs", overviewController.AuditLogs)
 		bGroup.GET("/usage", usageController.Usage)
 
+		bGroup.GET("/plans", billingController.List)
+		bGroup.PUT("/plans/:id", billingController.Update)
 		bGroup.GET("/providers", providerController.List)
 		bGroup.POST("/providers", providerController.Create)
 		bGroup.POST("/providers/test", providerController.TestDraft)

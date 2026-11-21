@@ -74,6 +74,8 @@ type Model struct {
 	IsDefault      bool      `gorm:"not null;default:false"`                          // 平台默认模型
 	IsFallback     bool      `gorm:"not null;default:false"`                          // 兜底模型
 	SortOrder      int       `gorm:"not null;default:0"`                              // 排序
+	PriceInput     float64   `gorm:"not null;default:0"`                              // 输入单价（元 / 百万 token）
+	PriceOutput    float64   `gorm:"not null;default:0"`                              // 输出单价（元 / 百万 token）
 	CreatedAt      time.Time // 创建时间
 	UpdatedAt      time.Time // 更新时间
 

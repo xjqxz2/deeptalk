@@ -48,6 +48,20 @@ export interface UsageInfo {
   used_percent: number
   reset_days: number
   plan: UserPlan
+  limits?: PlanLimits
+}
+
+/** 套餐限额快照：月消费 + 三个滚动窗口的请求次数。 */
+export interface PlanLimits {
+  plan: { code: string; name: string; description: string }
+  spend_cents: number
+  spend_limit_cents: number
+  requests_short: number
+  requests_week: number
+  requests_month: number
+  short_resets_at: string
+  week_resets_at: string
+  month_resets_at: string
 }
 
 /** C 端模型选择项。 */

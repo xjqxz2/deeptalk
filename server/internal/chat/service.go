@@ -17,6 +17,7 @@ import (
 	"unicode/utf8"
 
 	"deeptalk/internal/attachment"
+	"deeptalk/internal/billing"
 	"deeptalk/internal/provider"
 	"deeptalk/internal/search"
 	"deeptalk/internal/setting"
@@ -42,6 +43,13 @@ type Config struct {
 	MaxSitesPerTurn  int           // 单次回答最多打开多少个网页
 	MaxToolRounds    int           // 单次回答最多多少轮工具调用（安全阀）
 	Compliance       TextChecker   // 小程序端内容安全；nil 表示不校验
+	Billing          Billing       // 套餐限额与计费；nil 表示不限制
+}
+
+// Billing 抽象套餐限额与计费，便于测试替换。
+type Billing interface {
+	Check(ctx context.Context, planCode string, userID uint) (*billing.Snapshot, error)
+	Record(ctx context.Context, event billing.Event) error
 }
 
 // TextChecker 在写入消息前对用户输入做平台相关的合规校验。
@@ -200,8 +208,13 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 	if err != nil {
 		return err
 	}
-	// 额度校验必须在插入任何消息前完成，避免“超额也写入历史”
-	if currentUser.QuotaTokens > 0 && currentUser.UsedTokens >= currentUser.QuotaTokens {
+	// 额度校验必须在插入任何消息前完成，避免“超额也写入历史”。
+	// 新套餐按「月消费」+「5 小时 / 7 天 / 30 天请求次数」双重锁止。
+	if s.cfg.Billing != nil {
+		if _, err := s.cfg.Billing.Check(ctx, currentUser.Plan, userID); err != nil {
+			return err
+		}
+	} else if currentUser.QuotaTokens > 0 && currentUser.UsedTokens >= currentUser.QuotaTokens {
 		return ErrQuotaExceeded
 	}
 	var model *provider.Model
@@ -742,6 +755,17 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 		"updated_at": time.Now(),
 	}).Error
 	_ = s.users.ConsumeUsage(finishCtx, userID, int64(inputTokens+outputTokens))
+	if s.cfg.Billing != nil {
+		cost := billing.CostMilliCents(inputTokens, outputTokens, model.PriceInput, model.PriceOutput)
+		_ = s.cfg.Billing.Record(finishCtx, billing.Event{
+			UserID:         userID,
+			ModelID:        model.ID,
+			ModelName:      model.DisplayName,
+			InputTokens:    inputTokens,
+			OutputTokens:   outputTokens,
+			CostMilliCents: cost,
+		})
+	}
 
 	tokensPerSec := 0.0
 	if duration.Seconds() > 0 {

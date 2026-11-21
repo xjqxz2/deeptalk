@@ -3,9 +3,11 @@ package responses
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
+	"deeptalk/internal/billing"
 	"deeptalk/internal/chat"
 	"deeptalk/internal/provider"
 	"deeptalk/internal/user"
@@ -47,6 +49,35 @@ func Fail(c *gin.Context, code int, msg string) {
 
 // FromError 将领域错误映射为统一错误码与可展示文案。
 // 未知错误统一返回 2001，避免把内部细节暴露给前端；调用方应同时记录日志。
+// billingAsLimit 取出套餐限额错误，便于给出具体原因与恢复时间。
+func billingAsLimit(err error) *billing.LimitError {
+	var limit *billing.LimitError
+	if errors.As(err, &limit) {
+		return limit
+	}
+	return nil
+}
+
+// limitMessage 生成用户可读的限额提示。
+func limitMessage(limit *billing.LimitError) string {
+	when := ""
+	if !limit.ResetsAt.IsZero() {
+		when = "，约 " + limit.ResetsAt.Format("01-02 15:04") + " 恢复"
+	}
+	switch limit.Window {
+	case "5h":
+		return fmt.Sprintf("5 小时内的请求已达上限（%d 次）%s", limit.Limit, when)
+	case "week":
+		return fmt.Sprintf("本周请求已达上限（%d 次）%s", limit.Limit, when)
+	case "month":
+		if limit.Kind == billing.ErrSpendLimit {
+			return fmt.Sprintf("本月费用额度已用完（%.2f 元）%s", float64(limit.Limit)/100, when)
+		}
+		return fmt.Sprintf("本月请求已达上限（%d 次）%s", limit.Limit, when)
+	}
+	return limit.Kind.Error()
+}
+
 func FromError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, user.ErrInvalidCredentials):
@@ -72,6 +103,11 @@ func FromError(c *gin.Context, err error) {
 		Fail(c, CodeInvalidArgument, "当前没有正在生成的回答，可直接发送")
 	case errors.Is(err, chat.ErrEmptyInterject):
 		Fail(c, CodeInvalidArgument, "插话内容不能为空")
+	case billingAsLimit(err) != nil:
+		limit := billingAsLimit(err)
+		Fail(c, CodeQuotaExceeded, limitMessage(limit))
+	case errors.Is(err, billing.ErrPlanNotFound):
+		Fail(c, CodeNotFound, "套餐不存在或已被删除")
 	case errors.Is(err, chat.ErrQuotaExceeded):
 		Fail(c, CodeQuotaExceeded, "本月额度已用完，请联系管理员调整额度")
 	case errors.Is(err, chat.ErrNoModel):

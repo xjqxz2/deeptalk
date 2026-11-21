@@ -9,6 +9,7 @@ import (
 	"deeptalk/apis/middleware"
 	"deeptalk/apis/requests"
 	"deeptalk/apis/responses"
+	"deeptalk/internal/billing"
 	"deeptalk/internal/provider"
 	"deeptalk/internal/security"
 	"deeptalk/internal/setting"
@@ -23,6 +24,7 @@ type AuthController struct {
 	users         *user.Service      // 账号能力
 	wechat        *wechat.Manager    // 小程序凭据（code2session）
 	sign          *security.Verifier // 请求签名密钥派生
+	billing       *billing.Service   // 套餐限额
 	providers     *provider.Service  // 模型能力
 	settings      *setting.Service   // 平台设置
 	cfg           middleware.Config  // Cookie 等配置
@@ -30,8 +32,8 @@ type AuthController struct {
 }
 
 // NewAuthController 创建 C 端账号控制器。
-func NewAuthController(users *user.Service, providers *provider.Service, settings *setting.Service, cfg middleware.Config, searchEnabled bool, wx *wechat.Manager, sign *security.Verifier) *AuthController {
-	return &AuthController{users: users, wechat: wx, sign: sign, providers: providers, settings: settings, cfg: cfg, searchEnabled: searchEnabled}
+func NewAuthController(users *user.Service, providers *provider.Service, settings *setting.Service, cfg middleware.Config, searchEnabled bool, wx *wechat.Manager, sign *security.Verifier, bill *billing.Service) *AuthController {
+	return &AuthController{users: users, wechat: wx, sign: sign, billing: bill, providers: providers, settings: settings, cfg: cfg, searchEnabled: searchEnabled}
 }
 
 // WeChatLogin 用小程序 wx.login 的 code 登录：openid 不存在时自动建号。
@@ -262,7 +264,35 @@ func (h *AuthController) ChangePassword(c *gin.Context) {
 // Usage 返回当前用户本月用量。
 func (h *AuthController) Usage(c *gin.Context) {
 	current := middleware.CurrentUser(c)
-	responses.OK(c, h.users.Usage(current))
+	usage := h.users.Usage(current)
+	out := responses.UsageResponse{
+		UsedTokens:  usage.UsedTokens,
+		QuotaTokens: usage.QuotaTokens,
+		UsedPercent: usage.UsedPercent,
+		ResetDays:   usage.ResetDays,
+		Plan:        string(usage.Plan),
+	}
+	// 套餐限额：月消费 + 5 小时 / 7 天 / 30 天请求次数
+	if h.billing != nil {
+		if snap, err := h.billing.Snapshot(c.Request.Context(), current.Plan, current.ID); err == nil {
+			out.Limits = &snap
+		}
+	}
+	responses.OK(c, out)
+}
+
+// Plans 返回启用的套餐列表（登录页与用量卡片展示）。
+func (h *AuthController) Plans(c *gin.Context) {
+	if h.billing == nil {
+		responses.OK(c, gin.H{"items": []any{}})
+		return
+	}
+	items, err := h.billing.Plans(c.Request.Context())
+	if err != nil {
+		responses.FromError(c, err)
+		return
+	}
+	responses.OK(c, gin.H{"items": items})
 }
 
 // Models 返回 C 端可选择的模型（仅启用项）。

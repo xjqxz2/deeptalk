@@ -11,6 +11,7 @@ import (
 	"deeptalk/apis/middleware"
 	"deeptalk/internal/attachment"
 	"deeptalk/internal/audit"
+	"deeptalk/internal/billing"
 	"deeptalk/internal/chat"
 	"deeptalk/internal/compliance"
 	"deeptalk/internal/provider"
@@ -71,6 +72,7 @@ func (a *App) startHTTP(ctx context.Context) error {
 		RequireBind: cfg.WeChat.Security.RequireBind,
 	}, a.WeChat, users, a.Log)
 
+	billingService := billing.NewService(a.DB)
 	chats := chat.NewService(a.DB, providers, users, searcher, attachments, settings, chat.Config{
 		MaxOutputTokens:  cfg.Upstream.MaxOutputTokens,
 		FirstByteTimeout: time.Duration(cfg.Upstream.FirstByteTimeoutSec) * time.Second,
@@ -82,6 +84,7 @@ func (a *App) startHTTP(ctx context.Context) error {
 		Location:         cfg.App.Location,
 		Timezone:         cfg.App.Timezone,
 		Compliance:       checker,
+		Billing:          billingService,
 	})
 	chats.StartCompactionWorker(ctx)
 
@@ -106,6 +109,7 @@ func (a *App) startHTTP(ctx context.Context) error {
 		Settings:    settings,
 		Audits:      audits,
 		WeChat:      a.WeChat,
+		Billing:     billingService,
 	}, a.Log)
 
 	listener, err := net.Listen("tcp", cfg.App.Addr)

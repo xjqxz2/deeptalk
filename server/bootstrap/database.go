@@ -9,6 +9,7 @@ import (
 
 	"deeptalk/internal/attachment"
 	"deeptalk/internal/audit"
+	"deeptalk/internal/billing"
 	"deeptalk/internal/chat"
 	"deeptalk/internal/provider"
 	"deeptalk/internal/seed"
@@ -54,6 +55,7 @@ func (a *App) startDatabase(ctx context.Context) error {
 		{"attachment", attachment.Migrate},
 		{"provider", provider.Migrate},
 		{"chat", chat.Migrate},
+		{"billing", billing.Migrate},
 	}
 	for _, migration := range migrations {
 		if err := migration.fn(db); err != nil {

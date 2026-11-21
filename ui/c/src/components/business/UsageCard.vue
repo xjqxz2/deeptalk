@@ -11,6 +11,11 @@ const unlimited = computed(() => (props.usage?.quota_tokens ?? 0) <= 0)
 const used = computed(() => formatTokens(props.usage?.used_tokens ?? 0))
 const quota = computed(() => formatTokens(props.usage?.quota_tokens ?? 0))
 const resetDays = computed(() => props.usage?.reset_days ?? 0)
+// 套餐限额：月消费 + 5 小时 / 7 天 / 30 天请求次数
+const limits = computed(() => props.usage?.limits ?? null)
+const spend = computed(() => ((limits.value?.spend_cents ?? 0) / 100).toFixed(2))
+const spendLimit = computed(() => ((limits.value?.spend_limit_cents ?? 0) / 100).toFixed(2))
+
 </script>
 
 <template>
@@ -27,6 +32,27 @@ const resetDays = computed(() => props.usage?.reset_days ?? 0)
       <span>{{ used }} / {{ unlimited ? '无限' : quota }} tokens</span>
       <span class="reset">{{ unlimited ? '不限额度' : `重置 ${resetDays} 天` }}</span>
     </div>
+
+    <template v-if="limits">
+      <div class="usage-limits">
+        <div class="usage-limit-row">
+          <span class="usage-limit-label">本月消费</span>
+          <span class="usage-limit-value">¥{{ spend }} / ¥{{ spendLimit }}</span>
+        </div>
+        <div class="usage-limit-row">
+          <span class="usage-limit-label">5 小时请求</span>
+          <span class="usage-limit-value">{{ limits.requests_short }}</span>
+        </div>
+        <div class="usage-limit-row">
+          <span class="usage-limit-label">本周请求</span>
+          <span class="usage-limit-value">{{ limits.requests_week }}</span>
+        </div>
+        <div class="usage-limit-row">
+          <span class="usage-limit-label">本月请求</span>
+          <span class="usage-limit-value">{{ limits.requests_month }}</span>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -95,5 +121,30 @@ const resetDays = computed(() => props.usage?.reset_days ?? 0)
 .reset {
   color: var(--dt-text-faint);
   white-space: nowrap;
+}
+
+.usage-limits {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--dt-line);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.usage-limit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+.usage-limit-label {
+  color: var(--dt-text-muted);
+}
+
+.usage-limit-value {
+  color: var(--dt-text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 </style>

@@ -45,6 +45,12 @@ export const appRoutes: RouteRecordRaw[] = [
         meta: { title: '厂商与模型', menu: true, icon: ApiOutlined },
       },
       {
+        path: 'plans',
+        name: 'plans',
+        component: () => import('@/pages/plans/PlansPage.vue'),
+        meta: { title: '套餐与限额', menu: true, icon: SettingOutlined },
+      },
+      {
         path: 'users',
         name: 'users',
         component: () => import('@/pages/users/UsersPage.vue'),

@@ -211,6 +211,16 @@
             <text class="drawer-usage-tokens">{{ usageTokens }}</text>
             <text class="drawer-usage-reset">{{ usageReset }}</text>
           </view>
+          <view v-if="limits" class="drawer-limits">
+            <view class="drawer-limit-row">
+              <text class="drawer-limit-label">本月消费</text>
+              <text class="drawer-limit-value">¥{{ spend }} / ¥{{ spendLimit }}</text>
+            </view>
+            <view class="drawer-limit-row">
+              <text class="drawer-limit-label">5 小时 / 本周 / 本月</text>
+              <text class="drawer-limit-value">{{ limits.requests_short }} / {{ limits.requests_week }} / {{ limits.requests_month }}</text>
+            </view>
+          </view>
         </view>
 
         <view class="drawer-account" @click="onAvatar">
@@ -303,6 +313,9 @@ const usagePercent = computed(() => {
   return Math.min(100, usage.used_percent || 0)
 })
 const usageLabel = computed(() => (chat.usage?.quota_tokens ? `${usagePercent.value}%` : '不限'))
+const limits = computed(() => chat.usage?.limits || null)
+const spend = computed(() => ((limits.value?.spend_cents || 0) / 100).toFixed(2))
+const spendLimit = computed(() => ((limits.value?.spend_limit_cents || 0) / 100).toFixed(2))
 const usageTokens = computed(() => {
   const usage = chat.usage
   if (!usage) return '—'
@@ -1009,6 +1022,39 @@ onShow(() => {
   }
   .drawer-account-mail {
     color: #7b8494;
+  }
+}
+
+.drawer-limits {
+  margin-top: 10rpx;
+  padding-top: 10rpx;
+  border-top-width: 1rpx;
+  border-top-style: dashed;
+  border-top-color: #eaecf0;
+}
+.drawer-limit-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4rpx;
+}
+.drawer-limit-label {
+  color: #98a2b3;
+  font-size: 20rpx;
+}
+.drawer-limit-value {
+  color: #475467;
+  font-size: 20rpx;
+}
+@media (prefers-color-scheme: dark) {
+  .drawer-limits {
+    border-top-color: #2a2f3a;
+  }
+  .drawer-limit-label {
+    color: #7b8494;
+  }
+  .drawer-limit-value {
+    color: #b6bdcb;
   }
 }
 </style>

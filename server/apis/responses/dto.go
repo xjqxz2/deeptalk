@@ -7,6 +7,7 @@ import (
 
 	"deeptalk/internal/attachment"
 	"deeptalk/internal/audit"
+	"deeptalk/internal/billing"
 	"deeptalk/internal/chat"
 	"deeptalk/internal/provider"
 	"deeptalk/internal/search"
@@ -378,4 +379,20 @@ func avatar(nickname string) string {
 		return "U"
 	}
 	return string(runes[0])
+}
+
+// UsageResponse 保持扁平字段（兼容旧客户端），并附带套餐限额。
+type UsageResponse struct {
+	UsedTokens  int64             `json:"used_tokens"`
+	QuotaTokens int64             `json:"quota_tokens"`
+	UsedPercent int               `json:"used_percent"`
+	ResetDays   int               `json:"reset_days"`
+	Plan        string            `json:"plan"`
+	Limits      *billing.Snapshot `json:"limits,omitempty"`
+}
+
+// NewUsageResponse 组装用量与限额。
+func NewUsage(usage UsageResponse, limits *billing.Snapshot) UsageResponse {
+	usage.Limits = limits
+	return usage
 }
