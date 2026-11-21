@@ -91,15 +91,16 @@ type SearchEngineConfig struct {
 }
 
 type WebSearchConfig struct {
-	Enabled      bool                 `yaml:"enabled"`     // 是否启用联网搜索
-	ObscuraBin   string               `yaml:"obscura_bin"` // Obscura 可执行文件
-	EngineURL    string               `yaml:"engine_url"`
-	Engines      []SearchEngineConfig `yaml:"engines"`       // 搜索页模板，支持 {query}
-	MaxResults   int                  `yaml:"max_results"`   // 最多引用条数
-	Concurrency  int                  `yaml:"concurrency"`   // 多引擎并发数
-	TimeoutSec   int                  `yaml:"timeout_sec"`   // 单次检索超时（秒）
-	HTTPFallback bool                 `yaml:"http_fallback"` // Obscura 失败时是否允许 HTTP 回退
-	Stealth      bool                 `yaml:"stealth"`       // 是否启用 Obscura 反检测
+	Enabled        bool                 `yaml:"enabled"`     // 是否启用联网搜索
+	ObscuraBin     string               `yaml:"obscura_bin"` // Obscura 可执行文件
+	EngineURL      string               `yaml:"engine_url"`
+	Engines        []SearchEngineConfig `yaml:"engines"`          // 搜索页模板，支持 {query}
+	MaxResults     int                  `yaml:"max_results"`      // 最多引用条数
+	Concurrency    int                  `yaml:"concurrency"`      // 多引擎并发数
+	TimeoutSec     int                  `yaml:"timeout_sec"`      // 单次检索超时（秒）
+	PageTimeoutSec int                  `yaml:"page_timeout_sec"` // 单个网页抓取超时（秒）
+	HTTPFallback   bool                 `yaml:"http_fallback"`    // Obscura 失败时是否允许 HTTP 回退
+	Stealth        bool                 `yaml:"stealth"`          // 是否启用 Obscura 反检测
 }
 
 // MCPConfig 保存 stdio MCP server 的启动参数。
@@ -280,6 +281,11 @@ func applyEnvOverrides(cfg *Config) {
 			cfg.Uploads.MaxMB = n
 		}
 	}
+	if v := os.Getenv("DEEPTALK_SEARCH_PAGE_TIMEOUT_SEC"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			cfg.WebSearch.PageTimeoutSec = n
+		}
+	}
 	if v := os.Getenv("DEEPTALK_SEARCH_TIMEOUT_SEC"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			cfg.WebSearch.TimeoutSec = n
@@ -322,6 +328,9 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.Auth.DefaultQuotaTokens <= 0 {
 		cfg.Auth.DefaultQuotaTokens = 4_000_000
+	}
+	if cfg.WebSearch.PageTimeoutSec <= 0 {
+		cfg.WebSearch.PageTimeoutSec = 15
 	}
 	if cfg.Upstream.MaxOutputTokens <= 0 {
 		cfg.Upstream.MaxOutputTokens = 384000

@@ -60,6 +60,7 @@ func (a *App) startHTTP(ctx context.Context) error {
 		MaxResults:   cfg.WebSearch.MaxResults,
 		Concurrency:  cfg.WebSearch.Concurrency,
 		Timeout:      time.Duration(cfg.WebSearch.TimeoutSec) * time.Second,
+		PageTimeout:  time.Duration(cfg.WebSearch.PageTimeoutSec) * time.Second,
 		HTTPFallback: cfg.WebSearch.HTTPFallback,
 		Stealth:      cfg.WebSearch.Stealth,
 		MCP:          mcpCaller,

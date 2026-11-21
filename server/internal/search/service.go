@@ -61,6 +61,11 @@ type Engine struct {
 }
 
 // Config 是检索服务的可配置项。
+var (
+	// ErrPageTimeout 表示单个网页在预算内没有抓完（该页跳过，其余照常）。
+	ErrPageTimeout = errors.New("查询超时")
+)
+
 type Config struct {
 	Enabled      bool          // 是否启用联网搜索
 	ObscuraBin   string        // Obscura 可执行文件路径或 PATH 中的命令名
@@ -68,7 +73,8 @@ type Config struct {
 	Engines      []Engine      // 多引擎配置；非空时优先使用
 	MaxResults   int           // 最多返回条数
 	Concurrency  int           // 多引擎并发数
-	Timeout      time.Duration // 单次检索超时
+	Timeout      time.Duration // 单次检索超时（整批）
+	PageTimeout  time.Duration // 单个网页抓取超时（超时按「查询超时」跳过该页）
 	HTTPFallback bool          // Obscura 失败时是否允许普通 HTTP 抓取
 	Stealth      bool          // 是否启用 Obscura 反检测模式
 	UserAgent    string        // HTTP 回退时使用的浏览器 UA
@@ -125,6 +131,12 @@ func New(cfg Config) *Service {
 	}
 	if cfg.Timeout > 45*time.Second {
 		cfg.Timeout = 45 * time.Second
+	}
+	if cfg.PageTimeout <= 0 {
+		cfg.PageTimeout = 15 * time.Second
+	}
+	if cfg.PageTimeout > 30*time.Second {
+		cfg.PageTimeout = 30 * time.Second
 	}
 	if strings.TrimSpace(cfg.ObscuraBin) == "" {
 		cfg.ObscuraBin = "obscura"
@@ -224,7 +236,7 @@ func (s *Service) FetchPagesWithProgress(ctx context.Context, rawURLs []string, 
 				results <- pageResult{err: ctx.Err()}
 				return
 			}
-			raw, err := s.fetchPage(ctx, target)
+			raw, err := s.fetchPageWithTimeout(ctx, target)
 			if err != nil {
 				results <- pageResult{err: err}
 				return
@@ -459,7 +471,7 @@ func (s *Service) runEngines(ctx context.Context, query string, engines []Engine
 // searchEngine 优先用 Obscura MCP 浏览器打开搜索页，再复用现有解析与排序；
 // MCP 无法启动时退回 Obscura CLI，最后才走普通 HTTP。
 func (s *Service) searchEngine(ctx context.Context, engine Engine, target string) ([]Result, error) {
-	raw, err := s.fetchPage(ctx, target)
+	raw, err := s.fetchPageWithTimeout(ctx, target)
 	if err == nil && len(raw) > 0 {
 		if items := parseEngine(engine.Name, raw, s.cfg.MaxResults, engine.URL); len(items) > 0 {
 			return items, nil
@@ -484,6 +496,18 @@ func (s *Service) searchEngine(ctx context.Context, engine Engine, target string
 		return nil, ErrNoResult
 	}
 	return items, nil
+}
+
+// fetchPageWithTimeout 给单个网页套上独立超时：
+// 超时只影响这一页（记为「查询超时」），已经返回的页面继续使用。
+func (s *Service) fetchPageWithTimeout(ctx context.Context, target string) ([]byte, error) {
+	pageCtx, cancel := context.WithTimeout(ctx, s.cfg.PageTimeout)
+	defer cancel()
+	raw, err := s.fetchPage(pageCtx, target)
+	if err != nil && errors.Is(pageCtx.Err(), context.DeadlineExceeded) {
+		return nil, ErrPageTimeout
+	}
+	return raw, err
 }
 
 // fetchPage 按 MCP -> Obscura CLI -> HTTP 的顺序取页面，返回第一个成功结果。

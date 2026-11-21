@@ -98,6 +98,8 @@ web_search:
   enabled: true
   # Obscura 可执行文件；Docker 镜像内已包含
   obscura_bin: obscura
+  # 单个网页抓取超时（秒）：超时的网页记为「查询超时」，其余网页继续返回
+  page_timeout_sec: 15
   # 兼容旧的单引擎配置；engines 非空时优先使用多引擎
   engine_url: https://cn.bing.com/search?q={query}&mkt=zh-CN&setlang=zh-Hans&cc=CN
   # 多引擎 RRF（Reciprocal Rank Fusion）融合；百度权重最低
