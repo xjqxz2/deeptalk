@@ -185,6 +185,11 @@ chatSocket.on('meta', (payload) => {
   if (payload.title) applyTitle(payload.title)
 })
 
+chatSocket.on('reasoning_reset', () => {
+  const assistant = streamingMessage()
+  if (assistant) assistant.reasoning = ''
+})
+
 chatSocket.on('reasoning', (payload) => {
   const assistant = streamingMessage()
   if (!assistant) return

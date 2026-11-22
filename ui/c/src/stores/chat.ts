@@ -549,6 +549,10 @@ export const useChatStore = defineStore('chat', () => {
           activeAssistant.content += delta
           break
         }
+        case 'reasoning_reset':
+          // 服务端重试前清空上一段思考，避免时间线里出现两段重复推理
+          activeAssistant.reasoning = ''
+          break
         case 'tool_call': {
           const call = payload as { id: string; name: string; kind?: string; input?: { queries?: string[]; urls?: string[] } }
           activeAssistant.toolBlocks = [

@@ -661,6 +661,11 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 	start := time.Now()
 	var reasoning, answer string
 	emitDelta := func(kind, delta string) error {
+		if kind == "reset_reasoning" {
+			// 重试前清空已下发的思考，避免前端看到两段重复推理
+			reasoning = ""
+			return emit("reasoning_reset", map[string]string{})
+		}
 		if delta == "" {
 			return nil
 		}
@@ -724,7 +729,7 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 			break
 		}
 		if idx+1 < len(candidates) {
-			_ = emit("notice", map[string]string{"message": "默认模型不可用，正在尝试兜底模型…"})
+			_ = emit("notice", map[string]string{"message": "当前模型响应较慢，正在尝试其它可用模型…"})
 			continue
 		}
 	}
@@ -875,6 +880,19 @@ func (s *Service) generate(
 ) (provider.CompletionUsage, bool, error) {
 	usage := provider.CompletionUsage{}
 	produced := false
+	// visibleText 表示已经输出过正文；reasoningSeen 表示出现过思考。
+	// 只有正文出现后才不再重试，否则慢模型抖一下就报错太容易误伤。
+	visibleText := false
+	reasoningSeen := false
+	emitVisible := func(kind, delta string) error {
+		switch kind {
+		case "content":
+			visibleText = true
+		case "reasoning":
+			reasoningSeen = true
+		}
+		return emitDelta(kind, delta)
+	}
 	if strings.TrimSpace(prov.APIKeyEnc) != "" {
 		// 模型可以在一轮回答里反复搜索/打开网页，直到用完网页预算或不再调用工具。
 		// 最后再留一轮不带工具，强制它给出最终回答，防止死循环。
@@ -890,21 +908,33 @@ func (s *Service) generate(
 			for attempt := 0; attempt < 2; attempt++ {
 				attemptStart := time.Now()
 				var used provider.CompletionUsage
+				// 慢模型（尤其联网检索后）首字节会明显变慢：
+				// 有工具时给一段额外宽限，重试再翻倍，减少「模型不可用」的误报。
+				attemptTimeout := s.firstByteTimeout(ctx)
+				if len(roundTools) > 0 {
+					attemptTimeout += 60 * time.Second
+				}
+				if attempt > 0 {
+					attemptTimeout *= 2
+				}
+				if attemptTimeout > 300*time.Second {
+					attemptTimeout = 300 * time.Second
+				}
 				// 有些上游（如 DSML 系模型）把工具调用写进正文，这里边流边过滤，
 				// 既不让内部标记出现在回答里，也把它们还原成标准工具调用。
 				filter := newDSMLStream(func(kind, delta string) error {
 					produced = true
-					return emitDelta(kind, delta)
+					return emitVisible(kind, delta)
 				})
 				used, calls, err = s.providers.StreamCompletionWithTools(ctx, prov, model.ModelID, history,
-					deepThinking, reasoningEffort, maxTokens, s.firstByteTimeout(ctx), roundTools,
+					deepThinking, reasoningEffort, maxTokens, attemptTimeout, roundTools,
 					func(ev provider.StreamEvent) error {
 						if ev.Kind == "reasoning" && !deepThinking {
 							return nil
 						}
 						if ev.Kind == "reasoning" {
 							produced = true
-							return emitDelta(ev.Kind, ev.Delta)
+							return emitVisible(ev.Kind, ev.Delta)
 						}
 						return filter.Write(ev.Delta)
 					})
@@ -922,7 +952,14 @@ func (s *Service) generate(
 				if ctx.Err() != nil {
 					return usage, produced, ctx.Err()
 				}
-				if attempt == 0 && !produced && len(calls) == 0 && retryableUpstream(err) && time.Since(attemptStart) < 3*time.Second {
+				// 只要还没出现正文就重试一次：慢模型超时、网关抖动、流被掐断都算可重试。
+				// 已经输出过正文时重试会造成重复内容，不重试。
+				if attempt == 0 && !visibleText && retryableUpstream(err) && time.Since(attemptStart) < 240*time.Second {
+					if reasoningSeen {
+						_ = emitDelta("reset_reasoning", "")
+						reasoningSeen = false
+						produced = false
+					}
 					select {
 					case <-ctx.Done():
 						return usage, produced, ctx.Err()
@@ -938,8 +975,8 @@ func (s *Service) generate(
 			if len(calls) == 0 {
 				return usage, produced, nil
 			}
-			// 工具调用本身也是一次有效响应；后面失败不能再降级成演示回答
-			produced = true
+			// 工具调用不是可见正文：只有真的输出过内容才锁定模型，
+			// 否则检索后上游失败时仍能切换兜底模型，而不是直接报错。
 			if inline {
 				// 上游不认 OpenAI 的 tool_calls，就用“正文 + 工具结果”的对话方式回填，
 				// 避免第二轮因为不理解 role=tool 而答非所问。
@@ -1886,7 +1923,7 @@ func errorMessage(err error) string {
 		strings.Contains(msg, "非流式"), strings.Contains(msg, "未返回任何内容"):
 		return "上游服务暂时不可用，请稍后重试"
 	case strings.Contains(msg, "超时"), strings.Contains(msg, "timeout"), strings.Contains(msg, "deadline"):
-		return "上游模型响应超时，请重试"
+		return "模型响应超时（联网检索后更容易变慢），请再试一次，或换用更快的模型"
 	case strings.Contains(msg, "max_tokens"), strings.Contains(msg, "长度"):
 		return "回答长度达到上限，请重试或关闭深度思考"
 	case strings.Contains(msg, "没有可用模型"):
