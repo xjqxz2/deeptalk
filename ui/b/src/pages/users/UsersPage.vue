@@ -16,7 +16,7 @@ import {
   SearchOutlined,
   WarningOutlined,
 } from '@ant-design/icons-vue'
-import { formatNumber, formatPercent, formatTokens } from '@deeptalk/shared'
+import { del, formatNumber, formatPercent, formatTokens } from '@deeptalk/shared'
 import type { User, UserStats } from '@deeptalk/shared'
 import {
   exportUsers,
@@ -335,6 +335,33 @@ function onRowAction(info: { key: string }, user: User): void {
   if (info.key === 'reset') openReset()
   if (info.key === 'toggle') onToggleDisabled(!user.disabled)
   if (info.key === 'logout') onLogoutAll()
+  if (info.key === 'delete') void onDeleteUser(user)
+}
+
+/** 删除用户：二次确认，确认后连同会话与计费数据一起清理。 */
+async function onDeleteUser(user: User): Promise<void> {
+  try {
+    await Modal.confirm({
+      title: '删除用户',
+      content: `将永久删除 ${user.email} 及其全部会话、消息与用量记录，无法恢复。确定继续吗？`,
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+    })
+  } catch {
+    return
+  }
+  try {
+    await del(`/b/users/${user.id}`)
+    message.success('用户已删除')
+    if (selectedUser.value?.id === user.id) {
+      selectedUser.value = null
+      drawerOpen.value = false
+    }
+    await loadList(false)
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : '删除失败')
+  }
 }
 
 /** 同步窗口断点，决定详情是内联还是抽屉。 */
@@ -561,6 +588,7 @@ onBeforeUnmount(() => {
                           {{ user.disabled ? '恢复登录' : '限制登录' }}
                         </a-menu-item>
                         <a-menu-item key="logout">强制退出全部设备</a-menu-item>
+                        <a-menu-item key="delete" danger>删除用户</a-menu-item>
                       </a-menu>
                     </template>
                   </a-dropdown>

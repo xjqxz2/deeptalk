@@ -282,3 +282,8 @@ func (s *Service) Update(ctx context.Context, id uint, in UpdateInput) (Plan, er
 	}
 	return plan, nil
 }
+
+// PurgeUser 删除某个用户的计费事件（管理员删号时调用）。
+func (s *Service) PurgeUser(ctx context.Context, userID uint) error {
+	return s.db.WithContext(ctx).Where("user_id = ?", userID).Delete(&Event{}).Error
+}

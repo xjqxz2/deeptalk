@@ -79,7 +79,7 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 	usageController := b.NewUsageController(deps.Chats)
 	providerController := b.NewProviderController(deps.Providers, deps.Audits)
 	billingController := b.NewBillingController(deps.Billing)
-	userController := b.NewUserController(deps.Users, deps.Chats, deps.Audits)
+	userController := b.NewUserController(deps.Users, deps.Chats, deps.Audits, deps.Billing)
 	settingsController := b.NewSettingsController(deps.Settings, deps.Providers, deps.Audits, cfg.DBPath, cfg.SecuritySecret)
 
 	api := router.Group("/api/v1")
@@ -169,6 +169,7 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 		bGroup.PATCH("/users/:id/quota", userController.UpdateQuota)
 		bGroup.PATCH("/users/:id/plan", userController.UpdatePlan)
 		bGroup.PATCH("/users/:id/disabled", userController.ToggleDisabled)
+		bGroup.DELETE("/users/:id", userController.Delete)
 		bGroup.POST("/users/:id/reset-password", userController.ResetPassword)
 		bGroup.POST("/users/:id/logout-all", userController.LogoutAll)
 		bGroup.DELETE("/users/:id", userController.Delete)

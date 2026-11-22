@@ -2248,3 +2248,22 @@ func (s *Service) searchParallel(ctx context.Context, queries []string, engines 
 	}
 	return merged, nil
 }
+
+// PurgeUser 删除某个用户的全部会话与消息（管理员删号时调用）。
+func (s *Service) PurgeUser(ctx context.Context, userID uint) error {
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var ids []uint
+		if err := tx.Model(&Conversation{}).Where("user_id = ?", userID).Pluck("id", &ids).Error; err != nil {
+			return err
+		}
+		if len(ids) > 0 {
+			if err := tx.Where("conversation_id IN ?", ids).Delete(&Message{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("id IN ?", ids).Delete(&Conversation{}).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}

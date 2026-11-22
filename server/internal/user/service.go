@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"deeptalk/internal/audit"
-
 	"deeptalk/internal/security"
 
 	"gorm.io/gorm"
@@ -829,4 +828,22 @@ func (s *Service) SessionSignKey(ctx context.Context, token string) (string, err
 		return "", err
 	}
 	return keyID, nil
+}
+
+// Delete 删除普通用户及其登录会话；会话与计费数据由上层按模块清理。
+// 管理员账号不允许删除，避免把自己或最后一个管理员删掉。
+func (s *Service) Delete(ctx context.Context, userID uint) error {
+	u, err := dalFindByID(ctx, s.db, userID)
+	if err != nil {
+		return err
+	}
+	if u.Role == RoleAdmin {
+		return ErrForbidden
+	}
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("user_id = ?", userID).Delete(&Session{}).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&User{}, userID).Error
+	})
 }

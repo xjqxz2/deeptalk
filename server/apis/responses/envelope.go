@@ -4,6 +4,7 @@ package responses
 import (
 	"errors"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"net/http"
 	"strings"
 
@@ -11,8 +12,6 @@ import (
 	"deeptalk/internal/chat"
 	"deeptalk/internal/provider"
 	"deeptalk/internal/user"
-
-	"github.com/gin-gonic/gin"
 )
 
 // 错误码。code == 0 表示成功，>0 表示失败。

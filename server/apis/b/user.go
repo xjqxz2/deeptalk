@@ -10,6 +10,7 @@ import (
 	"deeptalk/apis/requests"
 	"deeptalk/apis/responses"
 	"deeptalk/internal/audit"
+	"deeptalk/internal/billing"
 	"deeptalk/internal/chat"
 	"deeptalk/internal/user"
 
@@ -18,14 +19,15 @@ import (
 
 // UserController 处理后台用户列表、详情与账号处置。
 type UserController struct {
-	users  *user.Service  // 账号能力
-	chats  *chat.Service  // 会话统计
-	audits *audit.Service // 审计
+	users   *user.Service    // 账号能力
+	chats   *chat.Service    // 会话统计
+	audits  *audit.Service   // 审计
+	billing *billing.Service // 计费数据清理
 }
 
 // NewUserController 创建用户管理控制器。
-func NewUserController(users *user.Service, chats *chat.Service, audits *audit.Service) *UserController {
-	return &UserController{users: users, chats: chats, audits: audits}
+func NewUserController(users *user.Service, chats *chat.Service, audits *audit.Service, billingSvc *billing.Service) *UserController {
+	return &UserController{users: users, chats: chats, audits: audits, billing: billingSvc}
 }
 
 // Stats 返回用户管理统计卡数据。
@@ -185,6 +187,34 @@ func (h *UserController) ToggleDisabled(c *gin.Context) {
 	responses.OK(c, gin.H{"user": responses.NewUser(u)})
 }
 
+// Delete 删除用户及其会话、计费数据。
+func (h *UserController) Delete(c *gin.Context) {
+	id, err := parseIDParam(c)
+	if err != nil {
+		responses.Fail(c, responses.CodeInvalidArgument, "用户 ID 不合法")
+		return
+	}
+	ctx := c.Request.Context()
+	u, err := h.users.ByID(ctx, id)
+	if err != nil {
+		responses.FromError(c, err)
+		return
+	}
+	if err := h.chats.PurgeUser(ctx, id); err != nil {
+		responses.FromError(c, err)
+		return
+	}
+	if h.billing != nil {
+		_ = h.billing.PurgeUser(ctx, id)
+	}
+	if err := h.users.Delete(ctx, id); err != nil {
+		responses.FromError(c, err)
+		return
+	}
+	recordAudit(c, h.audits, "user.delete", "user", id, "删除用户 "+u.Email)
+	responses.OK(c, gin.H{"deleted": true})
+}
+
 // ResetPassword 重置密码并返回一次性密码。
 func (h *UserController) ResetPassword(c *gin.Context) {
 	id, err := parseIDParam(c)
@@ -249,11 +279,6 @@ func (h *UserController) Create(c *gin.Context) {
 	}
 	recordAudit(c, h.audits, "user.create", "user", u.ID, "创建账号 "+u.Email)
 	responses.OK(c, gin.H{"user": responses.NewUser(u)})
-}
-
-// Delete 删除账号（P1）。
-func (h *UserController) Delete(c *gin.Context) {
-	responses.Fail(c, responses.CodeForbidden, "删除账号为 P1 功能，当前仅支持限制登录")
 }
 
 // Export 导出账号 CSV；只含账号字段，不含对话正文。
