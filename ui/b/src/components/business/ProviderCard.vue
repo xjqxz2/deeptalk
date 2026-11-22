@@ -108,8 +108,9 @@ function onToggle(checked: boolean): void {
   max-width: 420px;
   display: flex;
   flex-direction: column;
-  height: 158px;
+  min-height: 158px;
   padding: 14px 16px 12px;
+  overflow: visible;
   border: 1px solid var(--dt-line);
   border-radius: 14px;
   background: var(--dt-surface);
