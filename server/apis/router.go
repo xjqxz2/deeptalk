@@ -80,7 +80,7 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 	providerController := b.NewProviderController(deps.Providers, deps.Audits)
 	billingController := b.NewBillingController(deps.Billing)
 	userController := b.NewUserController(deps.Users, deps.Chats, deps.Audits)
-	settingsController := b.NewSettingsController(deps.Settings, deps.Providers, deps.Audits, cfg.DBPath)
+	settingsController := b.NewSettingsController(deps.Settings, deps.Providers, deps.Audits, cfg.DBPath, cfg.SecuritySecret)
 
 	api := router.Group("/api/v1")
 

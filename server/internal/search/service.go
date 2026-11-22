@@ -86,13 +86,18 @@ type Service struct {
 	cfg    Config
 	client *http.Client
 	// Obscura MCP 只有一个活动页面；navigate + evaluate 必须原子执行。
-	mcpMu sync.Mutex
+	mcpMu    sync.Mutex
+	deepseek DeepSeekProvider // 后台选择的检索提供方（self / deepseek）
 }
 
 // New 创建检索服务；配置不完整时返回 nil，调用方应按“未启用”处理。
 func New(cfg Config) *Service {
-	if !cfg.Enabled || (strings.TrimSpace(cfg.EngineURL) == "" && len(cfg.Engines) == 0) {
+	if !cfg.Enabled {
 		return nil
+	}
+	// 自建引擎可以为空：后台可能选择 DeepSeek 官方 Search API。
+	if len(cfg.Engines) == 0 && strings.TrimSpace(cfg.EngineURL) == "" {
+		cfg.Engines = nil
 	}
 	if len(cfg.Engines) == 0 && strings.TrimSpace(cfg.EngineURL) != "" {
 		cfg.Engines = []Engine{{Name: "bing", URL: cfg.EngineURL, Weight: 1}}
@@ -111,9 +116,8 @@ func New(cfg Config) *Service {
 		cleaned = append(cleaned, engine)
 	}
 	cfg.Engines = cleaned
-	if len(cfg.Engines) == 0 {
-		return nil
-	}
+	// 没有自建引擎时不直接返回 nil：后台可能选择 DeepSeek 官方 Search API，
+	// 那种情况下由 deepseekKey() 判断是否可用。
 	if cfg.MaxResults <= 0 {
 		cfg.MaxResults = 5
 	}
@@ -159,11 +163,17 @@ func (s *Service) Enabled() bool {
 // Search 并发检索多个来源，用加权 RRF（Reciprocal Rank Fusion）融合排序。
 // 单引擎失败不会拖垮整体；只有所有引擎都没有结果时才返回错误。
 func (s *Service) Search(ctx context.Context, query string) ([]Result, error) {
+	if key := s.deepseekKey(ctx); key != "" {
+		return s.searchDeepSeek(ctx, key, query)
+	}
 	return s.searchWithEngines(ctx, query, nil)
 }
 
 // SearchWithEngines 只检索模型指定的来源；names 为空时使用全部默认来源。
 func (s *Service) SearchWithEngines(ctx context.Context, query string, names []string) ([]Result, error) {
+	if key := s.deepseekKey(ctx); key != "" {
+		return s.searchDeepSeek(ctx, key, query)
+	}
 	if len(names) == 0 {
 		return s.searchWithEngines(ctx, query, nil)
 	}
@@ -191,8 +201,21 @@ func (s *Service) FetchPages(ctx context.Context, rawURLs []string) ([]Page, err
 // FetchPagesWithProgress 在每抓完一个页面时回调，供 SSE 展示“正在阅读哪个网页”。
 // 回调在汇总协程中串行执行，调用方无需再加锁。
 func (s *Service) FetchPagesWithProgress(ctx context.Context, rawURLs []string, onPage func(Page)) ([]Page, error) {
-	if !s.Enabled() {
+	key := s.deepseekKey(ctx)
+	if !s.Enabled() && key == "" {
 		return nil, ErrDisabled
+	}
+	if key != "" {
+		urls := make([]string, 0, len(rawURLs))
+		for _, raw := range rawURLs {
+			if text := strings.TrimSpace(raw); text != "" {
+				urls = append(urls, text)
+			}
+		}
+		if len(urls) == 0 {
+			return nil, ErrNoResult
+		}
+		return s.fetchPagesDeepSeek(ctx, key, urls, onPage)
 	}
 	seen := make(map[string]struct{})
 	urls := make([]string, 0, len(rawURLs))

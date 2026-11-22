@@ -65,6 +65,24 @@ func (a *App) startHTTP(ctx context.Context) error {
 		Stealth:      cfg.WebSearch.Stealth,
 		MCP:          mcpCaller,
 	})
+	if searcher != nil {
+		// 后台可以随时切换检索来源：自建（无需配置）或 DeepSeek Search API（需密钥）
+		searcher.SetDeepSeekProvider(func(ctx context.Context) (string, string) {
+			mode := settings.Get(ctx, setting.KeySearchProvider, search.ProviderSelf)
+			if mode != search.ProviderDeepSeek {
+				return search.ProviderSelf, ""
+			}
+			enc := settings.Get(ctx, setting.KeySearchDeepSeekKey, "")
+			if enc == "" {
+				return search.ProviderSelf, ""
+			}
+			key, err := provider.DecryptAPIKey(cfg.Security.Secret, enc)
+			if err != nil {
+				return search.ProviderSelf, ""
+			}
+			return search.ProviderDeepSeek, key
+		})
+	}
 	// 小程序端内容安全：只对 X-Client=mp-weixin 的请求生效
 	checker := compliance.New(compliance.Config{
 		Enabled:     cfg.WeChat.Security.Enabled,

@@ -9,6 +9,7 @@ import (
 	"deeptalk/apis/responses"
 	"deeptalk/internal/audit"
 	"deeptalk/internal/provider"
+	"deeptalk/internal/search"
 	"deeptalk/internal/setting"
 
 	"github.com/gin-gonic/gin"
@@ -20,11 +21,12 @@ type SettingsController struct {
 	providers *provider.Service // 路由能力
 	audits    *audit.Service    // 审计
 	dbPath    string            // SQLite 文件路径，用于展示存储占用
+	secret    string            // 用于加密 DeepSeek 检索密钥
 }
 
 // NewSettingsController 创建设置控制器。
-func NewSettingsController(settings *setting.Service, providers *provider.Service, audits *audit.Service, dbPath string) *SettingsController {
-	return &SettingsController{settings: settings, providers: providers, audits: audits, dbPath: dbPath}
+func NewSettingsController(settings *setting.Service, providers *provider.Service, audits *audit.Service, dbPath, secret string) *SettingsController {
+	return &SettingsController{settings: settings, providers: providers, audits: audits, dbPath: dbPath, secret: secret}
 }
 
 // Get 返回当前系统设置。
@@ -54,6 +56,33 @@ func (h *SettingsController) Update(c *gin.Context) {
 			detail = "开放注册"
 		}
 		recordAudit(c, h.audits, "setting.registration", "setting", 0, detail)
+	}
+	if req.SearchProvider != nil {
+		mode := strings.ToLower(strings.TrimSpace(*req.SearchProvider))
+		if mode != search.ProviderSelf && mode != search.ProviderDeepSeek {
+			responses.Fail(c, responses.CodeInvalidArgument, "检索来源只能是 自建 或 DeepSeek")
+			return
+		}
+		if err := h.settings.Set(ctx, setting.KeySearchProvider, mode); err != nil {
+			responses.FromError(c, err)
+			return
+		}
+		recordAudit(c, h.audits, "setting.search_provider", "setting", 0, "联网检索来源改为 "+mode)
+	}
+	if req.SearchDeepSeekKey != nil {
+		key := strings.TrimSpace(*req.SearchDeepSeekKey)
+		if key != "" {
+			enc, err := provider.EncryptAPIKey(h.secret, key)
+			if err != nil {
+				responses.FromError(c, err)
+				return
+			}
+			if err := h.settings.Set(ctx, setting.KeySearchDeepSeekKey, enc); err != nil {
+				responses.FromError(c, err)
+				return
+			}
+			recordAudit(c, h.audits, "setting.search_key", "setting", 0, "更新 DeepSeek 检索密钥")
+		}
 	}
 	if req.GenerationTimeoutSec != nil {
 		value := *req.GenerationTimeoutSec
@@ -122,6 +151,9 @@ func (h *SettingsController) snapshot(c *gin.Context) responses.SettingsResponse
 		MaxOutputTokens:      h.settings.Int(ctx, setting.KeyMaxOutputTokens, 384000),
 		SiteName:             h.settings.Get(ctx, setting.KeySiteName, "小橘树洞"),
 		GenerationTimeoutSec: h.settings.Int(ctx, setting.KeyGenerationTimeout, 30),
+		SearchProvider:       h.settings.Get(ctx, setting.KeySearchProvider, search.ProviderSelf),
+		SearchDeepSeekMasked: maskSearchKey(h.settings.Get(ctx, setting.KeySearchDeepSeekKey, "")),
+		HasSearchKey:         h.settings.Get(ctx, setting.KeySearchDeepSeekKey, "") != "",
 		Version:              "v1.0.0",
 		StorageUsedBytes:     used,
 		StorageTotalBytes:    10 * 1024 * 1024 * 1024,
@@ -135,4 +167,12 @@ func fileSize(path string) int64 {
 		return 0
 	}
 	return info.Size()
+}
+
+// maskSearchKey 只回显密文长度，前端永远拿不到明文密钥。
+func maskSearchKey(encoded string) string {
+	if encoded == "" {
+		return ""
+	}
+	return "已配置（" + strconv.Itoa(len(encoded)) + " 字符密文）"
 }

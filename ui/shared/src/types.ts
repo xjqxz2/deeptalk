@@ -314,6 +314,10 @@ export interface SettingsInfo {
   max_output_tokens: number
   site_name: string
   generation_timeout_sec: number
+  /** 联网检索来源：self=自建，deepseek=DeepSeek 官方 Search API */
+  search_provider: 'self' | 'deepseek'
+  search_deepseek_masked: string
+  has_search_key: boolean
   version: string
   storage_used_bytes: number
   storage_total_bytes: number

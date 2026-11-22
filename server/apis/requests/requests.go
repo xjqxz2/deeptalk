@@ -273,6 +273,8 @@ type SettingsRequest struct {
 	MaxOutputTokens      *int    `json:"max_output_tokens"`      // 单次输出预算
 	SiteName             *string `json:"site_name"`              // 站点名称
 	GenerationTimeoutSec *int    `json:"generation_timeout_sec"` // 生成首字节超时（秒）
+	SearchProvider       *string `json:"search_provider"`        // self / deepseek
+	SearchDeepSeekKey    *string `json:"search_deepseek_key"`    // DeepSeek 检索密钥，留空表示不修改
 }
 
 // Bind 绑定系统设置请求。

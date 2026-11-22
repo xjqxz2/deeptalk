@@ -18,6 +18,8 @@ const (
 	KeyMaxOutputTokens   = "max_output_tokens"      // 单次回答输出预算（thinking + 正文）
 	KeySiteName          = "site_name"              // 站点名称（后台可改）
 	KeyGenerationTimeout = "generation_timeout_sec" // 生成首字节超时（秒），后台可调
+	KeySearchProvider    = "search_provider"        // 联网检索提供方：self / deepseek
+	KeySearchDeepSeekKey = "search_deepseek_key"    // DeepSeek 检索密钥（AES-GCM 密文）
 )
 
 // Setting 是 key/value 形式的平台设置。

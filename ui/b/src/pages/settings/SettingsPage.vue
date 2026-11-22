@@ -30,6 +30,9 @@ const siteName = ref('')
 const savingSiteName = ref(false)
 const generationTimeout = ref(30)
 const savingTimeout = ref(false)
+const savingSearch = ref(false)
+const searchProvider = ref<'self' | 'deepseek'>('self')
+const searchKey = ref('')
 const savingRegistration = ref(false)
 const savingRouting = ref(false)
 const savingBudget = ref(false)
@@ -57,6 +60,7 @@ async function load(showError = true): Promise<void> {
     maxOutputTokens.value = settingsData.max_output_tokens
     siteName.value = settingsData.site_name || ''
     generationTimeout.value = settingsData.generation_timeout_sec || 30
+    searchProvider.value = settingsData.search_provider === 'deepseek' ? 'deepseek' : 'self'
   } catch (error) {
     if (showError) message.error(error instanceof Error ? error.message : '设置加载失败')
   } finally {
@@ -113,6 +117,24 @@ async function saveGenerationTimeout(): Promise<void> {
     message.error(error instanceof Error ? error.message : '保存失败')
   } finally {
     savingTimeout.value = false
+  }
+}
+
+/** 保存联网检索来源；选 DeepSeek 时才需要密钥。 */
+async function saveSearchProvider(): Promise<void> {
+  savingSearch.value = true
+  try {
+    const payload: Record<string, unknown> = { search_provider: searchProvider.value }
+    if (searchProvider.value === 'deepseek' && searchKey.value.trim()) {
+      payload.search_deepseek_key = searchKey.value.trim()
+    }
+    settings.value = await put<SettingsInfo>('/b/settings', payload)
+    searchKey.value = ''
+    message.success('联网检索来源已保存')
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : '保存失败')
+  } finally {
+    savingSearch.value = false
   }
 }
 
@@ -345,6 +367,25 @@ onMounted(async () => {
             <label class="field-label">生成超时（秒）</label>
             <a-input-number v-model:value="generationTimeout" :min="10" :max="300" :step="10" class="site-name-input" />
             <a-button type="primary" size="small" :loading="savingTimeout" @click="saveGenerationTimeout">保存超时</a-button>
+          </div>
+          <div class="search-config">
+            <label class="field-label">联网检索来源</label>
+            <a-radio-group v-model:value="searchProvider">
+              <a-radio value="self">自建检索（无需配置）</a-radio>
+              <a-radio value="deepseek">DeepSeek 联网搜索（需密钥）</a-radio>
+            </a-radio-group>
+            <div v-if="searchProvider === 'deepseek'" class="search-key">
+              <a-input-password
+                v-model:value="searchKey"
+                :placeholder="settings?.has_search_key ? `已配置 ${settings.search_deepseek_masked}（留空表示不修改）` : 'sk-...'"
+                autocomplete="new-password"
+              />
+              <a-button type="primary" size="small" :loading="savingSearch" @click="saveSearchProvider">保存</a-button>
+            </div>
+            <a-button v-else type="primary" size="small" :loading="savingSearch" @click="saveSearchProvider">保存</a-button>
+            <p class="field-hint">
+              自建检索用服务器上的多引擎抓取，不需要填任何东西；DeepSeek 走官方 /v1/tools/search 与 /v1/tools/fetch，按成功请求计费。
+            </p>
           </div>
           <div class="info-rows">
             <div><span>站点名称</span><strong>{{ settings?.site_name ?? '小橘树洞' }}</strong></div>

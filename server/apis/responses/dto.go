@@ -364,6 +364,9 @@ type SettingsResponse struct {
 	MaxOutputTokens      int    `json:"max_output_tokens"`      // 单次输出预算
 	SiteName             string `json:"site_name"`              // 站点名
 	GenerationTimeoutSec int    `json:"generation_timeout_sec"` // 生成首字节超时（秒）
+	SearchProvider       string `json:"search_provider"`        // self / deepseek
+	SearchDeepSeekMasked string `json:"search_deepseek_masked"` // 已配置密钥的掩码
+	HasSearchKey         bool   `json:"has_search_key"`         // 是否已配置密钥
 	Version              string `json:"version"`                // 版本
 	StorageUsedBytes     int64  `json:"storage_used_bytes"`     // 存储已用
 	StorageTotalBytes    int64  `json:"storage_total_bytes"`    // 存储上限
