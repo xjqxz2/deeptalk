@@ -524,4 +524,29 @@ a:hover {
     --dt-chat-max: 1280px;
     --dt-composer-max: 900px;
   }
+
+}
+
+/* 深色：正文表格与行内代码。放在文件末尾，保证覆盖前面的浅色默认值 */
+@media (prefers-color-scheme: dark) {
+  .dt-prose th {
+    background: #1b2029;
+    color: var(--dt-text);
+  }
+
+  .dt-prose td {
+    background: transparent;
+    color: var(--dt-text);
+  }
+
+  .dt-prose code:not(.hljs) {
+    background: #1b2029;
+    color: #c7d2fe;
+  }
+
+  .dt-prose pre,
+  .dt-prose pre code {
+    background: var(--dt-code);
+    color: var(--dt-text);
+  }
 }
