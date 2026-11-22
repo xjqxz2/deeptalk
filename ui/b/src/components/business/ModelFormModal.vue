@@ -173,18 +173,22 @@ async function save(): Promise<void> {
           <a-input-number v-model:value="form.max_concurrency" :min="1" :max="10000" style="width: 100%" />
         </a-form-item>
       </div>
-      <div class="price-row">
-        <a-form-item label="输入价（元/百万）">
-          <a-input-number v-model:value="form.price_input" :min="0" :max="10000" :step="0.1" style="width: 100%" />
-        </a-form-item>
-        <a-form-item label="缓存命中价">
-          <a-input-number v-model:value="form.price_cached_input" :min="0" :max="10000" :step="0.1" style="width: 100%" />
-        </a-form-item>
-        <a-form-item label="输出价（元/百万）">
-          <a-input-number v-model:value="form.price_output" :min="0" :max="10000" :step="0.1" style="width: 100%" />
-        </a-form-item>
-      </div>
-      <p class="hint price-hint">上游不返回价格时（如免费模型），按这三个单价自行结算：普通输入、缓存命中输入、输出分别计价；缓存价留空按输入价计。</p>
+      <a-collapse ghost class="billing-collapse">
+        <a-collapse-panel key="billing" header="计费单价（可选，元 / 百万 token）">
+          <div class="price-row">
+            <a-form-item label="输入价（元/百万）">
+              <a-input-number v-model:value="form.price_input" :min="0" :max="10000" :step="0.1" style="width: 100%" />
+            </a-form-item>
+            <a-form-item label="缓存命中价">
+              <a-input-number v-model:value="form.price_cached_input" :min="0" :max="10000" :step="0.1" style="width: 100%" />
+            </a-form-item>
+            <a-form-item label="输出价（元/百万）">
+              <a-input-number v-model:value="form.price_output" :min="0" :max="10000" :step="0.1" style="width: 100%" />
+            </a-form-item>
+          </div>
+              <p class="hint price-hint">上游不返回价格时（如免费模型），按这三个单价自行结算：普通输入、缓存命中输入、输出分别计价；缓存价留空按输入价计。</p>
+        </a-collapse-panel>
+      </a-collapse>
 
       <div class="switch-row">
         <div>
