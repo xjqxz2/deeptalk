@@ -80,6 +80,10 @@ async function save(): Promise<void> {
     error.value = '请选择所属厂商'
     return
   }
+  if (!Number.isFinite(form.context_window) || form.context_window < 1024 || form.context_window > 4_000_000) {
+    error.value = '上下文窗口需在 1024–4,000,000 tokens 之间'
+    return
+  }
   if (!form.model_id.trim()) {
     error.value = '请填写上游模型 ID'
     return
@@ -142,7 +146,28 @@ async function save(): Promise<void> {
       </a-form-item>
       <div class="two-col">
         <a-form-item label="上下文窗口">
-          <a-select v-model:value="form.context_window" :options="CONTEXT_OPTIONS" />
+          <div class="context-row">
+            <a-input-number
+              v-model:value="form.context_window"
+              :min="1024"
+              :max="4000000"
+              :step="1000"
+              style="width: 100%"
+              placeholder="例如 131072"
+            />
+            <div class="context-presets">
+              <button
+                v-for="item in CONTEXT_OPTIONS"
+                :key="item.value"
+                type="button"
+                class="preset-chip"
+                :class="{ active: form.context_window === item.value }"
+                @click="form.context_window = item.value"
+              >
+                {{ item.label }}
+              </button>
+            </div>
+          </div>
         </a-form-item>
         <a-form-item label="并发">
           <a-input-number v-model:value="form.max_concurrency" :min="1" :max="10000" style="width: 100%" />
@@ -248,5 +273,39 @@ async function save(): Promise<void> {
 
 .price-hint {
   margin: -8px 0 12px;
+}
+
+.context-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.context-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.preset-chip {
+  padding: 2px 8px;
+  border: 1px solid var(--dt-line, #eaecf0);
+  border-radius: 6px;
+  background: var(--dt-surface, #fff);
+  color: var(--dt-text-secondary, #475467);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.preset-chip:hover {
+  border-color: var(--dt-brand, #4f46e5);
+  color: var(--dt-brand, #4f46e5);
+}
+
+.preset-chip.active {
+  border-color: var(--dt-brand, #4f46e5);
+  background: var(--dt-brand-softer, #eef2ff);
+  color: var(--dt-brand, #4f46e5);
+  font-weight: 600;
 }
 </style>
