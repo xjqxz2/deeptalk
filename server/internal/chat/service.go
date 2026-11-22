@@ -789,10 +789,10 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 		"updated_at": time.Now(),
 	}).Error
 	_ = s.users.ConsumeUsage(finishCtx, userID, int64(inputTokens+outputTokens))
+	// 三段计价：缓存命中输入 / 普通输入 / 输出；上游不给价格时也由我们兜底计费
+	cost := billing.CostMilliCentsCached(inputTokens, cachedTokens, outputTokens,
+		model.PriceInput, model.PriceCachedInput, model.PriceOutput)
 	if s.cfg.Billing != nil {
-		// 三段计价：缓存命中输入 / 普通输入 / 输出；上游不给价格时也由我们兜底计费
-		cost := billing.CostMilliCentsCached(inputTokens, cachedTokens, outputTokens,
-			model.PriceInput, model.PriceCachedInput, model.PriceOutput)
 		_ = s.cfg.Billing.Record(finishCtx, billing.Event{
 			UserID:         userID,
 			ModelID:        model.ID,
@@ -809,12 +809,14 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 		tokensPerSec = float64(outputTokens) / duration.Seconds()
 	}
 	_ = emit("usage", map[string]any{
-		"input_tokens":    inputTokens,
-		"output_tokens":   outputTokens,
-		"total_tokens":    inputTokens + outputTokens,
-		"duration_ms":     int(duration.Milliseconds()),
-		"tokens_per_sec":  int(tokensPerSec + 0.5),
-		"character_count": len([]rune(answer)),
+		"cached_tokens":    cachedTokens,
+		"cost_milli_cents": cost,
+		"input_tokens":     inputTokens,
+		"output_tokens":    outputTokens,
+		"total_tokens":     inputTokens + outputTokens,
+		"duration_ms":      int(duration.Milliseconds()),
+		"tokens_per_sec":   int(tokensPerSec + 0.5),
+		"character_count":  len([]rune(answer)),
 	})
 	if genErr != nil {
 		_ = emit("error", map[string]any{"code": 3001, "message": modelErrorMessage(genErr, model.DisplayName)})
