@@ -510,6 +510,7 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 		}
 		var args struct {
 			Query   string   `json:"query"`
+			Queries []string `json:"queries"`
 			URLs    []string `json:"urls"`
 			Engines []string `json:"engines"`
 		}
@@ -520,6 +521,29 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 		if s.search == nil || !s.search.Enabled() {
 			return `{"error":"web search is not enabled"}`, nil
 		}
+		queries := make([]string, 0, len(args.Queries)+1)
+		for _, item := range args.Queries {
+			if text := strings.TrimSpace(item); text != "" {
+				queries = append(queries, text)
+			}
+		}
+		if len(queries) == 0 && args.Query != "" {
+			queries = append(queries, args.Query)
+		}
+		toolID := call.ID
+		if toolID == "" {
+			toolID = fmt.Sprintf("toolu_%d", time.Now().UnixNano())
+		}
+		// 工具调用是「决策产物」：参数一次给全，前端原子渲染
+		if err := emit("tool_call", map[string]any{
+			"id": toolID, "name": "web_search", "kind": "search",
+			"input": map[string]any{"queries": queries, "urls": args.URLs},
+		}); err != nil {
+			return "", err
+		}
+		defer func() {
+			_ = emit("tool_result", map[string]any{"id": toolID, "ok": true})
+		}()
 		if err := emit("search", map[string]string{"status": "searching"}); err != nil {
 			return "", err
 		}
@@ -592,11 +616,11 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 			_ = emit("sources", map[string]any{"items": toolSources})
 			return searchToolPayload(toolSources, map[string]any{"pages": pages}), nil
 		}
-		if args.Query == "" {
+		if len(queries) == 0 {
 			return "", errors.New("search query is empty")
 		}
 		emitActivity("searching", "正在搜索资料…", "", "")
-		items, err := s.search.SearchWithEngines(ctx, args.Query, args.Engines)
+		items, err := s.searchParallel(ctx, queries, args.Engines)
 		if ctx.Err() != nil {
 			return "", ctx.Err()
 		}
@@ -1412,9 +1436,16 @@ query 必须是检索关键词，不是问句：
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
+				"queries": map[string]any{
+					"type":        "array",
+					"description": "2–4 个互补的检索关键词，一次并行发出，而不是分多次调用；每个都是 2–5 个词、空格分隔、不要问句",
+					"items":       map[string]any{"type": "string"},
+					"minItems":    1,
+					"maxItems":    4,
+				},
 				"query": map[string]any{
 					"type":        "string",
-					"description": "检索关键词，2–5 个词、空格分隔、不要问句，例如「沪深股市 涨幅榜」；与 urls 二选一",
+					"description": "单个检索关键词（兼容字段）；优先用 queries 并行检索",
 				},
 				"urls": map[string]any{
 					"type":        "array",
@@ -2128,4 +2159,43 @@ func (s *Service) sweepIdleConversations(ctx context.Context) {
 		}
 		s.startCompaction(conv, modelID, lastID, true)
 	}
+}
+
+// searchParallel 并发执行多个互补检索式，按 URL 去重后合并。
+// 「边想边查」的效率来自一次调用拿到多角度结果，而不是串行问三遍。
+func (s *Service) searchParallel(ctx context.Context, queries []string, engines []string) ([]search.Result, error) {
+	type outcome struct {
+		items []search.Result
+		err   error
+	}
+	results := make([]outcome, len(queries))
+	var wg sync.WaitGroup
+	for index, query := range queries {
+		wg.Add(1)
+		go func(index int, query string) {
+			defer wg.Done()
+			items, err := s.search.SearchWithEngines(ctx, query, engines)
+			results[index] = outcome{items: items, err: err}
+		}(index, query)
+	}
+	wg.Wait()
+	seen := make(map[string]struct{}, 16)
+	merged := make([]search.Result, 0, 16)
+	var firstErr error
+	for _, item := range results {
+		if item.err != nil && firstErr == nil {
+			firstErr = item.err
+		}
+		for _, result := range item.items {
+			if _, ok := seen[result.URL]; ok {
+				continue
+			}
+			seen[result.URL] = struct{}{}
+			merged = append(merged, result)
+		}
+	}
+	if len(merged) == 0 {
+		return nil, firstErr
+	}
+	return merged, nil
 }

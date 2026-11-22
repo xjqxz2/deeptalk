@@ -43,24 +43,24 @@ var (
 // User 是 C 端账号模型。
 // 邮箱统一小写且唯一；用量按自然月统计在 used_tokens 上。
 type User struct {
-	ID               uint       `gorm:"primaryKey"`                            // 主键
-	Email            string     `gorm:"size:190;uniqueIndex;not null"`         // 邮箱（小写唯一）
-	Nickname         string     `gorm:"size:64;not null"`                      // 昵称
-	PasswordHash     string     `gorm:"size:255;not null"`                     // Argon2id 哈希串
-	Role             string     `gorm:"size:16;not null;default:'user';index"` // admin / user
-	Plan             string     `gorm:"size:16;not null;default:'free'"`       // free / pro / team / unlimited
-	QuotaTokens      int64      `gorm:"not null;default:4000000"`              // 本月额度（tokens）
-	UsedTokens       int64      `gorm:"not null;default:0"`                    // 本月已用（tokens）
-	Disabled         bool       `gorm:"not null;default:false;index"`          // 是否限制登录
-	FailedAttempts   int        `gorm:"not null;default:0"`                    // 连续登录失败次数
-	LockedUntil      *time.Time `gorm:"index"`                                 // 锁定截止时间
-	LastLoginAt      *time.Time `gorm:"index"`                                 // 最近登录时间
-	LastLoginIP      string     `gorm:"size:64;not null;default:''"`           // 最近登录 IP
-	LastLoginCity    string     `gorm:"size:32;not null;default:''"`           // 最近登录城市（粗粒度）
-	WeChatOpenID     *string    `gorm:"size:64;uniqueIndex"`                   // 小程序 openid，用于内容安全
-	EmailPlaceholder bool       `gorm:"not null;default:false"`                // 邮箱是系统占位，尚未由用户补全
-	AvatarURL        string     `gorm:"size:512;not null;default:''"`          // 头像地址
-	CreatedAt        time.Time  `gorm:"index"`                                 // 注册时间
+	ID               uint       `gorm:"primaryKey"`                                      // 主键
+	Email            string     `gorm:"size:190;uniqueIndex;not null"`                   // 邮箱（小写唯一）
+	Nickname         string     `gorm:"size:64;not null"`                                // 昵称
+	PasswordHash     string     `gorm:"size:255;not null"`                               // Argon2id 哈希串
+	Role             string     `gorm:"size:16;not null;default:'user';index"`           // admin / user
+	Plan             string     `gorm:"size:16;not null;default:'free'"`                 // free / pro / team / unlimited
+	QuotaTokens      int64      `gorm:"not null;default:4000000"`                        // 本月额度（tokens）
+	UsedTokens       int64      `gorm:"not null;default:0"`                              // 本月已用（tokens）
+	Disabled         bool       `gorm:"not null;default:false;index"`                    // 是否限制登录
+	FailedAttempts   int        `gorm:"not null;default:0"`                              // 连续登录失败次数
+	LockedUntil      *time.Time `gorm:"index"`                                           // 锁定截止时间
+	LastLoginAt      *time.Time `gorm:"index"`                                           // 最近登录时间
+	LastLoginIP      string     `gorm:"size:64;not null;default:''"`                     // 最近登录 IP
+	LastLoginCity    string     `gorm:"size:32;not null;default:''"`                     // 最近登录城市（粗粒度）
+	WeChatOpenID     *string    `gorm:"column:wechat_open_id;size:64;uniqueIndex"`       // 小程序 openid，用于内容安全
+	EmailPlaceholder bool       `gorm:"column:email_placeholder;not null;default:false"` // 邮箱是系统占位，尚未由用户补全
+	AvatarURL        string     `gorm:"column:avatar_url;size:512;not null;default:''"`  // 头像地址
+	CreatedAt        time.Time  `gorm:"index"`                                           // 注册时间
 	UpdatedAt        time.Time  // 更新时间
 }
 
@@ -240,6 +240,11 @@ func planQuota(plan string) int64 {
 
 // Migrate 创建账号与会话表。
 func Migrate(db *gorm.DB) error {
+	// 历史版本 GORM 把 WeChatOpenID 拆成了 we_chat_open_id，
+	// 这里把数据搬到规范列名 wechat_open_id 上，避免登录时找不到列。
+	if err := migrateLegacyWeChatColumn(db); err != nil {
+		return err
+	}
 	return db.AutoMigrate(&User{}, &Session{})
 }
 
@@ -254,4 +259,31 @@ func dalFindByWeChatOpenID(ctx context.Context, db *gorm.DB, openid string) (*Us
 		return nil, err
 	}
 	return &u, nil
+}
+
+// migrateLegacyWeChatColumn 兼容旧列名 we_chat_open_id：存在则回填后删除。
+func migrateLegacyWeChatColumn(db *gorm.DB) error {
+	type column struct {
+		Name string
+	}
+	var columns []column
+	if err := db.Raw("PRAGMA table_info(users)").Scan(&columns).Error; err != nil {
+		return nil // 表还不存在，交给 AutoMigrate
+	}
+	has := func(name string) bool {
+		for _, item := range columns {
+			if item.Name == name {
+				return true
+			}
+		}
+		return false
+	}
+	if !has("we_chat_open_id") || !has("wechat_open_id") {
+		return nil
+	}
+	if err := db.Exec("UPDATE users SET wechat_open_id = we_chat_open_id WHERE (wechat_open_id IS NULL OR wechat_open_id = '') AND we_chat_open_id IS NOT NULL").Error; err != nil {
+		return err
+	}
+	_ = db.Exec("ALTER TABLE users DROP COLUMN we_chat_open_id").Error
+	return nil
 }

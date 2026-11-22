@@ -47,6 +47,7 @@ const newModelId = ref('')
 const form = reactive({
   name: '',
   kind: 'custom' as ProviderInfo['kind'],
+  api_style: 'chat' as ProviderInfo['api_style'],
   base_url: '',
   api_key: '',
   timeout_sec: 60,
@@ -267,6 +268,7 @@ function payload(): ProviderPayload {
   return {
     name: form.name.trim(),
     kind: form.kind,
+    api_style: form.api_style,
     base_url: form.base_url.trim(),
     api_key: form.api_key.trim(),
     timeout_sec: form.timeout_sec,
@@ -403,6 +405,15 @@ function close(): void {
             <a-input-number v-model:value="form.timeout_sec" :min="5" :max="300" style="width: 100%" />
           </a-form-item>
         </div>
+
+        <a-form-item label="接口协议">
+          <a-select v-model:value="form.api_style">
+            <a-select-option value="chat">OpenAI Chat Completions（/chat/completions）</a-select-option>
+            <a-select-option value="responses">OpenAI Responses API（/responses）</a-select-option>
+            <a-select-option value="anthropic">Anthropic Messages API（/v1/messages）</a-select-option>
+          </a-select>
+          <p class="field-hint">三家协议三选一：同一厂商下所有模型都用这套协议。</p>
+        </a-form-item>
 
         <a-form-item label="Base URL" required>
           <a-input v-model:value="form.base_url" placeholder="https://gateway.example.com/v1" :maxlength="255" />

@@ -142,6 +142,18 @@ watch(html, () => {
           :sources="sources"
         />
 
+        <div v-if="message.toolBlocks?.length" class="tool-timeline">
+          <div v-for="block in message.toolBlocks" :key="block.id" class="tool-chip" :class="block.status">
+            <span class="tool-dot" aria-hidden="true" />
+            <span class="tool-label">
+              {{ block.kind === 'search' ? (block.status === 'running' ? '正在搜索' : '已搜索') : (block.status === 'running' ? '正在读取' : '已读取') }}
+            </span>
+            <span v-for="query in block.queries" :key="query" class="tool-query">{{ query }}</span>
+            <span v-if="!block.queries.length && block.urls.length" class="tool-query">{{ block.urls[0] }}</span>
+            <span v-if="block.status === 'failed'" class="tool-failed">失败</span>
+          </div>
+        </div>
+
         <div v-if="message.notice" class="dt-inline-notice notice">
           <WarningOutlined />
           {{ message.notice }}
@@ -502,5 +514,61 @@ watch(html, () => {
 .interject-pending {
   color: var(--dt-text-muted);
   font-size: 11.5px;
+}
+
+.tool-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.tool-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-self: flex-start;
+  padding: 5px 9px;
+  border: 1px solid var(--dt-line);
+  border-radius: 8px;
+  background: var(--dt-surface);
+  font-size: 12px;
+  color: var(--dt-text-secondary);
+}
+
+.tool-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dt-brand);
+}
+
+.tool-chip.running .tool-dot {
+  animation: tool-pulse 1s ease-in-out infinite;
+}
+
+.tool-chip.failed .tool-dot {
+  background: #d92d20;
+}
+
+.tool-label {
+  font-weight: 600;
+}
+
+.tool-query {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--dt-hover, #f2f4f7);
+  color: var(--dt-text-faint);
+}
+
+.tool-failed {
+  color: #d92d20;
+}
+
+@keyframes tool-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
 }
 </style>

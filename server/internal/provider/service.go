@@ -94,6 +94,7 @@ func (s *Service) Create(ctx context.Context, in SaveInput) (*Provider, error) {
 		return nil, err
 	}
 	kind := normalizeKind(in.Kind)
+	apiStyle := NormalizeAPIStyle(in.APIStyle)
 	timeout := in.TimeoutSec
 	if timeout <= 0 {
 		timeout = 60
@@ -115,6 +116,7 @@ func (s *Service) Create(ctx context.Context, in SaveInput) (*Provider, error) {
 		Name:           name,
 		Code:           code,
 		Kind:           kind,
+		APIStyle:       apiStyle,
 		BaseURL:        baseURL,
 		APIKeyEnc:      enc,
 		APIKeyMasked:   MaskAPIKey(in.APIKey),
@@ -173,6 +175,7 @@ func (s *Service) Update(ctx context.Context, id uint, in SaveInput) (*Provider,
 	}
 	p.Name = name
 	p.Kind = normalizeKind(in.Kind)
+	p.APIStyle = NormalizeAPIStyle(in.APIStyle)
 	p.BaseURL = baseURL
 	if in.APIKey != "" {
 		enc, err := EncryptAPIKey(s.secret, in.APIKey)
@@ -901,4 +904,16 @@ func (s *Service) DeleteModel(ctx context.Context, id uint) error {
 		}
 		return tx.Delete(&Model{}, id).Error
 	})
+}
+
+// NormalizeAPIStyle 校验接入方式，非法值回退到 chat（OpenAI 兼容）。
+func NormalizeAPIStyle(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case APIStyleResponses:
+		return APIStyleResponses
+	case APIStyleAnthropic:
+		return APIStyleAnthropic
+	default:
+		return APIStyleChat
+	}
 }

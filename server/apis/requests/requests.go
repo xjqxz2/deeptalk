@@ -93,6 +93,7 @@ func (r *FeedbackRequest) Bind(c *gin.Context) error {
 type ProviderSaveRequest struct {
 	Name           string                 `json:"name" binding:"required,max=64"`      // 名称
 	Kind           string                 `json:"kind"`                                // 厂商类型
+	APIStyle       string                 `json:"api_style"`                           // 接入方式：chat / responses / anthropic
 	BaseURL        string                 `json:"base_url" binding:"required,max=255"` // Base URL
 	APIKey         string                 `json:"api_key" binding:"max=512"`           // API Key，编辑时可为空
 	TimeoutSec     int                    `json:"timeout_sec"`                         // 超时
@@ -113,6 +114,7 @@ func (r *ProviderSaveRequest) ToInput() provider.SaveInput {
 	return provider.SaveInput{
 		Name:           r.Name,
 		Kind:           r.Kind,
+		APIStyle:       r.APIStyle,
 		BaseURL:        r.BaseURL,
 		APIKey:         r.APIKey,
 		TimeoutSec:     r.TimeoutSec,

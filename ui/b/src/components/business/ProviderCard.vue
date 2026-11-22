@@ -20,6 +20,17 @@ const STATUS_LABEL: Record<ProviderInfo['status'], string> = {
   disabled: '已停用',
 }
 
+const apiStyleLabel = computed(() => {
+  switch (props.provider.api_style) {
+    case 'responses':
+      return 'Responses API'
+    case 'anthropic':
+      return 'Anthropic'
+    default:
+      return 'Chat Completions'
+  }
+})
+
 const statusLabel = computed(() => STATUS_LABEL[props.provider.status])
 const busy = computed(() => props.testing)
 
@@ -36,6 +47,7 @@ function onToggle(checked: boolean): void {
       <div class="identity">
         <strong>{{ provider.name }}</strong>
         <small :title="provider.base_url">{{ provider.base_url }}</small>
+        <span class="api-style">{{ apiStyleLabel }}</span>
       </div>
       <span class="status" :class="provider.status">
         <i />
@@ -271,5 +283,15 @@ function onToggle(checked: boolean): void {
 .card-link:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.api-style {
+  display: inline-block;
+  margin-top: 2px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--dt-hover, #f2f4f7);
+  color: var(--dt-text-faint, #667085);
+  font-size: 11px;
 }
 </style>

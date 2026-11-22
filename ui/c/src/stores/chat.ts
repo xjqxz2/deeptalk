@@ -549,6 +549,20 @@ export const useChatStore = defineStore('chat', () => {
           activeAssistant.content += delta
           break
         }
+        case 'tool_call': {
+          const call = payload as { id: string; name: string; kind?: string; input?: { queries?: string[]; urls?: string[] } }
+          activeAssistant.toolBlocks = [
+            ...(activeAssistant.toolBlocks ?? []),
+            { id: call.id, name: call.name, kind: call.kind ?? 'search', queries: call.input?.queries ?? [], urls: call.input?.urls ?? [], status: 'running' },
+          ]
+          break
+        }
+        case 'tool_result': {
+          const result = payload as { id: string; ok?: boolean }
+          const block = (activeAssistant.toolBlocks ?? []).find((item) => item.id === result.id)
+          if (block) block.status = result.ok === false ? 'failed' : 'done'
+          break
+        }
         case 'search':
           activeAssistant.searching = true
           break

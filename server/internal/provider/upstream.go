@@ -109,6 +109,14 @@ func (s *Service) StreamCompletionWithTools(
 	if firstByteTimeout <= 0 {
 		firstByteTimeout = 30 * time.Second
 	}
+	// 按厂商选择的接入方式分发：chat / responses / anthropic
+	switch NormalizeAPIStyle(p.APIStyle) {
+	case APIStyleResponses:
+		return s.streamResponses(ctx, p, key, upstreamModel, messages, deepThinking, reasoningEffort, maxTokens, firstByteTimeout, tools, onEvent)
+	case APIStyleAnthropic:
+		return s.streamAnthropic(ctx, p, key, upstreamModel, messages, deepThinking, reasoningEffort, maxTokens, firstByteTimeout, tools, onEvent)
+	}
+
 	payload := map[string]any{
 		"model":       upstreamModel,
 		"messages":    toUpstreamMessages(messages),

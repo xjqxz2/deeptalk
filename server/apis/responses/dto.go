@@ -269,6 +269,7 @@ type ProviderResponse struct {
 	Name           string               `json:"name"`            // 名称
 	Code           string               `json:"code"`            // 唯一标识
 	Kind           string               `json:"kind"`            // 厂商类型
+	APIStyle       string               `json:"api_style"`       // 接入方式
 	BaseURL        string               `json:"base_url"`        // Base URL
 	APIKeyMasked   string               `json:"api_key_masked"`  // Key 掩码
 	HasAPIKey      bool                 `json:"has_api_key"`     // 是否已配置 Key
@@ -298,6 +299,7 @@ func NewProvider(p provider.Provider, status string) ProviderResponse {
 		Name:           p.Name,
 		Code:           p.Code,
 		Kind:           p.Kind,
+		APIStyle:       provider.NormalizeAPIStyle(p.APIStyle),
 		BaseURL:        p.BaseURL,
 		APIKeyMasked:   p.APIKeyMasked,
 		HasAPIKey:      p.APIKeyEnc != "",

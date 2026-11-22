@@ -17,6 +17,11 @@ const (
 	KindAliyun   = "aliyun"   // 阿里云百炼
 	KindMoonshot = "moonshot" // Moonshot
 	KindCustom   = "custom"   // 自定义 OpenAI 兼容接口
+
+	// 接入方式（三选一）
+	APIStyleChat      = "chat"      // OpenAI Chat Completions
+	APIStyleResponses = "responses" // OpenAI Responses API
+	APIStyleAnthropic = "anthropic" // Anthropic Messages API
 )
 
 // 卡片状态常量，对应设计图“已启用 / 待验证 / 连接失败 / 已停用”。
@@ -38,24 +43,25 @@ var (
 
 // Provider 是上游厂商配置。
 type Provider struct {
-	ID             uint       `gorm:"primaryKey"`                        // 主键
-	Name           string     `gorm:"size:64;not null"`                  // 显示名称
-	Code           string     `gorm:"size:64;uniqueIndex;not null"`      // 唯一标识
-	Kind           string     `gorm:"size:16;not null;default:'custom'"` // 厂商类型
-	BaseURL        string     `gorm:"size:255;not null"`                 // 上游 Base URL
-	APIKeyEnc      string     `gorm:"size:512;not null;default:''"`      // AES-GCM 密文
-	APIKeyMasked   string     `gorm:"size:64;not null;default:''"`       // 掩码，前端只读
-	HeadersJSON    string     `gorm:"type:text;not null;default:''"`     // 自定义请求头 JSON，空表示不附加
-	TimeoutSec     int        `gorm:"not null;default:60"`               // 调用超时（秒）
-	MaxConcurrency int        `gorm:"not null;default:4"`                // 最大并发
-	Enabled        bool       `gorm:"not null;default:false;index"`      // 是否启用
-	Verified       bool       `gorm:"not null;default:false"`            // 连接测试是否通过
-	IsBuiltin      bool       `gorm:"not null;default:false"`            // 是否预置厂商
-	IsDefault      bool       `gorm:"not null;default:false"`            // 是否平台默认厂商
-	SortOrder      int        `gorm:"not null;default:0"`                // 展示排序
-	LastTestedAt   *time.Time `gorm:"index"`                             // 最近测试时间
-	LastLatencyMS  int        `gorm:"not null;default:0"`                // 最近测试延迟
-	LastError      string     `gorm:"size:255;not null;default:''"`      // 最近测试失败原因
+	ID             uint       `gorm:"primaryKey"`                                       // 主键
+	Name           string     `gorm:"size:64;not null"`                                 // 显示名称
+	Code           string     `gorm:"size:64;uniqueIndex;not null"`                     // 唯一标识
+	Kind           string     `gorm:"size:16;not null;default:'custom'"`                // 厂商类型
+	APIStyle       string     `gorm:"column:api_style;size:16;not null;default:'chat'"` // 接入方式：chat / responses / anthropic
+	BaseURL        string     `gorm:"size:255;not null"`                                // 上游 Base URL
+	APIKeyEnc      string     `gorm:"size:512;not null;default:''"`                     // AES-GCM 密文
+	APIKeyMasked   string     `gorm:"size:64;not null;default:''"`                      // 掩码，前端只读
+	HeadersJSON    string     `gorm:"type:text;not null;default:''"`                    // 自定义请求头 JSON，空表示不附加
+	TimeoutSec     int        `gorm:"not null;default:60"`                              // 调用超时（秒）
+	MaxConcurrency int        `gorm:"not null;default:4"`                               // 最大并发
+	Enabled        bool       `gorm:"not null;default:false;index"`                     // 是否启用
+	Verified       bool       `gorm:"not null;default:false"`                           // 连接测试是否通过
+	IsBuiltin      bool       `gorm:"not null;default:false"`                           // 是否预置厂商
+	IsDefault      bool       `gorm:"not null;default:false"`                           // 是否平台默认厂商
+	SortOrder      int        `gorm:"not null;default:0"`                               // 展示排序
+	LastTestedAt   *time.Time `gorm:"index"`                                            // 最近测试时间
+	LastLatencyMS  int        `gorm:"not null;default:0"`                               // 最近测试延迟
+	LastError      string     `gorm:"size:255;not null;default:''"`                     // 最近测试失败原因
 	CreatedAt      time.Time  // 创建时间
 	UpdatedAt      time.Time  // 更新时间
 	Models         []Model    `gorm:"foreignKey:ProviderID"` // 该厂商的模型
@@ -134,6 +140,7 @@ type ModelInput struct {
 type SaveInput struct {
 	Name           string            `json:"name"`            // 显示名称
 	Kind           string            `json:"kind"`            // 厂商类型
+	APIStyle       string            `json:"api_style"`       // 接入方式：chat / responses / anthropic
 	BaseURL        string            `json:"base_url"`        // Base URL
 	APIKey         string            `json:"api_key"`         // 明文 Key；编辑时为空表示保留
 	Headers        map[string]string `json:"headers"`         // 自定义请求头；nil 表示保持不变

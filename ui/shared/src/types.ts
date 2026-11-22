@@ -126,6 +126,16 @@ export interface SharedConversation {
 export type A2UIMessage = Record<string, unknown>
 
 /** 思考/检索过程中的实时状态，仅当前流式消息使用。 */
+/** 一次工具调用的时间线块：call 原子出现，result 回来后原地变 done。 */
+export interface ToolBlock {
+  id: string
+  name: string
+  kind: 'search' | 'read' | 'browser' | string
+  queries: string[]
+  urls: string[]
+  status: 'running' | 'done' | 'failed'
+}
+
 export type SearchActivityStatus = 'thinking' | 'searching' | 'opening' | 'reading' | 'found'
 
 export interface SearchActivity {
@@ -151,6 +161,8 @@ export interface ChatMessage {
   searching?: boolean
   activity?: SearchActivity
   a2ui?: A2UIMessage[]
+  /** 边想边做：模型在本轮里发起的工具调用（思考 ↔ 检索交替出现） */
+  toolBlocks?: ToolBlock[]
   attachments?: Attachment[]
   created_at: string
   created_at_label?: string
@@ -176,6 +188,8 @@ export interface ProviderInfo {
   name: string
   code: string
   kind: 'deepseek' | 'openai' | 'aliyun' | 'moonshot' | 'custom'
+  /** 接入方式：chat=OpenAI Chat Completions，responses=OpenAI Responses，anthropic=Anthropic Messages */
+  api_style: 'chat' | 'responses' | 'anthropic'
   base_url: string
   api_key_masked: string
   has_api_key: boolean
@@ -326,6 +340,7 @@ export interface TestResult {
 export interface ProviderPayload {
   name: string
   kind: ProviderInfo['kind']
+  api_style: ProviderInfo['api_style']
   base_url: string
   api_key?: string
   timeout_sec: number
