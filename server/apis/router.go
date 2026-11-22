@@ -172,7 +172,6 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 		bGroup.DELETE("/users/:id", userController.Delete)
 		bGroup.POST("/users/:id/reset-password", userController.ResetPassword)
 		bGroup.POST("/users/:id/logout-all", userController.LogoutAll)
-		bGroup.DELETE("/users/:id", userController.Delete)
 
 		bGroup.GET("/settings", settingsController.Get)
 		bGroup.PUT("/settings", settingsController.Update)
