@@ -67,10 +67,13 @@ func (s *Service) streamResponses(
 	if instructions != "" {
 		payload["instructions"] = instructions
 	}
-	toolList := responsesTools(tools)
+	var toolList []map[string]any
 	if s.builtinSearchEnabled(ctx) {
-		// 模型内置联网：由服务端模型直接搜网页，工具调用不再单独计费，按 token 结算
-		toolList = append(toolList, map[string]any{"type": "web_search"})
+		// 模型内置联网：DeepSeek 服务端联网工具。这类工具不能与普通 function 工具混用，
+		// 所以这一轮只声明它们，由模型自己决定搜不搜、读不读。
+		toolList = deepSeekWebTools(false)
+	} else {
+		toolList = responsesTools(tools)
 	}
 	if len(toolList) > 0 {
 		payload["tools"] = toolList

@@ -127,7 +127,10 @@ func (s *Service) StreamCompletionWithTools(
 		// 让上游在最后一帧返回 usage，便于准确记账
 		"stream_options": map[string]any{"include_usage": true},
 	}
-	if len(tools) > 0 {
+	if s.builtinSearchEnabled(ctx) {
+		// DeepSeek 联网工具在 Chat Completions 里也支持，且不能与普通工具混用
+		payload["tools"] = deepSeekWebTools(false)
+	} else if len(tools) > 0 {
 		payload["tools"] = tools
 		payload["tool_choice"] = "auto"
 	}

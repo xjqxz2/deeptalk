@@ -264,3 +264,16 @@ func (s *Service) builtinSearchEnabled(ctx context.Context) bool {
 	}
 	return s.settings.Get(ctx, "search_provider", "self") == "builtin"
 }
+
+// deepSeekWebTools 返回 DeepSeek 服务端联网工具。
+// Messages 协议要求 {"type","name"} 两个字段，Responses / Chat Completions 只认 type。
+// 参考 https://api-docs.deepseek.com/zh-cn/guides/web_tools.md
+func deepSeekWebTools(withName bool) []map[string]any {
+	search := map[string]any{"type": "deepseek_web_search"}
+	read := map[string]any{"type": "deepseek_read_url"}
+	if withName {
+		search["name"] = "deepseek_web_search"
+		read["name"] = "deepseek_read_url"
+	}
+	return []map[string]any{search, read}
+}

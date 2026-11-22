@@ -66,12 +66,12 @@ func (s *Service) streamAnthropic(
 	if system != "" {
 		payload["system"] = system
 	}
-	toolList := anthropicTools(tools)
+	var toolList []map[string]any
 	if s.builtinSearchEnabled(ctx) {
-		// 模型内置联网：Anthropic 服务端 web_search 工具
-		toolList = append(toolList, map[string]any{
-			"type": "web_search_20250305", "name": "web_search", "max_uses": 5,
-		})
+		// 模型内置联网：DeepSeek 联网工具（Messages 协议要求同时给 name）
+		toolList = deepSeekWebTools(true)
+	} else {
+		toolList = anthropicTools(tools)
 	}
 	if len(toolList) > 0 {
 		payload["tools"] = toolList

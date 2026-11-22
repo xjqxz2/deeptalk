@@ -99,6 +99,7 @@ function reset(): void {
   if (provider) {
     form.name = provider.name
     form.kind = provider.kind
+    form.api_style = provider.api_style || 'chat'
     form.base_url = provider.base_url
     form.api_key = ''
     form.timeout_sec = provider.timeout_sec

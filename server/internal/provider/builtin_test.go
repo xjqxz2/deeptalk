@@ -43,11 +43,26 @@ func TestBuiltinSearchToolInResponses(t *testing.T) {
 	}
 	found := false
 	for _, item := range gotTools {
-		if m, ok := item.(map[string]any); ok && m["type"] == "web_search" {
+		if m, ok := item.(map[string]any); ok && m["type"] == "deepseek_web_search" {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("tools = %+v, want a web_search tool", gotTools)
+		t.Fatalf("tools = %+v, want the deepseek_web_search tool", gotTools)
+	}
+}
+
+// TestDeepSeekWebToolsPerProtocol 校验三种协议的字段差异。
+func TestDeepSeekWebToolsPerProtocol(t *testing.T) {
+	chat := deepSeekWebTools(false)
+	if _, ok := chat[0]["name"]; ok {
+		t.Fatal("Responses/Chat 协议不应带 name")
+	}
+	if chat[0]["type"] != "deepseek_web_search" || chat[1]["type"] != "deepseek_read_url" {
+		t.Fatalf("chat tools = %+v", chat)
+	}
+	messages := deepSeekWebTools(true)
+	if messages[0]["name"] != "deepseek_web_search" || messages[1]["name"] != "deepseek_read_url" {
+		t.Fatalf("messages tools = %+v", messages)
 	}
 }
