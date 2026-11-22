@@ -78,10 +78,12 @@ type Config struct {
 	PageTimeout time.Duration // 单个网页抓取超时（超时按「查询超时」跳过该页）
 	// EarlyReturnAfter 是「拿到结果后最多再等多久」；慢引擎不再拖住整轮检索
 	EarlyReturnAfter time.Duration
-	HTTPFallback     bool       // Obscura 失败时是否允许普通 HTTP 抓取
-	Stealth          bool       // 是否启用 Obscura 反检测模式
-	UserAgent        string     // HTTP 回退时使用的浏览器 UA
-	MCP              ToolCaller // Obscura MCP client；为 nil 时走本地检索链路
+	// EngineBudget 是单个搜索引擎结果页的抓取预算（默认 6 秒）
+	EngineBudget time.Duration
+	HTTPFallback bool       // Obscura 失败时是否允许普通 HTTP 抓取
+	Stealth      bool       // 是否启用 Obscura 反检测模式
+	UserAgent    string     // HTTP 回退时使用的浏览器 UA
+	MCP          ToolCaller // Obscura MCP client；为 nil 时走本地检索链路
 }
 
 // Service 是联网检索服务。
@@ -151,6 +153,9 @@ func New(cfg Config) *Service {
 	}
 	if cfg.EarlyReturnAfter <= 0 {
 		cfg.EarlyReturnAfter = 4 * time.Second
+	}
+	if cfg.EngineBudget <= 0 {
+		cfg.EngineBudget = 6 * time.Second
 	}
 	if strings.TrimSpace(cfg.ObscuraBin) == "" {
 		cfg.ObscuraBin = "obscura"
@@ -523,7 +528,11 @@ func (s *Service) runEngines(ctx context.Context, query string, engines []Engine
 // searchEngine 优先用 Obscura MCP 浏览器打开搜索页，再复用现有解析与排序；
 // MCP 无法启动时退回 Obscura CLI，最后才走普通 HTTP。
 func (s *Service) searchEngine(ctx context.Context, engine Engine, target string) ([]Result, error) {
-	raw, err := s.fetchPageWithTimeout(ctx, target)
+	// 搜索引擎结果页通常很小：给它更短的预算（引擎预算），
+	// 避免一个被墙/超时的引擎把整批检索拖到 15 秒。
+	engineCtx, cancelEngine := context.WithTimeout(ctx, s.cfg.EngineBudget)
+	raw, err := s.fetchPage(engineCtx, target)
+	cancelEngine()
 	if err == nil && len(raw) > 0 {
 		if items := parseEngine(engine.Name, raw, s.cfg.MaxResults, engine.URL); len(items) > 0 {
 			return items, nil
