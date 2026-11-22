@@ -34,6 +34,28 @@ function processPending(): void {
 }
 
 /**
+ * A2UI 组件库自带的表格样式只考虑了浅色主题：深色下表头是白底白字。
+ * 这里在组件挂载后补一份主题样式（Web Component 用 shadowRoot，普通节点用全局类）。
+ */
+function applySurfaceTheme(element: HTMLElement): void {
+  const css = `
+    :host, a2ui-surface, * { color: var(--dt-text, #101828); }
+    table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 12.5px; }
+    th, td { border: 1px solid var(--dt-line, #eaecf0); padding: 6px 8px; text-align: left; }
+    th { background: var(--dt-hover, #f2f4f7); color: var(--dt-text-secondary, #475467); font-weight: 600; }
+    tr:nth-child(even) td { background: color-mix(in srgb, var(--dt-hover, #f2f4f7) 45%, transparent); }
+  `
+  const root = (element as HTMLElement & { shadowRoot?: ShadowRoot | null }).shadowRoot
+  if (root) {
+    const style = document.createElement('style')
+    style.textContent = css
+    root.appendChild(style)
+    return
+  }
+  element.setAttribute('data-dt-theme', 'on')
+}
+
+/**
  * A2UI 按钮点击：surface 内部由 @a2ui/lit 渲染，这里统一接管点击，
  * 至少给出可见反馈，避免「点了没反应」。
  */
@@ -59,6 +81,7 @@ onMounted(async () => {
       element.dataset.surfaceId = surface.id
       element.surface = surface
       host.value?.appendChild(element)
+      applySurfaceTheme(element)
     })
     processor.onSurfaceDeleted((surfaceId) => {
       const element = host.value?.querySelector<SurfaceElement>(`[data-surface-id="${surfaceId}"]`)
@@ -116,5 +139,31 @@ onBeforeUnmount(() => {
   margin: 8px 0 0;
   color: var(--dt-danger-text);
   font-size: 11.4px;
+}
+
+/* A2UI 没有 shadowRoot 时的兜底：表格跟随主题 */
+.a2ui-host[data-dt-theme] table,
+.a2ui-surface table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+  font-size: 12.5px;
+}
+
+.a2ui-host[data-dt-theme] th,
+.a2ui-host[data-dt-theme] td,
+.a2ui-surface th,
+.a2ui-surface td {
+  border: 1px solid var(--dt-line);
+  padding: 6px 8px;
+  text-align: left;
+  color: var(--dt-text);
+}
+
+.a2ui-host[data-dt-theme] th,
+.a2ui-surface th {
+  background: var(--dt-hover);
+  color: var(--dt-text-secondary);
+  font-weight: 600;
 }
 </style>
