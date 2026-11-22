@@ -67,8 +67,13 @@ func (s *Service) streamResponses(
 	if instructions != "" {
 		payload["instructions"] = instructions
 	}
-	if len(tools) > 0 {
-		payload["tools"] = responsesTools(tools)
+	toolList := responsesTools(tools)
+	if s.builtinSearchEnabled(ctx) {
+		// 模型内置联网：由服务端模型直接搜网页，工具调用不再单独计费，按 token 结算
+		toolList = append(toolList, map[string]any{"type": "web_search"})
+	}
+	if len(toolList) > 0 {
+		payload["tools"] = toolList
 		payload["tool_choice"] = "auto"
 	}
 	if deepThinking {

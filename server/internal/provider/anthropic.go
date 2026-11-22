@@ -66,8 +66,15 @@ func (s *Service) streamAnthropic(
 	if system != "" {
 		payload["system"] = system
 	}
-	if len(tools) > 0 {
-		payload["tools"] = anthropicTools(tools)
+	toolList := anthropicTools(tools)
+	if s.builtinSearchEnabled(ctx) {
+		// 模型内置联网：Anthropic 服务端 web_search 工具
+		toolList = append(toolList, map[string]any{
+			"type": "web_search_20250305", "name": "web_search", "max_uses": 5,
+		})
+	}
+	if len(toolList) > 0 {
+		payload["tools"] = toolList
 	}
 	if deepThinking {
 		budget := maxTokens / 2

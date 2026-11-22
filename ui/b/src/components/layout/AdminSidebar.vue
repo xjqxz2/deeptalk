@@ -8,7 +8,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import {
   ArrowLeftOutlined,
-  BookOutlined,
   CloudServerOutlined,
   LogoutOutlined,
   MoreOutlined,
@@ -106,15 +105,6 @@ async function logout(): Promise<void> {
           <span><CloudServerOutlined /> SQLite · 单实例部署</span>
           <span>本月对话 {{ formatNumber(admin.overview?.monthly_messages ?? 0) }} 条</span>
         </div>
-      </button>
-
-      <button type="button" class="guide-card" @click="app.guideOpen = true">
-        <span class="guide-icon"><BookOutlined /></span>
-        <span class="guide-copy">
-          <strong>管理员指南</strong>
-          <small>查看密钥托管与路由说明</small>
-          <small class="guide-version">v0.3 · MVP</small>
-        </span>
       </button>
 
       <a-dropdown :trigger="['click']" placement="topRight">

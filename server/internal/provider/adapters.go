@@ -255,3 +255,12 @@ func (c *toolCallCollector) all() []ToolCall {
 	}
 	return out
 }
+
+// builtinSearchEnabled 决定是否把「模型内置联网」工具挂进请求。
+// 由后台的 search_provider 控制：self/deepseek 走我们自己的检索，builtin 交给模型。
+func (s *Service) builtinSearchEnabled(ctx context.Context) bool {
+	if s.settings == nil {
+		return false
+	}
+	return s.settings.Get(ctx, "search_provider", "self") == "builtin"
+}

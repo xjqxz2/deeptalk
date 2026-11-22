@@ -59,8 +59,8 @@ func (h *SettingsController) Update(c *gin.Context) {
 	}
 	if req.SearchProvider != nil {
 		mode := strings.ToLower(strings.TrimSpace(*req.SearchProvider))
-		if mode != search.ProviderSelf && mode != search.ProviderDeepSeek {
-			responses.Fail(c, responses.CodeInvalidArgument, "检索来源只能是 自建 或 DeepSeek")
+		if mode != search.ProviderSelf && mode != search.ProviderDeepSeek && mode != search.ProviderBuiltin {
+			responses.Fail(c, responses.CodeInvalidArgument, "检索来源只能是 自建、DeepSeek 或 模型内置")
 			return
 		}
 		if err := h.settings.Set(ctx, setting.KeySearchProvider, mode); err != nil {

@@ -315,7 +315,7 @@ export interface SettingsInfo {
   site_name: string
   generation_timeout_sec: number
   /** 联网检索来源：self=自建，deepseek=DeepSeek 官方 Search API */
-  search_provider: 'self' | 'deepseek'
+  search_provider: 'self' | 'deepseek' | 'builtin'
   search_deepseek_masked: string
   has_search_key: boolean
   version: string

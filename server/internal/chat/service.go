@@ -857,7 +857,8 @@ func claimSites(urls []string, remaining int) ([]string, int) {
 // availableTools 返回当前环境真正可用的工具，避免把不可用的能力描述给模型。
 func (s *Service) availableTools() []provider.Tool {
 	tools := make([]provider.Tool, 0, 3)
-	if s.search != nil && s.search.Enabled() {
+	builtin := s.settings != nil && s.settings.Get(context.Background(), setting.KeySearchProvider, "self") == "builtin"
+	if s.search != nil && s.search.Enabled() && !builtin {
 		tools = append(tools, webSearchTool)
 	}
 	if s.search != nil && s.search.BrowserAvailable() {

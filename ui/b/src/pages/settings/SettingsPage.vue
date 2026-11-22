@@ -31,7 +31,7 @@ const savingSiteName = ref(false)
 const generationTimeout = ref(30)
 const savingTimeout = ref(false)
 const savingSearch = ref(false)
-const searchProvider = ref<'self' | 'deepseek'>('self')
+const searchProvider = ref<'self' | 'deepseek' | 'builtin'>('self')
 const searchKey = ref('')
 const savingRegistration = ref(false)
 const savingRouting = ref(false)
@@ -60,7 +60,11 @@ async function load(showError = true): Promise<void> {
     maxOutputTokens.value = settingsData.max_output_tokens
     siteName.value = settingsData.site_name || ''
     generationTimeout.value = settingsData.generation_timeout_sec || 30
-    searchProvider.value = settingsData.search_provider === 'deepseek' ? 'deepseek' : 'self'
+    searchProvider.value = settingsData.search_provider === 'deepseek'
+      ? 'deepseek'
+      : settingsData.search_provider === 'builtin'
+        ? 'builtin'
+        : 'self'
   } catch (error) {
     if (showError) message.error(error instanceof Error ? error.message : '设置加载失败')
   } finally {
@@ -373,6 +377,7 @@ onMounted(async () => {
             <a-radio-group v-model:value="searchProvider">
               <a-radio value="self">自建检索（无需配置）</a-radio>
               <a-radio value="deepseek">DeepSeek 联网搜索（需密钥）</a-radio>
+              <a-radio value="builtin">模型内置联网（无需密钥）</a-radio>
             </a-radio-group>
             <div v-if="searchProvider === 'deepseek'" class="search-key">
               <a-input-password
@@ -384,7 +389,8 @@ onMounted(async () => {
             </div>
             <a-button v-else type="primary" size="small" :loading="savingSearch" @click="saveSearchProvider">保存</a-button>
             <p class="field-hint">
-              自建检索用服务器上的多引擎抓取，不需要填任何东西；DeepSeek 走官方 /v1/tools/search 与 /v1/tools/fetch，按成功请求计费。
+              自建检索用服务器上的多引擎抓取，不需要填任何东西；DeepSeek 走官方 /v1/tools/search 与 /v1/tools/fetch，按成功请求计费；
+              模型内置联网由模型服务端自己搜索（Responses / Anthropic 的 web_search 工具），工具调用不单独计费，抓到的内容按 token 计费。
             </p>
           </div>
           <div class="info-rows">

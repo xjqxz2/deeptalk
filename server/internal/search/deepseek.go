@@ -22,6 +22,7 @@ var deepSeekBaseURL = "https://api.deepseek.com"
 const (
 	ProviderSelf     = "self"     // 自建检索（Obscura / 多引擎）
 	ProviderDeepSeek = "deepseek" // DeepSeek 官方 Search / Fetch API
+	ProviderBuiltin  = "builtin"  // 模型内置联网（Responses / Anthropic 服务端 web_search）
 )
 
 // SetDeepSeekProvider 注入提供方解析函数。
