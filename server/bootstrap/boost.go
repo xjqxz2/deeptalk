@@ -3,6 +3,7 @@ package bootstrap
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -17,13 +18,14 @@ import (
 
 // App 保存进程级共享依赖，按启动顺序逐步填充。
 type App struct {
-	Config *Config         // 生效配置
-	Log    *slog.Logger    // 结构化日志
-	DB     *gorm.DB        // 数据库句柄
-	MCP    *mcp.Client     // MCP client；未启用或启动失败时为 nil
-	WeChat *wechat.Manager // 小程序 access_token 管理器；未配置凭据时为 nil
-	server *httpServer     // HTTP 设备
-	cfgDir string          // 配置文件目录
+	Config      *Config         // 生效配置
+	Log         *slog.Logger    // 结构化日志
+	DB          *gorm.DB        // 数据库句柄
+	MCP         *mcp.Client     // MCP client；未启用或启动失败时为 nil
+	WeChat      *wechat.Manager // 小程序 access_token 管理器；未配置凭据时为 nil
+	dbLogCloser io.Closer       // SQL 日志文件（按天滚动）
+	server      *httpServer     // HTTP 设备
+	cfgDir      string          // 配置文件目录
 }
 
 // step 描述一个启动步骤及其逆序关闭动作。

@@ -3,7 +3,9 @@ package bootstrap
 import (
 	"context"
 	"errors"
+	"io"
 	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,6 +15,7 @@ import (
 	"deeptalk/internal/audit"
 	"deeptalk/internal/billing"
 	"deeptalk/internal/chat"
+	"deeptalk/internal/logging"
 	"deeptalk/internal/provider"
 	"deeptalk/internal/seed"
 	"deeptalk/internal/setting"
@@ -31,12 +34,20 @@ func (a *App) startDatabase(ctx context.Context) error {
 		return err
 	}
 	dsn := withSQLitePragmas(cfg.Database.DSN)
-	// 只打印真正的错误与慢查询：ErrRecordNotFound 属于正常业务分支
-	//（例如查询未设置的配置项），不应刷屏。
-	dbLogger := logger.New(log.New(os.Stdout, "", log.LstdFlags), logger.Config{
+	// SQL 日志写到 data/logs/db-YYYY-MM-DD.log：按天滚动、次日 gzip、只保留 7 天。
+	// 控制台保持干净，排查时再去翻文件。
+	sqlOut := io.Writer(os.Stdout)
+	logDir := filepath.Join(filepath.Dir(cfg.Database.DSN), "logs")
+	if rolling, err := logging.NewDailyWriter(logDir, "db", 7); err == nil {
+		sqlOut = rolling
+		a.dbLogCloser = rolling
+	} else {
+		slog.Warn("sql log file disabled", "dir", logDir, "error", err)
+	}
+	dbLogger := logger.New(log.New(sqlOut, "", log.LstdFlags), logger.Config{
 		SlowThreshold:             500 * time.Millisecond,
 		LogLevel:                  logger.Warn,
-		IgnoreRecordNotFoundError: true,
+		IgnoreRecordNotFoundError: false, // 记到文件里，便于回溯，但不再刷控制台
 		ParameterizedQueries:      false,
 		Colorful:                  false,
 	})
@@ -89,6 +100,9 @@ func (a *App) startDatabase(ctx context.Context) error {
 
 // stopDatabase 关闭数据库连接。
 func (a *App) stopDatabase(ctx context.Context) error {
+	if a.dbLogCloser != nil {
+		_ = a.dbLogCloser.Close()
+	}
 	if a.DB == nil {
 		return nil
 	}
