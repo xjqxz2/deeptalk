@@ -154,3 +154,25 @@ func TestMigrateSeedsDefaults(t *testing.T) {
 	}
 	fmt.Println("plans ok", len(plans))
 }
+
+// TestCostMilliCentsCached 校验三段计价：缓存命中比普通输入便宜，输出单独计价。
+func TestCostMilliCentsCached(t *testing.T) {
+	// 1M 输入全部普通：¥3；1M 命中缓存：¥0.3；1M 输出：¥6
+	if got := CostMilliCentsCached(1_000_000, 0, 0, 3, 0.3, 6); got != 300_000 {
+		t.Fatalf("normal input = %d, want 300000", got)
+	}
+	if got := CostMilliCentsCached(1_000_000, 1_000_000, 0, 3, 0.3, 6); got != 30_000 {
+		t.Fatalf("cached input = %d, want 30000", got)
+	}
+	if got := CostMilliCentsCached(0, 0, 1_000_000, 3, 0.3, 6); got != 600_000 {
+		t.Fatalf("output = %d, want 600000", got)
+	}
+	// 混合：500k 普通 + 500k 命中 + 1M 输出 = 1.5 + 0.15 + 6 = ¥7.65
+	if got := CostMilliCentsCached(1_000_000, 500_000, 1_000_000, 3, 0.3, 6); got != 765_000 {
+		t.Fatalf("mixed = %d, want 765000", got)
+	}
+	// 缓存价缺省时退回普通输入价
+	if got := CostMilliCentsCached(1_000_000, 1_000_000, 0, 3, 0, 6); got != 300_000 {
+		t.Fatalf("fallback price = %d, want 300000", got)
+	}
+}

@@ -52,8 +52,9 @@ type StreamEvent struct {
 
 // CompletionUsage 是上游返回的 token 用量。
 type CompletionUsage struct {
-	PromptTokens     int `json:"prompt_tokens"`     // 输入 tokens
+	PromptTokens     int `json:"prompt_tokens"`     // 输入 tokens（含缓存命中）
 	CompletionTokens int `json:"completion_tokens"` // 输出 tokens
+	CachedTokens     int `json:"cached_tokens"`     // 其中命中缓存的输入 tokens
 }
 
 // ErrUpstream 表示上游调用失败，具体原因由返回值携带。
@@ -211,9 +212,13 @@ func (s *Service) StreamCompletionWithTools(
 			// 单帧解析失败不应中断整段回答
 			continue
 		}
-		if chunk.Usage != nil {
+		if chunk.Usage.PromptTokens > 0 || chunk.Usage.CompletionTokens > 0 {
 			usage.PromptTokens = chunk.Usage.PromptTokens
 			usage.CompletionTokens = chunk.Usage.CompletionTokens
+			usage.CachedTokens = chunk.Usage.PromptCacheHit
+			if chunk.Usage.PromptTokensDetails.CachedTokens > usage.CachedTokens {
+				usage.CachedTokens = chunk.Usage.PromptTokensDetails.CachedTokens
+			}
 		}
 		for _, choice := range chunk.Choices {
 			if choice.Delta.ReasoningContent != "" {
@@ -290,7 +295,14 @@ type upstreamChunk struct {
 		} `json:"delta"`
 		FinishReason string `json:"finish_reason"` // stop / length
 	} `json:"choices"`
-	Usage *CompletionUsage `json:"usage"` // 最后一帧的用量
+	Usage struct {
+		PromptTokens        int `json:"prompt_tokens"`
+		CompletionTokens    int `json:"completion_tokens"`
+		PromptCacheHit      int `json:"prompt_cache_hit_tokens"`
+		PromptTokensDetails struct {
+			CachedTokens int `json:"cached_tokens"`
+		} `json:"prompt_tokens_details"`
+	} `json:"usage"` // 最后一帧的用量
 }
 
 // toUpstreamMessages 转换为上游协议需要的消息数组。

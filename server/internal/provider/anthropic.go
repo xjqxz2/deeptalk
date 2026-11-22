@@ -28,7 +28,8 @@ type anthropicEvent struct {
 	} `json:"content_block"`
 	Message struct {
 		Usage struct {
-			InputTokens int `json:"input_tokens"`
+			InputTokens          int `json:"input_tokens"`
+			CacheReadInputTokens int `json:"cache_read_input_tokens"`
 		} `json:"usage"`
 	} `json:"message"`
 	Usage struct {
@@ -103,6 +104,7 @@ func (s *Service) streamAnthropic(
 		switch event.Type {
 		case "message_start":
 			usage.PromptTokens = event.Message.Usage.InputTokens
+			usage.CachedTokens = event.Message.Usage.CacheReadInputTokens
 		case "content_block_start":
 			if event.ContentBlock.Type == "tool_use" {
 				blockToTool[event.Index] = event.Index

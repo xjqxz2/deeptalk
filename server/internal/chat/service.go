@@ -744,6 +744,10 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 	if inputTokens <= 0 {
 		inputTokens = estimateTokens(historyText(history))
 	}
+	cachedTokens := usage.CachedTokens
+	if cachedTokens > inputTokens {
+		cachedTokens = inputTokens
+	}
 	outputTokens := usage.CompletionTokens
 	if outputTokens <= 0 {
 		outputTokens = estimateTokens(reasoning + answer)
@@ -786,13 +790,16 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 	}).Error
 	_ = s.users.ConsumeUsage(finishCtx, userID, int64(inputTokens+outputTokens))
 	if s.cfg.Billing != nil {
-		cost := billing.CostMilliCents(inputTokens, outputTokens, model.PriceInput, model.PriceOutput)
+		// 三段计价：缓存命中输入 / 普通输入 / 输出；上游不给价格时也由我们兜底计费
+		cost := billing.CostMilliCentsCached(inputTokens, cachedTokens, outputTokens,
+			model.PriceInput, model.PriceCachedInput, model.PriceOutput)
 		_ = s.cfg.Billing.Record(finishCtx, billing.Event{
 			UserID:         userID,
 			ModelID:        model.ID,
 			ModelName:      model.DisplayName,
 			InputTokens:    inputTokens,
 			OutputTokens:   outputTokens,
+			CachedTokens:   cachedTokens,
 			CostMilliCents: cost,
 		})
 	}

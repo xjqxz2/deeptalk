@@ -20,6 +20,9 @@ const form = reactive({
   description: '',
   context_window: 128000,
   max_concurrency: 4,
+  price_input: 0,
+  price_cached_input: 0,
+  price_output: 0,
   enabled: true,
 })
 
@@ -50,6 +53,9 @@ watch(
       form.description = props.model.description
       form.context_window = props.model.context_window
       form.max_concurrency = props.model.max_concurrency
+      form.price_input = props.model.price_input ?? 0
+      form.price_cached_input = props.model.price_cached_input ?? 0
+      form.price_output = props.model.price_output ?? 0
       form.enabled = props.model.enabled
     } else {
       form.provider_id = props.defaultProviderId ?? props.providers[0]?.id ?? 0
@@ -58,6 +64,9 @@ watch(
       form.description = ''
       form.context_window = 128000
       form.max_concurrency = 4
+      form.price_input = 0
+      form.price_cached_input = 0
+      form.price_output = 0
       form.enabled = true
     }
   },
@@ -87,6 +96,9 @@ async function save(): Promise<void> {
       display_name: form.display_name.trim() || form.model_id.trim(),
       description: form.description.trim(),
       context_window: form.context_window,
+      price_input: form.price_input,
+      price_cached_input: form.price_cached_input,
+      price_output: form.price_output,
       max_concurrency: form.max_concurrency,
       enabled: form.enabled,
     }
@@ -136,6 +148,19 @@ async function save(): Promise<void> {
           <a-input-number v-model:value="form.max_concurrency" :min="1" :max="10000" style="width: 100%" />
         </a-form-item>
       </div>
+      <div class="price-row">
+        <a-form-item label="输入价（元/百万）">
+          <a-input-number v-model:value="form.price_input" :min="0" :max="10000" :step="0.1" style="width: 100%" />
+        </a-form-item>
+        <a-form-item label="缓存命中价">
+          <a-input-number v-model:value="form.price_cached_input" :min="0" :max="10000" :step="0.1" style="width: 100%" />
+        </a-form-item>
+        <a-form-item label="输出价（元/百万）">
+          <a-input-number v-model:value="form.price_output" :min="0" :max="10000" :step="0.1" style="width: 100%" />
+        </a-form-item>
+      </div>
+      <p class="hint price-hint">上游不返回价格时（如免费模型），按这三个单价自行结算：普通输入、缓存命中输入、输出分别计价；缓存价留空按输入价计。</p>
+
       <div class="switch-row">
         <div>
           <span class="switch-label">启用该模型</span>
@@ -213,5 +238,15 @@ async function save(): Promise<void> {
   margin-top: 18px;
   padding-top: 14px;
   border-top: 1px solid var(--dt-line-soft);
+}
+
+.price-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.price-hint {
+  margin: -8px 0 12px;
 }
 </style>

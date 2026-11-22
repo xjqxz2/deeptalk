@@ -25,8 +25,11 @@ type responsesEvent struct {
 	} `json:"item"`
 	Response struct {
 		Usage struct {
-			InputTokens  int `json:"input_tokens"`
-			OutputTokens int `json:"output_tokens"`
+			InputTokens        int `json:"input_tokens"`
+			OutputTokens       int `json:"output_tokens"`
+			InputTokensDetails struct {
+				CachedTokens int `json:"cached_tokens"`
+			} `json:"input_tokens_details"`
 		} `json:"usage"`
 		Error struct {
 			Message string `json:"message"`
@@ -125,6 +128,7 @@ func (s *Service) streamResponses(
 		case "response.completed":
 			usage.PromptTokens = event.Response.Usage.InputTokens
 			usage.CompletionTokens = event.Response.Usage.OutputTokens
+			usage.CachedTokens = event.Response.Usage.InputTokensDetails.CachedTokens
 		case "response.failed", "error":
 			message := event.Response.Error.Message
 			if message == "" {

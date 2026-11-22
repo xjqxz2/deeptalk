@@ -221,6 +221,10 @@ export interface AdminModel {
   enabled: boolean
   is_default: boolean
   is_fallback: boolean
+  /** 价格（元 / 百万 token），由我们自己的计费层使用 */
+  price_input: number
+  price_cached_input: number
+  price_output: number
 }
 
 /** 默认 / 兜底路由。 */

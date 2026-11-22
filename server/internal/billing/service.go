@@ -207,7 +207,23 @@ func (s *Service) Record(ctx context.Context, event Event) error {
 
 // CostMilliCents 按模型单价（元 / 百万 token）换算本次费用，单位「分的千分之一」。
 func CostMilliCents(inputTokens, outputTokens int, priceInput, priceOutput float64) int64 {
-	cost := (float64(inputTokens)*priceInput + float64(outputTokens)*priceOutput) / 1_000_000
+	return CostMilliCentsCached(inputTokens, 0, outputTokens, priceInput, priceInput, priceOutput)
+}
+
+// CostMilliCentsCached 三段计价：缓存命中输入、普通输入、输出。
+// 上游不给价格（如 OpenCode-GO 的免费模型）时，我们自己按 token 计这一层。
+func CostMilliCentsCached(inputTokens, cachedTokens, outputTokens int, priceInput, priceCached, priceOutput float64) int64 {
+	if cachedTokens < 0 {
+		cachedTokens = 0
+	}
+	if cachedTokens > inputTokens {
+		cachedTokens = inputTokens
+	}
+	if priceCached <= 0 {
+		priceCached = priceInput
+	}
+	normalInput := inputTokens - cachedTokens
+	cost := (float64(normalInput)*priceInput + float64(cachedTokens)*priceCached + float64(outputTokens)*priceOutput) / 1_000_000
 	return int64(cost * 100000)
 }
 

@@ -52,6 +52,7 @@ type Event struct {
 	ModelName    string `gorm:"size:64;not null;default:''"`
 	InputTokens  int    `gorm:"not null;default:0"`
 	OutputTokens int    `gorm:"not null;default:0"`
+	CachedTokens int    `gorm:"column:cached_tokens;not null;default:0"` // 命中缓存的输入 tokens
 	// 本次费用，单位「分」的千分之一（避免精度丢失），展示时 /1000
 	CostMilliCents int64     `gorm:"not null;default:0"`
 	CreatedAt      time.Time `gorm:"index:idx_billing_user_time"`

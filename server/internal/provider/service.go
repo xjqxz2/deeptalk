@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -412,6 +413,9 @@ func (s *Service) UpdateModel(ctx context.Context, id uint, in ModelInput) (*Mod
 		m.MaxConcurrency = clampInt(in.MaxConcurrency, 1, 10000)
 	}
 	m.Enabled = in.Enabled
+	m.PriceInput = nonNegative(in.PriceInput)
+	m.PriceCachedInput = nonNegative(in.PriceCachedInput)
+	m.PriceOutput = nonNegative(in.PriceOutput)
 	if err := s.db.WithContext(ctx).Save(&m).Error; err != nil {
 		return nil, err
 	}
@@ -755,14 +759,17 @@ func buildModel(providerID uint, in ModelInput, sortOrder int) (*Model, error) {
 	}
 	concurrency = clampInt(concurrency, 1, 10000)
 	return &Model{
-		ProviderID:     providerID,
-		ModelID:        modelID,
-		DisplayName:    displayName(in),
-		Description:    strings.TrimSpace(in.Description),
-		ContextWindow:  contextWindow,
-		MaxConcurrency: concurrency,
-		Enabled:        in.Enabled,
-		SortOrder:      sortOrder,
+		ProviderID:       providerID,
+		ModelID:          modelID,
+		DisplayName:      displayName(in),
+		Description:      strings.TrimSpace(in.Description),
+		ContextWindow:    contextWindow,
+		MaxConcurrency:   concurrency,
+		PriceInput:       nonNegative(in.PriceInput),
+		PriceCachedInput: nonNegative(in.PriceCachedInput),
+		PriceOutput:      nonNegative(in.PriceOutput),
+		Enabled:          in.Enabled,
+		SortOrder:        sortOrder,
 	}, nil
 }
 
@@ -916,4 +923,12 @@ func NormalizeAPIStyle(value string) string {
 	default:
 		return APIStyleChat
 	}
+}
+
+// nonNegative 把非法单价（负数 / NaN）归零，避免计费出现负数。
+func nonNegative(value float64) float64 {
+	if value < 0 || math.IsNaN(value) || math.IsInf(value, 0) {
+		return 0
+	}
+	return value
 }

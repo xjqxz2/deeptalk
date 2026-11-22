@@ -69,21 +69,22 @@ type Provider struct {
 
 // Model 是可供用户选择的模型及其路由信息。
 type Model struct {
-	ID             uint      `gorm:"primaryKey"`                                      // 主键
-	ProviderID     uint      `gorm:"uniqueIndex:uk_provider_model;not null"`          // 所属厂商
-	ModelID        string    `gorm:"size:128;uniqueIndex:uk_provider_model;not null"` // 上游模型 ID
-	DisplayName    string    `gorm:"size:64;not null"`                                // 展示名
-	Description    string    `gorm:"size:128;not null;default:''"`                    // 用途说明
-	ContextWindow  int       `gorm:"not null;default:32768"`                          // 上下文窗口（tokens）
-	MaxConcurrency int       `gorm:"not null;default:2"`                              // 模型级并发
-	Enabled        bool      `gorm:"not null;default:false;index"`                    // 是否启用
-	IsDefault      bool      `gorm:"not null;default:false"`                          // 平台默认模型
-	IsFallback     bool      `gorm:"not null;default:false"`                          // 兜底模型
-	SortOrder      int       `gorm:"not null;default:0"`                              // 排序
-	PriceInput     float64   `gorm:"not null;default:0"`                              // 输入单价（元 / 百万 token）
-	PriceOutput    float64   `gorm:"not null;default:0"`                              // 输出单价（元 / 百万 token）
-	CreatedAt      time.Time // 创建时间
-	UpdatedAt      time.Time // 更新时间
+	ID               uint      `gorm:"primaryKey"`                                      // 主键
+	ProviderID       uint      `gorm:"uniqueIndex:uk_provider_model;not null"`          // 所属厂商
+	ModelID          string    `gorm:"size:128;uniqueIndex:uk_provider_model;not null"` // 上游模型 ID
+	DisplayName      string    `gorm:"size:64;not null"`                                // 展示名
+	Description      string    `gorm:"size:128;not null;default:''"`                    // 用途说明
+	ContextWindow    int       `gorm:"not null;default:32768"`                          // 上下文窗口（tokens）
+	MaxConcurrency   int       `gorm:"not null;default:2"`                              // 模型级并发
+	Enabled          bool      `gorm:"not null;default:false;index"`                    // 是否启用
+	IsDefault        bool      `gorm:"not null;default:false"`                          // 平台默认模型
+	IsFallback       bool      `gorm:"not null;default:false"`                          // 兜底模型
+	SortOrder        int       `gorm:"not null;default:0"`                              // 排序
+	PriceInput       float64   `gorm:"not null;default:0"`                              // 输入单价（元 / 百万 token）
+	PriceCachedInput float64   `gorm:"column:price_cached_input;not null;default:0"`    // 缓存命中输入单价（元 / 百万 token）
+	PriceOutput      float64   `gorm:"not null;default:0"`                              // 输出单价（元 / 百万 token）
+	CreatedAt        time.Time // 创建时间
+	UpdatedAt        time.Time // 更新时间
 
 	// ProviderName 是联表查询后的展示字段，不落库。
 	ProviderName string `gorm:"->"`
@@ -134,6 +135,10 @@ type ModelInput struct {
 	ContextWindow  int    `json:"context_window"`  // 上下文窗口
 	MaxConcurrency int    `json:"max_concurrency"` // 模型级并发
 	Enabled        bool   `json:"enabled"`         // 是否启用
+	// 价格（元 / 百万 token），由我们自己的计费层使用；上游不给价时也能算钱
+	PriceInput       float64 `json:"price_input"`        // 普通输入
+	PriceCachedInput float64 `json:"price_cached_input"` // 缓存命中输入
+	PriceOutput      float64 `json:"price_output"`       // 输出
 }
 
 // SaveInput 是新建 / 编辑厂商的输入。
