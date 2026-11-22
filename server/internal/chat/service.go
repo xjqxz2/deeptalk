@@ -302,8 +302,8 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 		_ = s.db.WithContext(ctx).Model(&Conversation{}).Where("id = ?", conv.ID).
 			Updates(map[string]any{"model_id": model.ID, "updated_at": time.Now()}).Error
 	}
-	// 思考与否完全由后端 Auto 决定；短问候先排除，避免“HI”也思考几十秒。
-	effectiveThinking := false
+	// 思维链始终开启：用户要求任何时候都能看到思考过程，不再按问题长短自动关闭。
+	effectiveThinking := true
 	maxTokens := s.cfg.MaxOutputTokens
 	if s.settings != nil {
 		maxTokens = s.settings.Int(ctx, setting.KeyMaxOutputTokens, maxTokens)
@@ -366,14 +366,16 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 
 	// 每个实质问题都由模型在关闭思维链的模式下选择 none/low/medium/high；
 	// 前端不再提供深度思考开关。
-	reasoningEffort := ""
+	reasoningEffort := "medium"
 	if strings.TrimSpace(userMsg.Content) != "" {
+		// 仍然按问题难度决定思考「深度」，但不再允许 none：思维链始终开放，
+		// 最轻也走 low，保证前端总能看到思考过程。
 		effort := s.routeReasoning(ctx, model, prov, history)
 		slog.Info("reasoning routed", "conversation_id", conv.ID, "effort", effort)
-		if effort != "none" {
-			effectiveThinking = true
-			reasoningEffort = effort
+		if effort == "none" || effort == "" {
+			effort = "low"
 		}
+		reasoningEffort = effort
 	}
 	// 联网由模型通过 web_search 工具按需调用；不在这里预先搜索。
 	var toolSources []search.Result
