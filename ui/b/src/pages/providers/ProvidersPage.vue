@@ -966,24 +966,28 @@ onBeforeUnmount(() => {
   border-bottom: none;
 }
 
+.model-table {
+  table-layout: fixed;
+}
+
 .col-model {
-  width: 43%;
+  width: 34%;
 }
 
 .col-provider {
-  width: 22%;
+  width: 16%;
 }
 
 .col-context {
-  width: 13%;
+  width: 11%;
 }
 
 .col-concurrency {
-  width: 10%;
+  width: 9%;
 }
 
 .col-status {
-  width: 12%;
+  width: 15%;
   text-align: right;
 }
 
@@ -1011,7 +1015,8 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 1px;
   min-width: 0;
-  flex: 1;
+  flex: 0 1 auto;
+  margin-right: 2px;
 }
 
 .model-copy strong {
@@ -1376,12 +1381,17 @@ onBeforeUnmount(() => {
   }
 
   .col-status {
-    width: 20%;
+    width: 16%;
+  }
+
+  .col-actions {
+    width: 14%;
   }
 }
 
 .col-actions {
-  width: 76px;
+  width: 15%;
   text-align: right;
+  white-space: nowrap;
 }
 </style>
