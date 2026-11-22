@@ -26,19 +26,18 @@
 
     <!-- 首次登录：底部浮层，可选用微信昵称头像，也可直接跳过 -->
     <view v-if="profileSheet" class="sheet-mask" @click="skipProfile">
-      <view class="sheet" @click.stop>
+      <view class="sheet">
         <text class="sheet-title">完善一下资料</text>
         <text class="sheet-sub">用微信的昵称和头像，之后在电脑端也能认出你</text>
 
-        <button class="avatar-picker" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">
+        <view class="avatar-picker" @click="pickAvatar">
           <image v-if="profileAvatar" class="avatar-img" :src="profileAvatar" mode="aspectFill" />
           <text v-else class="avatar-placeholder">选择头像</text>
-        </button>
+        </view>
 
         <input
           class="sheet-input"
-          type="nickname"
-          placeholder="微信昵称"
+          placeholder="昵称（可不填）"
           :value="profileName"
           @input="profileName = $event.detail.value"
         />
@@ -133,6 +132,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { onReady } from '@dcloudio/uni-app'
 import { login, register, wechatLogin, updateProfile } from '@/api/auth'
+import { uploadFile } from '@/api/http'
 // #ifdef H5
 import LoginH5 from '@/components/h5/login.vue'
 // #endif
@@ -150,10 +150,23 @@ const profileName = ref('')
 const profileAvatar = ref('')
 const savingProfile = ref(false)
 
-/** 微信头像选择（button open-type=chooseAvatar 回调）。 */
-function onChooseAvatar(event) {
-  const url = event?.detail?.avatarUrl
-  if (url) profileAvatar.value = url
+/** 选头像：nvue 里不用 open-type，直接选图上传，拿回可访问的 URL。 */
+async function pickAvatar() {
+  try {
+    const chosen = await new Promise((resolve, reject) => {
+      uni.chooseImage({
+        count: 1,
+        sizeType: ['compressed'],
+        success: (res) => resolve(res.tempFilePaths?.[0] || ''),
+        fail: () => reject(new Error('未选择图片')),
+      })
+    })
+    if (!chosen) return
+    const info = await uploadFile(chosen)
+    profileAvatar.value = info?.url || info?.URL || ''
+  } catch (err) {
+    error.value = err?.message || '头像上传失败，可先跳过'
+  }
 }
 
 /** 跳过：直接用系统默认昵称进入聊天。 */
@@ -532,7 +545,7 @@ async function submit() {
   justify-content: flex-end;
 }
 .sheet {
-  padding: 32rpx 40rpx calc(40rpx + env(safe-area-inset-bottom));
+  padding: 32rpx 40rpx 60rpx;
   border-top-left-radius: 28rpx;
   border-top-right-radius: 28rpx;
   background-color: #ffffff;
