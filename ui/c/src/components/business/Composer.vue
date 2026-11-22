@@ -22,7 +22,7 @@ const props = withDefaults(
     disabled: false,
     attachments: () => [],
     uploading: false,
-    placeholder: '给 小橘树洞 发送消息…',
+    placeholder: '给 小橘 发送消息…',
     autofocus: false,
   },
 )

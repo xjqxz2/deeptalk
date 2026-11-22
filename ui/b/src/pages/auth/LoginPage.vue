@@ -62,7 +62,7 @@ async function signOutCurrent(): Promise<void> {
     <div class="login-card">
       <div class="brand">
         <BrandMark :size="34" :radius="9.5" />
-        <span class="brand-name">小橘树洞</span>
+        <span class="brand-name">小橘</span>
         <span class="admin-badge">ADMIN</span>
       </div>
 
@@ -126,7 +126,7 @@ async function signOutCurrent(): Promise<void> {
       </a>
     </div>
 
-    <p class="copyright">© 2026 小橘树洞 · Admin Console v1.0.0</p>
+    <p class="copyright">© 2026 小橘 · Admin Console v1.0.0</p>
   </div>
 </template>
 

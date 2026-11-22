@@ -3,7 +3,7 @@
     <!-- 小程序授权登录页预览（真机为 #ifdef MP-WEIXIN 分支） -->
     <view class="wx-login-card">
       <image class="wx-login-logo" src="/static/logo.png" mode="aspectFit" />
-      <text class="wx-login-title">小橘树洞</text>
+      <text class="wx-login-title">小橘</text>
       <text class="wx-login-sub">微信授权即可开始对话</text>
       <view class="wx-login-action"><text class="wx-login-action-text">微信一键登录</text></view>
       <text class="wx-login-agree">登录即表示同意《服务条款》与《隐私政策》</text>

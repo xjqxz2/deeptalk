@@ -8,7 +8,7 @@
     <view class="status-spacer" :style="statusBarStyle" />
     <view class="wx-body">
       <image class="wx-logo" src="/static/logo.png" mode="aspectFit" />
-      <text class="wx-title">小橘树洞</text>
+      <text class="wx-title">小橘</text>
       <text class="wx-sub">微信授权即可开始对话</text>
 
       <view class="wx-points">
@@ -61,7 +61,7 @@
     <view class="topbar">
       <view class="brand">
         <image class="brand-logo" src="/static/logo.png" mode="aspectFit" />
-        <text class="brand-name">小橘树洞</text>
+        <text class="brand-name">小橘</text>
       </view>
       <text class="topbar-link" @click="toggleMode">
         {{ mode === 'login' ? '还没有账号？立即注册' : '已有账号？去登录' }}
@@ -71,7 +71,7 @@
     <view class="form">
       <text class="eyebrow">ACCOUNT ACCESS</text>
       <text class="title">{{ mode === 'login' ? '欢迎回来' : '创建账号' }}</text>
-      <text class="subtitle">{{ mode === 'login' ? '登录后继续你的 小橘树洞 工作台。' : '注册后自动登录，立即开始对话。' }}</text>
+      <text class="subtitle">{{ mode === 'login' ? '登录后继续你的 小橘 工作台。' : '注册后自动登录，立即开始对话。' }}</text>
 
       <text class="field-label">邮箱</text>
       <input
@@ -116,7 +116,7 @@
     </view>
 
     <view class="foot">
-      <text class="foot-text">© 2026 小橘树洞</text>
+      <text class="foot-text">© 2026 小橘</text>
       <text class="foot-text">隐私 · 条款</text>
     </view>
   </view>

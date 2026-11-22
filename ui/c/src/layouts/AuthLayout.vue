@@ -29,7 +29,7 @@ withDefaults(
       </div>
       <div class="brand-copy">
         <h2>让每一次对话，<br />都更接近答案。</h2>
-        <p>小橘树洞 是你的个人 AI 工作台，<br />写代码、读文档、做分析，也能一起头脑风暴。</p>
+        <p>小橘 是你的个人 AI 工作台，<br />写代码、读文档、做分析，也能一起头脑风暴。</p>
         <ul class="features">
           <li>
             <span class="feature-icon"><ThunderboltOutlined /></span>
@@ -46,7 +46,7 @@ withDefaults(
         </ul>
       </div>
       <footer class="brand-foot">
-        <span>© 2026 小橘树洞</span>
+        <span>© 2026 小橘</span>
         <span>隐私 · 条款</span>
       </footer>
     </section>

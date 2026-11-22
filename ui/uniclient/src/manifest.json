@@ -1,7 +1,7 @@
 {
-  "name": "小橘树洞",
+  "name": "小橘",
   "appid": "",
-  "description": "小橘树洞 小程序 / APP 客户端",
+  "description": "小橘 小程序 / APP 客户端",
   "versionName": "0.1.0",
   "versionCode": "100",
   "transformPx": false,
@@ -39,13 +39,13 @@
     "themeLocation": "theme.json",
     "window": {
       "navigationBarTextStyle": "@navTxtStyle",
-      "navigationBarTitleText": "小橘树洞",
+      "navigationBarTitleText": "小橘",
       "navigationBarBackgroundColor": "@navBgColor",
       "backgroundColor": "@bgColor"
     }
   },
   "h5": {
-    "title": "小橘树洞",
+    "title": "小橘",
     "router": {
       "mode": "hash",
       "base": "./"

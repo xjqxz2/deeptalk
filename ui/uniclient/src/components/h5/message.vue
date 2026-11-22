@@ -26,7 +26,7 @@
           <BrandMark :size="24" :radius="7" />
         </div>
         <div class="assistant-head">
-          <span class="assistant-name">小橘树洞</span>
+          <span class="assistant-name">小橘</span>
           <span class="assistant-model">{{ message.model_name || 'DeepSeek' }}</span>
         </div>
       </div>

@@ -7,7 +7,7 @@
       <div class="messages-column">
         <div v-if="!chat.messages.length" class="empty-session">
           <BrandMarkH5 :size="56" :radius="16" />
-          <p>我是 小橘树洞，很高兴见到你！</p>
+          <p>我是 小橘，很高兴见到你！</p>
           <span>可以问问题、读文档，也能一起头脑风暴。</span>
         </div>
         <MessageH5
@@ -102,7 +102,7 @@
     >
       <view v-if="!chat.messages.length" class="empty">
         <image class="empty-logo" src="/static/logo.png" mode="aspectFit" />
-        <text class="empty-title">我是 小橘树洞，很高兴见到你！</text>
+        <text class="empty-title">我是 小橘，很高兴见到你！</text>
         <text class="empty-hint">可以问问题、读文档，也能一起头脑风暴。</text>
       </view>
 
@@ -151,7 +151,7 @@
       <view class="drawer" @click.stop>
         <view class="drawer-head">
           <image class="drawer-logo" src="/static/logo.png" mode="aspectFit" />
-          <text class="drawer-brand">小橘树洞</text>
+          <text class="drawer-brand">小橘</text>
           <view class="drawer-collapse" @click="drawerOpen = false">
             <view class="bar" />
             <view class="bar" />

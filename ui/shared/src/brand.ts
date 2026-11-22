@@ -1,5 +1,5 @@
 /**
- * 品牌标记：统一使用小橘树洞图标（透明底橘色小橘子），C 端与 B 端共用同一份资源。
+ * 品牌标记：统一使用小橘图标（透明底橘色小橘子），C 端与 B 端共用同一份资源。
  * 说明：图标是位图，通过 Vite 资源导入得到带哈希的 URL，构建与开发期都能正确解析。
  */
 import { h, type FunctionalComponent } from 'vue'
@@ -17,7 +17,7 @@ export const BrandMark: FunctionalComponent<{ size?: number; radius?: number }> 
   }, [
     h('img', {
       src: brandMark,
-      alt: '小橘树洞',
+      alt: '小橘',
       width: size,
       height: size,
       draggable: false,

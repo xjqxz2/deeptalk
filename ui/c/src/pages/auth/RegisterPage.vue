@@ -56,7 +56,7 @@ onMounted(async () => {
     config.value = await fetchAuthConfig()
   } catch {
     // 配置接口失败时按开放注册处理，提交阶段仍会得到服务端真实结果
-    config.value = { allow_registration: true, has_users: true, site_name: '小橘树洞', web_search_enabled: true }
+    config.value = { allow_registration: true, has_users: true, site_name: '小橘', web_search_enabled: true }
   }
 })
 

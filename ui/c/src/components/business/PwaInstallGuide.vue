@@ -21,7 +21,7 @@ const props = defineProps<{
 </script>
 
 <template>
-  <a-modal v-model:open="open" :footer="null" :width="420" centered title="安装 小橘树洞 到桌面">
+  <a-modal v-model:open="open" :footer="null" :width="420" centered title="安装 小橘 到桌面">
     <div class="pwa-guide">
       <template v-if="props.ios">
         <p class="guide-lead">在 iPhone 或 iPad 上通过 Safari 添加到主屏幕，即可像 App 一样全屏使用。</p>
@@ -48,14 +48,14 @@ const props = defineProps<{
             <span class="step-icon"><CheckOutlined /></span>
             <div class="step-copy">
               <strong>点击右上角「添加」</strong>
-              <span>完成后从桌面图标启动 小橘树洞。</span>
+              <span>完成后从桌面图标启动 小橘。</span>
             </div>
           </li>
         </ol>
       </template>
 
       <template v-else>
-        <p class="guide-lead">把 小橘树洞 安装到桌面，打开时没有浏览器地址栏，启动更快。</p>
+        <p class="guide-lead">把 小橘 安装到桌面，打开时没有浏览器地址栏，启动更快。</p>
         <ol class="steps">
           <li>
             <span class="step-icon"><MoreOutlined /></span>
@@ -75,7 +75,7 @@ const props = defineProps<{
             <span class="step-icon"><CheckOutlined /></span>
             <div class="step-copy">
               <strong>确认安装</strong>
-              <span>完成后从桌面图标启动 小橘树洞。</span>
+              <span>完成后从桌面图标启动 小橘。</span>
             </div>
           </li>
         </ol>

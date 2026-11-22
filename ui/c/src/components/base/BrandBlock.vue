@@ -8,7 +8,7 @@ withDefaults(
     name?: string
     subtitle?: string
   }>(),
-  { size: 30, name: '小橘树洞', subtitle: '' },
+  { size: 30, name: '小橘', subtitle: '' },
 )
 </script>
 

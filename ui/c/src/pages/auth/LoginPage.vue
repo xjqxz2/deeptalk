@@ -57,7 +57,7 @@ async function onSubmit(): Promise<void> {
   <AuthLayout
     eyebrow="ACCOUNT ACCESS"
     title="欢迎回来"
-    subtitle="登录后继续你的 小橘树洞 工作台。"
+    subtitle="登录后继续你的 小橘 工作台。"
     switch-text="还没有账号？"
     switch-label="立即注册"
     switch-to="/register"
@@ -137,7 +137,7 @@ async function onSubmit(): Promise<void> {
 
     <a-modal v-model:open="legalOpen" title="服务条款与隐私政策" :footer="null" :width="480">
       <div class="legal">
-        <p>小橘树洞 是个人 AI 对话工作台。你上传或输入的内容仅用于生成本次回答，并按账号隔离存储。</p>
+        <p>小橘 是个人 AI 对话工作台。你上传或输入的内容仅用于生成本次回答，并按账号隔离存储。</p>
         <p>管理后台只展示账号、用量与最近登录信息，不读取对话正文；导出的 CSV 仅包含账号字段。</p>
         <p>当前为 MVP 版本，服务条款与隐私政策为演示文案，正式上线前需由法务补充。</p>
       </div>

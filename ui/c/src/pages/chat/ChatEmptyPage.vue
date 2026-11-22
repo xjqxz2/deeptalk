@@ -59,7 +59,7 @@ onMounted(() => {
         <div class="hero-mark">
           <BrandMark :size="52" :radius="15" />
         </div>
-        <h1>我是 小橘树洞，很高兴见到你！</h1>
+        <h1>我是 小橘，很高兴见到你！</h1>
       </div>
 
       <div class="empty-composer">

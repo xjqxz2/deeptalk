@@ -222,7 +222,7 @@ watch(
           :attachments="chat.attachments"
           :uploading="chat.uploading"
           :generating="chat.generating"
-          :placeholder="chat.generating ? '正在生成中，可随时停止…' : '继续追问，或让 小橘树洞 补充更多细节…'"
+          :placeholder="chat.generating ? '正在生成中，可随时停止…' : '继续追问，或让 小橘 补充更多细节…'"
           @add-files="handleAddFiles"
           @remove-attachment="chat.removeAttachment"
           @send="handleSend"

@@ -149,7 +149,7 @@ func (h *SettingsController) snapshot(c *gin.Context) responses.SettingsResponse
 		DefaultModelID:       routing.DefaultModelID,
 		FallbackModelID:      routing.FallbackModelID,
 		MaxOutputTokens:      h.settings.Int(ctx, setting.KeyMaxOutputTokens, 384000),
-		SiteName:             h.settings.Get(ctx, setting.KeySiteName, "小橘树洞"),
+		SiteName:             h.settings.Get(ctx, setting.KeySiteName, "小橘"),
 		GenerationTimeoutSec: h.settings.Int(ctx, setting.KeyGenerationTimeout, 30),
 		SearchProvider:       h.settings.Get(ctx, setting.KeySearchProvider, search.ProviderSelf),
 		SearchDeepSeekMasked: maskSearchKey(h.settings.Get(ctx, setting.KeySearchDeepSeekKey, "")),

@@ -65,7 +65,7 @@ async function logout(): Promise<void> {
   <aside class="admin-sidebar" aria-label="控制台导航">
     <div class="sidebar-brand">
       <BrandMark :size="30" :radius="8.4" />
-      <span class="brand-name">小橘树洞</span>
+      <span class="brand-name">小橘</span>
       <span class="admin-badge">ADMIN</span>
     </div>
 

@@ -362,7 +362,7 @@ onMounted(async () => {
             <a-input
               v-model:value="siteName"
               :maxlength="32"
-              placeholder="例如：小橘树洞"
+              placeholder="例如：小橘"
               class="site-name-input"
             />
             <a-button type="primary" size="small" :loading="savingSiteName" @click="saveSiteName">保存名称</a-button>
@@ -394,7 +394,7 @@ onMounted(async () => {
             </p>
           </div>
           <div class="info-rows">
-            <div><span>站点名称</span><strong>{{ settings?.site_name ?? '小橘树洞' }}</strong></div>
+            <div><span>站点名称</span><strong>{{ settings?.site_name ?? '小橘' }}</strong></div>
             <div><span>版本</span><strong>{{ settings?.version ?? 'v1.0.0' }}</strong></div>
             <div><span>数据库</span><strong>SQLite · WAL</strong></div>
             <div><span>监听</span><strong>0.0.0.0:9821</strong></div>

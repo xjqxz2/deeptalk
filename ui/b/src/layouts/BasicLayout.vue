@@ -70,7 +70,7 @@ onBeforeUnmount(() => {
         </section>
         <section>
           <h3><BookOutlined /> 版本</h3>
-          <p>小橘树洞 Admin v1.0.0 · 单实例 SQLite 部署。更多配置项见 SPEC.md。</p>
+          <p>小橘 Admin v1.0.0 · 单实例 SQLite 部署。更多配置项见 SPEC.md。</p>
         </section>
       </div>
     </a-modal>

@@ -3,8 +3,8 @@
     <section class="auth-panel">
       <div class="panel-top">
         <div class="brand-inline">
-          <img class="brand-logo-img" src="/static/logo.png" alt="小橘树洞" />
-          <span class="brand-name">小橘树洞</span>
+          <img class="brand-logo-img" src="/static/logo.png" alt="小橘" />
+          <span class="brand-name">小橘</span>
         </div>
         <div class="switch">
           <span>{{ mode === 'login' ? '还没有账号？' : '已有账号？' }}</span>
@@ -16,7 +16,7 @@
         <div class="form-inner">
           <p class="eyebrow">ACCOUNT ACCESS</p>
           <h1>{{ mode === 'login' ? '欢迎回来' : '创建账号' }}</h1>
-          <p class="subtitle">{{ mode === 'login' ? '登录后继续你的 小橘树洞 工作台。' : '注册后自动登录，立即开始对话。' }}</p>
+          <p class="subtitle">{{ mode === 'login' ? '登录后继续你的 小橘 工作台。' : '注册后自动登录，立即开始对话。' }}</p>
 
           <form class="auth-form" novalidate @submit.prevent="submit">
             <div class="field">
