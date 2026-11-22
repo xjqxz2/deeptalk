@@ -166,9 +166,11 @@ function onKeydown(event) {
   transform: rotate(45deg);
 }
 .send-btn-slot {
-  width: 64rpx;
+  /* nvue 默认是纵向 flex：这里必须显式横排，否则「停止」和「插」会上下叠在一起 */
+  flex-direction: row;
+  align-items: center;
+  width: auto;
   flex-shrink: 0;
-  align-items: flex-end;
 }
 .send-btn {
   width: 64rpx;
@@ -229,10 +231,12 @@ function onKeydown(event) {
   font-size: 24rpx;
 }
 .stop-inline {
-  margin-right: 16rpx;
-  padding: 0 20rpx;
-  height: 56rpx;
+  flex-direction: row;
+  align-items: center;
   justify-content: center;
+  height: 56rpx;
+  padding: 0 20rpx;
+  margin-right: 16rpx;
   border-radius: 28rpx;
   background-color: #f2f4f7;
 }

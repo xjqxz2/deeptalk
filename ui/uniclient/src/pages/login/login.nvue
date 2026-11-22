@@ -23,6 +23,34 @@
       <text v-if="error" class="wx-error">{{ error }}</text>
       <text class="wx-agree">登录即表示同意《服务条款》与《隐私政策》</text>
     </view>
+
+    <!-- 首次登录：底部浮层，可选用微信昵称头像，也可直接跳过 -->
+    <view v-if="profileSheet" class="sheet-mask" @click="skipProfile">
+      <view class="sheet" @click.stop>
+        <text class="sheet-title">完善一下资料</text>
+        <text class="sheet-sub">用微信的昵称和头像，之后在电脑端也能认出你</text>
+
+        <button class="avatar-picker" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">
+          <image v-if="profileAvatar" class="avatar-img" :src="profileAvatar" mode="aspectFill" />
+          <text v-else class="avatar-placeholder">选择头像</text>
+        </button>
+
+        <input
+          class="sheet-input"
+          type="nickname"
+          placeholder="微信昵称"
+          :value="profileName"
+          @input="profileName = $event.detail.value"
+        />
+
+        <view class="sheet-actions">
+          <text class="sheet-skip" @click="skipProfile">跳过</text>
+          <view class="sheet-save" @click="saveProfileAndEnter">
+            <text class="sheet-save-text">{{ savingProfile ? '保存中…' : '保存并进入' }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
   </view>
   <!-- #endif -->
 
@@ -104,7 +132,7 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import { onReady } from '@dcloudio/uni-app'
-import { login, register, wechatLogin } from '@/api/auth'
+import { login, register, wechatLogin, updateProfile } from '@/api/auth'
 // #ifdef H5
 import LoginH5 from '@/components/h5/login.vue'
 // #endif
@@ -117,6 +145,39 @@ const password = ref('')
 const error = ref('')
 const loading = ref(false)
 const wxLoading = ref(false)
+const profileSheet = ref(false)
+const profileName = ref('')
+const profileAvatar = ref('')
+const savingProfile = ref(false)
+
+/** 微信头像选择（button open-type=chooseAvatar 回调）。 */
+function onChooseAvatar(event) {
+  const url = event?.detail?.avatarUrl
+  if (url) profileAvatar.value = url
+}
+
+/** 跳过：直接用系统默认昵称进入聊天。 */
+function skipProfile() {
+  profileSheet.value = false
+  goChatPage()
+}
+
+/** 保存昵称头像后进入聊天。 */
+async function saveProfileAndEnter() {
+  if (savingProfile.value) return
+  savingProfile.value = true
+  try {
+    if (profileName.value.trim() || profileAvatar.value) {
+      await updateProfile({ nickname: profileName.value.trim(), avatar_url: profileAvatar.value })
+    }
+    profileSheet.value = false
+    goChatPage()
+  } catch (err) {
+    error.value = err?.message || '保存失败，可先跳过'
+  } finally {
+    savingProfile.value = false
+  }
+}
 
 const canSubmit = computed(() => email.value.trim().length > 0 && password.value.length > 0)
 
@@ -168,8 +229,11 @@ async function onWeChatLogin() {
     })
     const data = await wechatLogin(code)
     setSession(data.token, data.user)
+    profileName.value = data.user?.nickname || ''
+    profileAvatar.value = data.user?.avatar_url || ''
+    // 首次登录不跳中间页：在底部浮层里让用户决定用不用微信昵称/头像
     if (data.user?.email_placeholder) {
-      uni.navigateTo({ url: '/pages/profile/profile' })
+      profileSheet.value = true
       return
     }
     goChatPage()
@@ -455,5 +519,91 @@ async function submit() {
   .wx-agree {
     color: #7b8494;
   }
+}
+
+/* 首次登录的底部浮层 */
+.sheet-mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background-color: rgba(16, 24, 40, 0.45);
+  justify-content: flex-end;
+}
+.sheet {
+  padding: 32rpx 40rpx calc(40rpx + env(safe-area-inset-bottom));
+  border-top-left-radius: 28rpx;
+  border-top-right-radius: 28rpx;
+  background-color: #ffffff;
+}
+.sheet-title {
+  color: #101828;
+  font-size: 32rpx;
+  font-weight: bold;
+}
+.sheet-sub {
+  margin-top: 8rpx;
+  color: #667085;
+  font-size: 23rpx;
+}
+.avatar-picker {
+  margin-top: 28rpx;
+  width: 128rpx;
+  height: 128rpx;
+  align-items: center;
+  justify-content: center;
+  border-radius: 64rpx;
+  background-color: #f2f4f7;
+  overflow: hidden;
+}
+.avatar-img {
+  width: 128rpx;
+  height: 128rpx;
+}
+.avatar-placeholder {
+  color: #98a2b3;
+  font-size: 21rpx;
+}
+.sheet-input {
+  margin-top: 24rpx;
+  height: 88rpx;
+  padding: 0 24rpx;
+  border-radius: 16rpx;
+  background-color: #f7f8fa;
+  color: #101828;
+  font-size: 27rpx;
+}
+.sheet-actions {
+  margin-top: 36rpx;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+.sheet-skip {
+  color: #667085;
+  font-size: 26rpx;
+  padding: 16rpx 20rpx;
+}
+.sheet-save {
+  flex: 1;
+  margin-left: 24rpx;
+  height: 88rpx;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20rpx;
+  background-color: #07c160;
+}
+.sheet-save-text {
+  color: #ffffff;
+  font-size: 28rpx;
+  font-weight: bold;
+}
+@media (prefers-color-scheme: dark) {
+  .sheet { background-color: #181c24; }
+  .sheet-title { color: #e6e9ef; }
+  .sheet-sub, .avatar-placeholder, .sheet-skip { color: #98a2b3; }
+  .avatar-picker, .sheet-input { background-color: #12151b; }
+  .sheet-input { color: #e6e9ef; }
 }
 </style>
