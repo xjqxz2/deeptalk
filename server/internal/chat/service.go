@@ -564,9 +564,12 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 				host = parsed.Host
 			}
 			emitActivity("opening", label, host, args.URLs[0])
+			pageStart := time.Now()
 			pages, err := s.search.FetchPagesWithProgress(ctx, args.URLs, func(page search.Page) {
 				emitActivity("reading", "正在阅读网页…", page.Title, page.URL)
 			})
+			slog.Info("fetch timing", "conversation_id", assistant.ConversationID,
+				"urls", len(args.URLs), "ms", time.Since(pageStart).Milliseconds(), "pages", len(pages))
 			if ctx.Err() != nil {
 				return "", ctx.Err()
 			}
@@ -622,7 +625,11 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 			return "", errors.New("search query is empty")
 		}
 		emitActivity("searching", "正在搜索资料…", "", "")
+		searchStart := time.Now()
 		items, err := s.searchParallel(ctx, queries, args.Engines)
+		slog.Info("search timing", "conversation_id", assistant.ConversationID,
+			"queries", len(queries), "engines", args.Engines,
+			"ms", time.Since(searchStart).Milliseconds(), "results", len(items), "error", err)
 		if ctx.Err() != nil {
 			return "", ctx.Err()
 		}

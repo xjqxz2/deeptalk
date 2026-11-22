@@ -67,18 +67,20 @@ var (
 )
 
 type Config struct {
-	Enabled      bool          // 是否启用联网搜索
-	ObscuraBin   string        // Obscura 可执行文件路径或 PATH 中的命令名
-	EngineURL    string        // 兼容旧配置：单引擎搜索页模板
-	Engines      []Engine      // 多引擎配置；非空时优先使用
-	MaxResults   int           // 最多返回条数
-	Concurrency  int           // 多引擎并发数
-	Timeout      time.Duration // 单次检索超时（整批）
-	PageTimeout  time.Duration // 单个网页抓取超时（超时按「查询超时」跳过该页）
-	HTTPFallback bool          // Obscura 失败时是否允许普通 HTTP 抓取
-	Stealth      bool          // 是否启用 Obscura 反检测模式
-	UserAgent    string        // HTTP 回退时使用的浏览器 UA
-	MCP          ToolCaller    // Obscura MCP client；为 nil 时走本地检索链路
+	Enabled     bool          // 是否启用联网搜索
+	ObscuraBin  string        // Obscura 可执行文件路径或 PATH 中的命令名
+	EngineURL   string        // 兼容旧配置：单引擎搜索页模板
+	Engines     []Engine      // 多引擎配置；非空时优先使用
+	MaxResults  int           // 最多返回条数
+	Concurrency int           // 多引擎并发数
+	Timeout     time.Duration // 单次检索超时（整批）
+	PageTimeout time.Duration // 单个网页抓取超时（超时按「查询超时」跳过该页）
+	// EarlyReturnAfter 是「拿到结果后最多再等多久」；慢引擎不再拖住整轮检索
+	EarlyReturnAfter time.Duration
+	HTTPFallback     bool       // Obscura 失败时是否允许普通 HTTP 抓取
+	Stealth          bool       // 是否启用 Obscura 反检测模式
+	UserAgent        string     // HTTP 回退时使用的浏览器 UA
+	MCP              ToolCaller // Obscura MCP client；为 nil 时走本地检索链路
 }
 
 // Service 是联网检索服务。
@@ -141,6 +143,9 @@ func New(cfg Config) *Service {
 	}
 	if cfg.PageTimeout > 30*time.Second {
 		cfg.PageTimeout = 30 * time.Second
+	}
+	if cfg.EarlyReturnAfter <= 0 {
+		cfg.EarlyReturnAfter = 8 * time.Second
 	}
 	if strings.TrimSpace(cfg.ObscuraBin) == "" {
 		cfg.ObscuraBin = "obscura"
@@ -409,7 +414,26 @@ func (s *Service) runEngines(ctx context.Context, query string, engines []Engine
 	merged := make(map[string]*candidate)
 	var firstErr error
 	engineCount := 0
-	for item := range results {
+	// 慢引擎不该拖住整轮检索：拿到足够结果就在 8 秒后收手，
+	// 剩下的引擎结果不再等待（它们仍在后台结束，不影响本次回答）。
+	deadline := time.Now().Add(s.cfg.EarlyReturnAfter)
+	collecting := true
+	for collecting {
+		var item engineResult
+		select {
+		case got, ok := <-results:
+			if !ok {
+				collecting = false
+				continue
+			}
+			item = got
+		case <-time.After(200 * time.Millisecond):
+			// 到点且已经有结果：不再等剩下的慢引擎
+			if time.Now().After(deadline) && (len(merged) > 0 || engineCount > 0) {
+				collecting = false
+			}
+			continue
+		}
 		if item.err != nil {
 			if firstErr == nil {
 				firstErr = item.err
