@@ -62,6 +62,9 @@ type TextChecker interface {
 const (
 	defaultMaxSitesPerTurn = 25
 	defaultMaxToolRounds   = 40
+	// maxSearchRoundsPerTurn 限制一轮回答里调用 web_search 的次数，
+	// 防止模型反复检索把一条回答拖到几分钟。
+	maxSearchRoundsPerTurn = 4
 )
 
 // Service 提供会话与消息的业务能力。
@@ -382,6 +385,7 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 	var uiMessages []map[string]any
 	// 一次回答内的网页预算：模型可以多轮打开，但总数有上限
 	sitesLeft := s.cfg.MaxSitesPerTurn
+	searchRounds := 0
 	emitActivity := func(status, label, detail, rawURL string) {
 		_ = emit("activity", map[string]any{
 			"status": status,
@@ -510,6 +514,14 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 		if call.Name != "web_search" {
 			return "", fmt.Errorf("unknown tool: %s", call.Name)
 		}
+		// 检索次数上限：模型反复搜会让一轮回答拖到几分钟。
+		// 达到上限后把已有资料还给它，要求直接作答。
+		if searchRounds >= maxSearchRoundsPerTurn {
+			return searchToolPayload(toolSources, map[string]any{
+				"error": fmt.Sprintf("本次回答已检索 %d 次，请直接基于现有 sources 作答，不要再调用 web_search。", searchRounds),
+			}), nil
+		}
+		searchRounds++
 		var args struct {
 			Query   string   `json:"query"`
 			Queries []string `json:"queries"`
@@ -565,7 +577,9 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 			}
 			emitActivity("opening", label, host, args.URLs[0])
 			pageStart := time.Now()
-			pages, err := s.search.FetchPagesWithProgress(ctx, args.URLs, func(page search.Page) {
+			fetchCtx, cancelFetch := context.WithTimeout(ctx, 8*time.Second)
+			defer cancelFetch()
+			pages, err := s.search.FetchPagesWithProgress(fetchCtx, args.URLs, func(page search.Page) {
 				emitActivity("reading", "正在阅读网页…", page.Title, page.URL)
 			})
 			slog.Info("fetch timing", "conversation_id", assistant.ConversationID,
