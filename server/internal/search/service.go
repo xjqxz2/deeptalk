@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -90,6 +91,10 @@ type Service struct {
 	// Obscura MCP 只有一个活动页面；navigate + evaluate 必须原子执行。
 	mcpMu    sync.Mutex
 	deepseek DeepSeekProvider // 后台选择的检索提供方（self / deepseek）
+
+	// MCP 浏览器经常不可用：连续失败后熔断一段时间，避免每个引擎都白等 5 秒
+	mcpFailures  atomic.Int32
+	mcpOpenUntil atomic.Int64
 }
 
 // New 创建检索服务；配置不完整时返回 nil，调用方应按“未启用”处理。
@@ -145,7 +150,7 @@ func New(cfg Config) *Service {
 		cfg.PageTimeout = 30 * time.Second
 	}
 	if cfg.EarlyReturnAfter <= 0 {
-		cfg.EarlyReturnAfter = 8 * time.Second
+		cfg.EarlyReturnAfter = 4 * time.Second
 	}
 	if strings.TrimSpace(cfg.ObscuraBin) == "" {
 		cfg.ObscuraBin = "obscura"
@@ -560,16 +565,18 @@ func (s *Service) fetchPageWithTimeout(ctx context.Context, target string) ([]by
 // fetchPage 按 MCP -> Obscura CLI -> HTTP 的顺序取页面，返回第一个成功结果。
 func (s *Service) fetchPage(ctx context.Context, target string) ([]byte, error) {
 	var errs []string
-	if s.cfg.MCP != nil && s.cfg.MCP.HasTool("browser_navigate") && s.cfg.MCP.HasTool("browser_evaluate") {
+	if s.mcpAvailable() && s.cfg.MCP != nil && s.cfg.MCP.HasTool("browser_navigate") && s.cfg.MCP.HasTool("browser_evaluate") {
 		// MCP 只有一个活动页面。拿不到锁时不要排队，直接走 CLI/HTTP，
 		// 既保留并发搜索，也避免一个慢页面拖住所有引擎。
 		if s.mcpMu.TryLock() {
 			raw, err := s.fetchWithMCPUnlocked(ctx, target)
 			s.mcpMu.Unlock()
 			if err == nil && len(raw) > 0 {
+				s.mcpFailures.Store(0)
 				return raw, nil
 			}
 			if err != nil {
+				s.noteMCPFailure()
 				errs = append(errs, "mcp: "+err.Error())
 			}
 		}
@@ -1287,4 +1294,24 @@ func truncate(value string, limit int) string {
 		return value
 	}
 	return string(runes[:limit]) + "…"
+}
+
+// mcpAvailable 判断 MCP 浏览器当前是否值得尝试。
+func (s *Service) mcpAvailable() bool {
+	until := s.mcpOpenUntil.Load()
+	if until == 0 {
+		return true
+	}
+	if time.Now().UnixNano() < until {
+		return false
+	}
+	s.mcpOpenUntil.Store(0)
+	return true
+}
+
+// noteMCPFailure 连续失败 3 次后熔断 10 分钟，避免每次检索都白等导航超时。
+func (s *Service) noteMCPFailure() {
+	if s.mcpFailures.Add(1) >= 3 {
+		s.mcpOpenUntil.Store(time.Now().Add(10 * time.Minute).UnixNano())
+	}
 }
