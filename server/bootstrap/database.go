@@ -3,9 +3,11 @@ package bootstrap
 import (
 	"context"
 	"errors"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"deeptalk/internal/attachment"
 	"deeptalk/internal/audit"
@@ -29,8 +31,17 @@ func (a *App) startDatabase(ctx context.Context) error {
 		return err
 	}
 	dsn := withSQLitePragmas(cfg.Database.DSN)
+	// 只打印真正的错误与慢查询：ErrRecordNotFound 属于正常业务分支
+	//（例如查询未设置的配置项），不应刷屏。
+	dbLogger := logger.New(log.New(os.Stdout, "", log.LstdFlags), logger.Config{
+		SlowThreshold:             500 * time.Millisecond,
+		LogLevel:                  logger.Warn,
+		IgnoreRecordNotFoundError: true,
+		ParameterizedQueries:      false,
+		Colorful:                  false,
+	})
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Warn),
+		Logger: dbLogger,
 	})
 	if err != nil {
 		return err
