@@ -338,19 +338,39 @@ function onRowAction(info: { key: string }, user: User): void {
   if (info.key === 'delete') void onDeleteUser(user)
 }
 
+
+/** ant-design-vue 的 Modal.confirm 返回的是控制器而不是 Promise，
+ *  直接 await 会立即继续执行（等于没确认）。这里包一层真正的 Promise。 */
+function askConfirm(options: {
+  title: string
+  content: string
+  okText: string
+  cancelText: string
+  danger?: boolean
+}): Promise<boolean> {
+  return new Promise((resolve) => {
+    Modal.confirm({
+      title: options.title,
+      content: options.content,
+      okText: options.okText,
+      cancelText: options.cancelText,
+      okButtonProps: options.danger ? { danger: true } : undefined,
+      onOk: () => resolve(true),
+      onCancel: () => resolve(false),
+    })
+  })
+}
+
 /** 删除用户：二次确认，确认后连同会话与计费数据一起清理。 */
 async function onDeleteUser(user: User): Promise<void> {
-  try {
-    await Modal.confirm({
-      title: '删除用户',
-      content: `将永久删除 ${user.email} 及其全部会话、消息与用量记录，无法恢复。确定继续吗？`,
-      okText: '删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
-    })
-  } catch {
-    return
-  }
+  const ok = await askConfirm({
+    title: '删除用户',
+    content: `将永久删除 ${user.email} 及其全部会话、消息与用量记录，无法恢复。确定继续吗？`,
+    okText: '删除',
+    cancelText: '取消',
+    danger: true,
+  })
+  if (!ok) return
   try {
     await del(`/b/users/${user.id}`)
     message.success('用户已删除')

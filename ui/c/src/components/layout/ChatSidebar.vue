@@ -157,17 +157,18 @@ function onUserMenu(info: { key: string }): void {
 
 /** 退出登录：先二次确认，避免误触掉线。 */
 async function logout(): Promise<void> {
-  try {
-    await Modal.confirm({
+  const ok = await new Promise<boolean>((resolve) => {
+    Modal.confirm({
       title: '退出登录',
       content: '退出后需要重新输入邮箱与密码，确定退出吗？',
       okText: '退出',
       cancelText: '取消',
       okButtonProps: { danger: true },
+      onOk: () => resolve(true),
+      onCancel: () => resolve(false),
     })
-  } catch {
-    return
-  }
+  })
+  if (!ok) return
   await userStore.logout()
   chat.reset()
   app.closeMobileSidebar()
