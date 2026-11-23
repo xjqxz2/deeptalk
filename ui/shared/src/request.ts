@@ -5,7 +5,7 @@
  * - 后端统一信封 { code, msg, data }，code !== 0 抛出 ApiError；
  * - 401/423 由页面或路由守卫统一处理，这里只抛出结构化错误。
  */
-import { signRequest } from './sign'
+import { setSignKey, signRequest } from './sign'
 import type { Envelope } from './types'
 
 /** 接口地址前缀，开发期由 Vite 代理到 0.0.0.0:9821。 */
@@ -32,6 +32,8 @@ export interface RequestOptions {
   body?: unknown
   query?: Record<string, string | number | boolean | undefined | null>
   signal?: AbortSignal
+  /** 内部使用：签名失败后重试一次，避免无限递归 */
+  retried?: boolean
 }
 
 /** 拼接查询参数，undefined / null 会被忽略。 */
@@ -46,12 +48,31 @@ function withQuery(path: string, query?: RequestOptions['query']): string {
   return qs ? `${path}${path.includes('?') ? '&' : '?'}${qs}` : path
 }
 
+/** 重新拉取一次会话签名密钥；失败返回 false。 */
+async function refreshSignKey(): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE}/c/auth/sign-key`, { credentials: 'include' })
+    if (!response.ok) return false
+    const payload = (await response.json()) as {
+      data?: { sign_key?: string; sign_key_id?: string }
+    }
+    const key = payload.data?.sign_key
+    const id = payload.data?.sign_key_id
+    if (!key || !id) return false
+    setSignKey({ id, key })
+    return true
+  } catch {
+    return false
+  }
+}
+
 /**
  * 发起 JSON 请求并解包信封。
  * 网络异常与后端错误都会抛出 ApiError，调用方无需再判断 res.ok。
  */
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, query, signal } = options
+  const retried = Boolean((options as RequestOptions & { retried?: boolean }).retried)
   const url = withQuery(`${API_BASE}${path}`, query)
   const bodyText = body === undefined ? '' : JSON.stringify(body)
   // 写请求需要签名：method + path + query + body 摘要 + 时间戳 + nonce
@@ -80,7 +101,16 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   }
   const envelope = (await response.json()) as Envelope<T>
   if (!response.ok || envelope.code !== 0) {
-    throw new ApiError(envelope.msg || '请求失败，请稍后重试', envelope.code, response.status)
+    const message = envelope.msg || '请求失败，请稍后重试'
+    // 签名密钥可能已经过期（服务端会话轮换、页面长时间挂起）：
+    // 取一次新密钥后自动重试，用户不必手动刷新。
+    if (message.includes('签名') && !retried) {
+      const refreshed = await refreshSignKey()
+      if (refreshed) {
+        return request<T>(path, { ...options, retried: true } as RequestOptions)
+      }
+    }
+    throw new ApiError(message, envelope.code, response.status)
   }
   return envelope.data
 }
