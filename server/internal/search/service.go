@@ -152,7 +152,7 @@ func New(cfg Config) *Service {
 		cfg.PageTimeout = 30 * time.Second
 	}
 	if cfg.EarlyReturnAfter <= 0 {
-		cfg.EarlyReturnAfter = 4 * time.Second
+		cfg.EarlyReturnAfter = 1500 * time.Millisecond
 	}
 	if cfg.EngineBudget <= 0 {
 		cfg.EngineBudget = 6 * time.Second
