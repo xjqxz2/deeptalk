@@ -571,25 +571,11 @@ func (s *Service) fetchPageWithTimeout(ctx context.Context, target string) ([]by
 	return raw, err
 }
 
-// fetchPage 按 MCP -> Obscura CLI -> HTTP 的顺序取页面，返回第一个成功结果。
+// fetchPage 取页面：优先 Obscura CLI（毫秒级），其次普通 HTTP，最后才用 MCP 浏览器。
+// MCP 的 browser_navigate 要等页面地址切换，单次经常 5 秒；只有需要 JS 渲染
+// 且前两者都失败时才值得付出这个代价。
 func (s *Service) fetchPage(ctx context.Context, target string) ([]byte, error) {
 	var errs []string
-	if s.mcpAvailable() && s.cfg.MCP != nil && s.cfg.MCP.HasTool("browser_navigate") && s.cfg.MCP.HasTool("browser_evaluate") {
-		// MCP 只有一个活动页面。拿不到锁时不要排队，直接走 CLI/HTTP，
-		// 既保留并发搜索，也避免一个慢页面拖住所有引擎。
-		if s.mcpMu.TryLock() {
-			raw, err := s.fetchWithMCPUnlocked(ctx, target)
-			s.mcpMu.Unlock()
-			if err == nil && len(raw) > 0 {
-				s.mcpFailures.Store(0)
-				return raw, nil
-			}
-			if err != nil {
-				s.noteMCPFailure()
-				errs = append(errs, "mcp: "+err.Error())
-			}
-		}
-	}
 	if s.cfg.ObscuraBin != "" {
 		raw, err := s.fetchWithObscura(ctx, target)
 		if err == nil && len(raw) > 0 {
@@ -606,6 +592,21 @@ func (s *Service) fetchPage(ctx context.Context, target string) ([]byte, error) 
 		}
 		if err != nil {
 			errs = append(errs, "http: "+err.Error())
+		}
+	}
+	if s.mcpAvailable() && s.cfg.MCP != nil && s.cfg.MCP.HasTool("browser_navigate") && s.cfg.MCP.HasTool("browser_evaluate") {
+		// MCP 只有一个活动页面。拿不到锁时不要排队，直接当作不可用。
+		if s.mcpMu.TryLock() {
+			raw, err := s.fetchWithMCPUnlocked(ctx, target)
+			s.mcpMu.Unlock()
+			if err == nil && len(raw) > 0 {
+				s.mcpFailures.Store(0)
+				return raw, nil
+			}
+			if err != nil {
+				s.noteMCPFailure()
+				errs = append(errs, "mcp: "+err.Error())
+			}
 		}
 	}
 	if len(errs) == 0 {
