@@ -183,10 +183,32 @@ func (s *Service) StreamCompletionWithTools(
 		return usage, toolCalls, fmt.Errorf("%w: 上游返回了非流式响应", ErrUpstream)
 	}
 
-	// 首字节超时：超过约定时间仍未收到任何数据则中止，避免前端长时间空等
+	// 空闲超时：只要上游还有数据（含 keep-alive 注释行）就不算超时；
+	// 连续 idleTimeout 没有任何字节流过才中止。这样慢模型边想边搜不会被误杀，
+	// 真正卡死的连接也不会让前端一直空等。
 	var firstByte atomic.Bool
-	timer := time.AfterFunc(firstByteTimeout, cancel)
-	defer timer.Stop()
+	var lastSeen atomic.Int64
+	lastSeen.Store(time.Now().UnixNano())
+	stalled := atomic.Bool{}
+	streamDone := make(chan struct{})
+	defer close(streamDone)
+	go func() {
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-streamDone:
+				return
+			case <-ticker.C:
+				idle := time.Since(time.Unix(0, lastSeen.Load()))
+				if idle > firstByteTimeout {
+					stalled.Store(true)
+					cancel()
+					return
+				}
+			}
+		}
+	}()
 
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
@@ -194,6 +216,8 @@ func (s *Service) StreamCompletionWithTools(
 	hadContent := false
 	toolMap := make(map[int]*ToolCall)
 	for scanner.Scan() {
+		// 任何一行（包括 ": keep-alive"）都说明流还活着，重置空闲计时
+		lastSeen.Store(time.Now().UnixNano())
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" || strings.HasPrefix(line, ":") {
 			continue
@@ -208,7 +232,6 @@ func (s *Service) StreamCompletionWithTools(
 		if data == "" {
 			continue
 		}
-		timer.Stop()
 		firstByte.Store(true)
 		var chunk upstreamChunk
 		if err := json.Unmarshal([]byte(data), &chunk); err != nil {
@@ -255,11 +278,20 @@ func (s *Service) StreamCompletionWithTools(
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		if ctx.Err() != nil {
-			return usage, toolCalls, ctx.Err()
+		if stalled.Load() {
+			if !firstByte.Load() {
+				return usage, toolCalls, fmt.Errorf("%w: 首字节超时（%s）", ErrUpstream, firstByteTimeout)
+			}
+			return usage, toolCalls, fmt.Errorf("%w: 超过 %s 没有收到新数据，已中止", ErrUpstream, firstByteTimeout)
 		}
-		if !firstByte.Load() {
-			return usage, toolCalls, fmt.Errorf("%w: 首字节超时（%s）", ErrUpstream, firstByteTimeout)
+		if ctx.Err() != nil {
+			if stalled.Load() {
+				if !firstByte.Load() {
+					return usage, toolCalls, fmt.Errorf("%w: 首字节超时（%s）", ErrUpstream, firstByteTimeout)
+				}
+				return usage, toolCalls, fmt.Errorf("%w: 超过 %s 没有收到新数据，已中止", ErrUpstream, firstByteTimeout)
+			}
+			return usage, toolCalls, ctx.Err()
 		}
 		return usage, toolCalls, fmt.Errorf("%w: 流式响应中断", ErrUpstream)
 	}
