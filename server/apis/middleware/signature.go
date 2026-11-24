@@ -36,6 +36,12 @@ func Signature(verifier *security.Verifier, mode string, log *slog.Logger) gin.H
 			c.Next()
 			return
 		}
+		// MCP 端点由外部 Agent 直接调用，它们无法计算我们的 HMAC；
+		// 该端点仍要求 Bearer 会话，并在服务端按用户隔离数据。
+		if strings.HasSuffix(c.Request.URL.Path, "/memo/mcp") {
+			c.Next()
+			return
+		}
 		// 文件上传走 multipart，整体哈希代价过高，且已被会话与大小限制保护
 		if strings.HasPrefix(c.GetHeader("Content-Type"), "multipart/form-data") {
 			c.Next()
