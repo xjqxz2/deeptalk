@@ -45,7 +45,7 @@ type Config struct {
 	MaxToolRounds    int           // 单次回答最多多少轮工具调用（安全阀）
 	Compliance       TextChecker   // 小程序端内容安全；nil 表示不校验
 	Billing          Billing       // 套餐限额与计费；nil 表示不限制
-	Memos            *memo.Service // 灵感备忘录；nil 表示不启用
+	Memos            *memo.Service // 小橘灵感录；nil 表示不启用
 }
 
 // Billing 抽象套餐限额与计费，便于测试替换。
@@ -1574,13 +1574,13 @@ action 取值：
 }
 
 // renderUITool 暴露 A2UI v0.9 的基础布局能力；模型只生成组件树，不生成 HTML。
-// memoSaveTool / memoSearchTool 是「灵感备忘录」工具：
+// memoSaveTool / memoSearchTool 是「小橘灵感录」工具：
 // 对话里随时记下一个想法，之后需要时再取出来。
 var memoSaveTool = provider.Tool{
 	Type: "function",
 	Function: provider.ToolFunction{
 		Name:        "memo_save",
-		Description: "把当前对话里的灵感、结论或待办整理成一条备忘录保存。用户说「记一下 / 帮我记住 / 存起来」时调用；content 用简洁完整的句子概括，不要只复制原话。",
+		Description: "把当前对话里的灵感、结论或待办整理成一条灵感录保存。用户说「记一下 / 帮我记住 / 存起来」时调用；content 用简洁完整的句子概括，不要只复制原话。",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -1597,7 +1597,7 @@ var memoSearchTool = provider.Tool{
 	Type: "function",
 	Function: provider.ToolFunction{
 		Name:        "memo_search",
-		Description: "检索主人之前记下的灵感备忘录。用户问「我上次记的那个想法」「之前记的关于 X 的笔记」时调用；query 留空表示最近记录。",
+		Description: "在小橘灵感录里检索主人之前记下的灵感。用户问「我上次记的那个想法」「之前记的关于 X 的笔记」时调用；query 留空表示最近记录。",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

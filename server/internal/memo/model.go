@@ -1,4 +1,4 @@
-// Package memo 提供「灵感备忘录」：对话中随时记下灵感，需要时再取出来。
+// Package memo 提供「小橘灵感录」：对话中随时记下灵感，需要时再取出来。
 package memo
 
 import (
@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// Memo 是一条备忘录，按用户隔离。
+// Memo 是一条灵感录，按用户隔离。
 type Memo struct {
 	ID             uint      `gorm:"primaryKey" json:"id"`                      // 主键
 	UserID         uint      `gorm:"index:idx_memo_user;not null" json:"-"`     // 归属用户，不外发

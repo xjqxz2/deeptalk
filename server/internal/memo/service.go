@@ -8,20 +8,20 @@ import (
 	"gorm.io/gorm"
 )
 
-// ErrNotFound 表示备忘录不存在（或不属于当前用户）。
+// ErrNotFound 表示灵感录不存在（或不属于当前用户）。
 var ErrNotFound = errors.New("memo not found")
 
-// Service 提供备忘录读写。
+// Service 提供灵感录读写。
 type Service struct {
 	db *gorm.DB
 }
 
-// NewService 创建备忘录服务。
+// NewService 创建灵感录服务。
 func NewService(db *gorm.DB) *Service {
 	return &Service{db: db}
 }
 
-// SaveInput 是新建 / 更新备忘录的输入。
+// SaveInput 是新建 / 更新灵感录的输入。
 type SaveInput struct {
 	Title          string   `json:"title"`
 	Content        string   `json:"content"`
@@ -29,7 +29,7 @@ type SaveInput struct {
 	ConversationID uint     `json:"conversation_id"`
 }
 
-// Save 新建一条备忘录。
+// Save 新建一条灵感录。
 func (s *Service) Save(ctx context.Context, userID uint, in SaveInput) (*Memo, error) {
 	content := strings.TrimSpace(in.Content)
 	if content == "" {
@@ -79,7 +79,7 @@ func (s *Service) Update(ctx context.Context, userID, id uint, in SaveInput) (*M
 	return &item, nil
 }
 
-// Delete 删除一条备忘录。
+// Delete 删除一条灵感录。
 func (s *Service) Delete(ctx context.Context, userID, id uint) error {
 	result := s.db.WithContext(ctx).Where("id = ? AND user_id = ?", id, userID).Delete(&Memo{})
 	if result.Error != nil {
@@ -91,7 +91,7 @@ func (s *Service) Delete(ctx context.Context, userID, id uint) error {
 	return nil
 }
 
-// Get 读取一条备忘录。
+// Get 读取一条灵感录。
 func (s *Service) Get(ctx context.Context, userID, id uint) (*Memo, error) {
 	var item Memo
 	if err := s.db.WithContext(ctx).Where("id = ? AND user_id = ?", id, userID).First(&item).Error; err != nil {

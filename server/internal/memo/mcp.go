@@ -26,20 +26,20 @@ func userFrom(ctx context.Context) uint {
 }
 
 // Handler 返回一个挂在认证中间件之后的 MCP 端点（Streamable HTTP）。
-// 外部 Agent（DSH / Claude Desktop 等）连上后即可写读灵感备忘录。
+// 外部 Agent（DSH / Claude Desktop 等）连上后即可写读小橘灵感录。
 func Handler(service *Service) http.Handler {
 	return mcp.NewStreamableHTTPHandler(func(request *http.Request) *mcp.Server {
-		server := mcp.NewServer(&mcp.Implementation{Name: "deeptalk-memo", Version: "v1"}, nil)
+		server := mcp.NewServer(&mcp.Implementation{Name: "xiaoju-inspiration", Title: "小橘灵感录", Version: "v1"}, nil)
 		registerTools(server, service, userFrom(request.Context()))
 		return server
 	}, nil)
 }
 
-// registerTools 注册备忘录的四个工具。
+// registerTools 注册灵感录的四个工具。
 func registerTools(server *mcp.Server, service *Service, userID uint) {
 	server.AddTool(&mcp.Tool{
 		Name:        "memo_save",
-		Description: "把主人刚才提到的灵感/想法整理成一条备忘录保存下来。适合「记一下」「帮我记住」「这个想法不错」这类请求。",
+		Description: "把主人刚才提到的灵感/想法整理成一条记录，存进小橘灵感录。适合「记一下」「帮我记住」「这个想法不错」这类请求。",
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -69,7 +69,7 @@ func registerTools(server *mcp.Server, service *Service, userID uint) {
 
 	server.AddTool(&mcp.Tool{
 		Name:        "memo_search",
-		Description: "按关键词检索主人之前记下的灵感备忘录；关键词为空时返回最近的几条。",
+		Description: "在小橘灵感录里按关键词检索主人之前记下的灵感；关键词为空时返回最近几条。",
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -94,10 +94,10 @@ func registerTools(server *mcp.Server, service *Service, userID uint) {
 
 	server.AddTool(&mcp.Tool{
 		Name:        "memo_delete",
-		Description: "删除一条备忘录（按 ID）。",
+		Description: "从小橘灵感录里删除一条记录（按 ID）。",
 		InputSchema: map[string]any{
 			"type":       "object",
-			"properties": map[string]any{"id": map[string]any{"type": "integer", "description": "备忘录 ID"}},
+			"properties": map[string]any{"id": map[string]any{"type": "integer", "description": "灵感录 ID"}},
 			"required":   []string{"id"},
 		},
 	}, func(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {

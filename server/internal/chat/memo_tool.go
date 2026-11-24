@@ -10,10 +10,10 @@ import (
 	"deeptalk/internal/provider"
 )
 
-// runMemoTool 执行备忘录工具：把对话中的灵感写下来，或检索已有记录。
+// runMemoTool 执行灵感录工具：把对话中的灵感写下来，或检索已有记录。
 func (s *Service) runMemoTool(ctx context.Context, userID uint, call provider.ToolCall, conversationID uint) (string, error) {
 	if s.cfg.Memos == nil {
-		return `{"error":"备忘录未启用"}`, nil
+		return `{"error":"灵感录未启用"}`, nil
 	}
 	if userID == 0 {
 		return `{"error":"缺少用户上下文"}`, nil
@@ -36,7 +36,7 @@ func (s *Service) runMemoTool(ctx context.Context, userID uint, call provider.To
 		}
 		raw, _ := json.Marshal(map[string]any{
 			"saved": true, "id": item.ID, "title": item.Title,
-			"note": "已保存到主人的灵感备忘录，回复时用一句话确认即可。",
+			"note": "已保存到主人的小橘灵感录，回复时用一句话确认即可。",
 		})
 		return string(raw), nil
 	default:

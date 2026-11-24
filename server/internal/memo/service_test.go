@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// TestMemoSaveSearchDelete 校验备忘录按用户隔离、可检索、可删除。
+// TestMemoSaveSearchDelete 校验灵感录按用户隔离、可检索、可删除。
 func TestMemoSaveSearchDelete(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:memo?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {

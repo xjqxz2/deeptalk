@@ -10,17 +10,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// MemoController 提供 C 端灵感备忘录接口。
+// MemoController 提供 C 端小橘灵感录接口。
 type MemoController struct {
 	memos *memo.Service
 }
 
-// NewMemoController 创建备忘录控制器。
+// NewMemoController 创建灵感录控制器。
 func NewMemoController(memos *memo.Service) *MemoController {
 	return &MemoController{memos: memos}
 }
 
-// List 返回当前用户的备忘录；带 q 时按关键词检索。
+// List 返回当前用户的灵感录；带 q 时按关键词检索。
 func (h *MemoController) List(c *gin.Context) {
 	user := middleware.CurrentUser(c).ID
 	limit := 20
@@ -32,7 +32,7 @@ func (h *MemoController) List(c *gin.Context) {
 	responses.OK(c, gin.H{"items": items})
 }
 
-// Create 新建一条备忘录。
+// Create 新建一条灵感录。
 func (h *MemoController) Create(c *gin.Context) {
 	var req memo.SaveInput
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -47,11 +47,11 @@ func (h *MemoController) Create(c *gin.Context) {
 	responses.OK(c, gin.H{"memo": item})
 }
 
-// Update 修改一条备忘录。
+// Update 修改一条灵感录。
 func (h *MemoController) Update(c *gin.Context) {
 	id, ok := parseID(c.Param("id"))
 	if !ok {
-		responses.Fail(c, responses.CodeInvalidArgument, "备忘录 ID 不合法")
+		responses.Fail(c, responses.CodeInvalidArgument, "灵感录 ID 不合法")
 		return
 	}
 	var req memo.SaveInput
@@ -67,11 +67,11 @@ func (h *MemoController) Update(c *gin.Context) {
 	responses.OK(c, gin.H{"memo": item})
 }
 
-// Delete 删除一条备忘录。
+// Delete 删除一条灵感录。
 func (h *MemoController) Delete(c *gin.Context) {
 	id, ok := parseID(c.Param("id"))
 	if !ok {
-		responses.Fail(c, responses.CodeInvalidArgument, "备忘录 ID 不合法")
+		responses.Fail(c, responses.CodeInvalidArgument, "灵感录 ID 不合法")
 		return
 	}
 	if err := h.memos.Delete(c.Request.Context(), middleware.CurrentUser(c).ID, id); err != nil {
@@ -83,7 +83,7 @@ func (h *MemoController) Delete(c *gin.Context) {
 
 func writeMemoError(c *gin.Context, err error) {
 	if errors.Is(err, memo.ErrNotFound) {
-		responses.Fail(c, responses.CodeNotFound, "备忘录不存在")
+		responses.Fail(c, responses.CodeNotFound, "灵感录不存在")
 		return
 	}
 	responses.FromError(c, err)
