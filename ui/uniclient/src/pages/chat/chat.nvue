@@ -327,7 +327,12 @@ function newChat() {
 }
 
 /** 会话搜索：交给服务端按标题模糊查询。 */
-async function onSearch() {
+async function onSearch(value) {
+  // H5 侧栏通过 emit('search', value) 传入关键词，nvue 侧是输入框 @input，
+  // 两种情况都要回写 keyword，否则查询恒为空串（列表不过滤）。
+  if (typeof value === 'string') {
+    keyword.value = value
+  }
   await loadConversations(keyword.value.trim())
 }
 

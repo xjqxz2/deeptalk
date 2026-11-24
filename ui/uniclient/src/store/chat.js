@@ -348,13 +348,13 @@ export function interject(content) {
     created_at: new Date().toISOString(),
   }
   pushMessage(message)
-  chatSocket.send(
-    JSON.stringify({
-      type: 'interject',
-      conversation_id: String(conversationID),
-      content,
-    }),
-  )
+  // send() 内部会 JSON.stringify，这里必须传对象；传字符串会被双重编码，
+  // 服务端解析失败直接断开 WS，正在生成的流被打断（插话永久卡住）。
+  chatSocket.send({
+    type: 'interject',
+    conversation_id: String(conversationID),
+    content,
+  })
 }
 
 export function stop() {

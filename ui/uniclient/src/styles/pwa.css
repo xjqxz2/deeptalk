@@ -530,6 +530,7 @@
   display: block;
   width: 100%;
   min-height: 52px;
+  overflow-y: auto;
   max-height: 192px;
   border: none;
   outline: none;
@@ -2544,5 +2545,18 @@ uni-button {
   .assistant-text,
   .markdown-body {
     color: var(--dt-text) !important;
+  }
+}
+
+/* 深色：登录/注册输入框（H5 用的是原生 input，默认白底白字） */
+@media (prefers-color-scheme: dark) {
+  .native-auth-input {
+    background: var(--dt-surface);
+    border-color: var(--dt-line);
+    color: var(--dt-text);
+  }
+
+  .native-auth-input::placeholder {
+    color: var(--dt-text-faint);
   }
 }

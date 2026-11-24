@@ -34,7 +34,7 @@
             <div class="field">
               <div class="field-head">
                 <label class="field-label" for="login-password">密码</label>
-                <span class="field-link">忘记密码？</span>
+                <span class="field-link" role="button" tabindex="0" @click="onForgot">忘记密码？</span>
               </div>
               <NativeInput
                 class="native-auth-input"

@@ -19,14 +19,27 @@ export default {
 
     expose({
       clear() {
-        if (el.value) el.value.value = ''
+        if (el.value) {
+          el.value.value = ''
+          el.value.style.height = ''
+        }
       },
       focus() {
         if (el.value) el.value.focus()
       },
     })
 
-    const onInput = (event) => emit('update:modelValue', event.target.value)
+    /** 按内容高度自适应：先归零再读 scrollHeight，避免只增不减。 */
+    const autoGrow = (target) => {
+      if (!target) return
+      target.style.height = 'auto'
+      target.style.height = `${Math.min(target.scrollHeight, 192)}px`
+    }
+
+    const onInput = (event) => {
+      autoGrow(event.target)
+      emit('update:modelValue', event.target.value)
+    }
     const onKeydown = (event) => {
       if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return
       event.preventDefault()

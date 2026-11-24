@@ -2,6 +2,7 @@
 /** 对话顶栏：标题、保存态、新建、模型选择、连接状态与账号菜单。 */
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { Modal } from 'ant-design-vue'
 import {
   LogoutOutlined,
   MenuOutlined,
@@ -68,8 +69,20 @@ async function openShare(): Promise<void> {
   shareOpen.value = true
 }
 
-/** 退出登录。 */
+/** 退出登录：顶栏入口同样要二次确认，避免误触掉线。 */
 async function logout(): Promise<void> {
+  const ok = await new Promise<boolean>((resolve) => {
+    Modal.confirm({
+      title: '退出登录',
+      content: '退出后需要重新输入邮箱与密码，确定退出吗？',
+      okText: '退出',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      onOk: () => resolve(true),
+      onCancel: () => resolve(false),
+    })
+  })
+  if (!ok) return
   await userStore.logout()
   chat.reset()
   await router.push({ name: 'login' })
