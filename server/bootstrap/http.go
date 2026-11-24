@@ -14,6 +14,7 @@ import (
 	"deeptalk/internal/billing"
 	"deeptalk/internal/chat"
 	"deeptalk/internal/compliance"
+	"deeptalk/internal/memo"
 	"deeptalk/internal/provider"
 	"deeptalk/internal/search"
 	"deeptalk/internal/setting"
@@ -92,7 +93,9 @@ func (a *App) startHTTP(ctx context.Context) error {
 	}, a.WeChat, users, a.Log)
 
 	billingService := billing.NewService(a.DB)
+	memos := memo.NewService(a.DB)
 	chats := chat.NewService(a.DB, providers, users, searcher, attachments, settings, chat.Config{
+		Memos:            memos,
 		MaxOutputTokens:  cfg.Upstream.MaxOutputTokens,
 		FirstByteTimeout: time.Duration(cfg.Upstream.FirstByteTimeoutSec) * time.Second,
 		ReasoningEffort:  cfg.Upstream.ReasoningEffort,
@@ -129,6 +132,7 @@ func (a *App) startHTTP(ctx context.Context) error {
 		Audits:      audits,
 		WeChat:      a.WeChat,
 		Billing:     billingService,
+		Memos:       memos,
 	}, a.Log)
 
 	listener, err := net.Listen("tcp", cfg.App.Addr)

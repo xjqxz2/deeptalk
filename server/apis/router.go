@@ -15,6 +15,7 @@ import (
 	"deeptalk/internal/audit"
 	"deeptalk/internal/billing"
 	"deeptalk/internal/chat"
+	"deeptalk/internal/memo"
 	"deeptalk/internal/provider"
 	"deeptalk/internal/security"
 	"deeptalk/internal/setting"
@@ -46,6 +47,7 @@ type Deps struct {
 	Audits      *audit.Service      // 审计
 	WeChat      *wechat.Manager     // 小程序 access_token（未配置时为 nil）
 	Billing     *billing.Service    // 套餐限额与计费
+	Memos       *memo.Service       // 灵感备忘录
 }
 
 // NewRouter 装配全部路由、中间件与静态资源。
@@ -73,6 +75,8 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 	authController := capi.NewAuthController(deps.Users, deps.Providers, deps.Settings, cfg.Auth, cfg.WebSearchEnabled, deps.WeChat, signVerifier, deps.Billing)
 	chatController := capi.NewChatController(deps.Chats)
 	wsController := capi.NewWSController(deps.Chats, deps.Users, cfg.Auth)
+	memoController := capi.NewMemoController(deps.Memos)
+	memoMCP := memo.Handler(deps.Memos)
 	attachmentController := capi.NewAttachmentController(deps.Attachments)
 
 	overviewController := b.NewOverviewController(deps.Users, deps.Providers, deps.Chats, deps.Audits)
@@ -106,6 +110,17 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 		cGroup.PATCH("/auth/profile", authController.UpdateProfile)
 		cGroup.GET("/usage", authController.Usage)
 		cGroup.GET("/models", authController.Models)
+		cGroup.GET("/memos", memoController.List)
+		cGroup.POST("/memos", memoController.Create)
+		cGroup.PATCH("/memos/:id", memoController.Update)
+		cGroup.DELETE("/memos/:id", memoController.Delete)
+		// MCP 端点：外部 Agent 通过 Streamable HTTP 直接读写备忘录。
+		// handler 必须复用同一实例，否则每次请求都会新建会话表，Mcp-Session-Id 失效。
+		cGroup.Any("/memo/mcp", func(c *gin.Context) {
+			ctx := memo.WithUser(c.Request.Context(), middleware.CurrentUser(c).ID)
+			c.Request = c.Request.WithContext(ctx)
+			memoMCP.ServeHTTP(c.Writer, c.Request)
+		})
 
 		cGroup.POST("/attachments", attachmentController.Upload)
 		cGroup.GET("/attachments/:id", attachmentController.Get)

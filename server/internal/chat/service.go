@@ -18,6 +18,7 @@ import (
 
 	"deeptalk/internal/attachment"
 	"deeptalk/internal/billing"
+	"deeptalk/internal/memo"
 	"deeptalk/internal/provider"
 	"deeptalk/internal/search"
 	"deeptalk/internal/setting"
@@ -44,6 +45,7 @@ type Config struct {
 	MaxToolRounds    int           // 单次回答最多多少轮工具调用（安全阀）
 	Compliance       TextChecker   // 小程序端内容安全；nil 表示不校验
 	Billing          Billing       // 套餐限额与计费；nil 表示不限制
+	Memos            *memo.Service // 灵感备忘录；nil 表示不启用
 }
 
 // Billing 抽象套餐限额与计费，便于测试替换。
@@ -435,6 +437,9 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 				}
 			}
 			return out, nil
+		}
+		if call.Name == "memo_save" || call.Name == "memo_search" {
+			return s.runMemoTool(ctx, userID, call, assistant.ConversationID)
 		}
 		if call.Name == "render_ui" {
 			var args struct {
@@ -884,6 +889,9 @@ func (s *Service) availableTools() []provider.Tool {
 	}
 	if s.search != nil && s.search.BrowserAvailable() {
 		tools = append(tools, browserTool)
+	}
+	if s.cfg.Memos != nil {
+		tools = append(tools, memoSaveTool, memoSearchTool)
 	}
 	return append(tools, renderUITool)
 }
@@ -1566,6 +1574,41 @@ action 取值：
 }
 
 // renderUITool 暴露 A2UI v0.9 的基础布局能力；模型只生成组件树，不生成 HTML。
+// memoSaveTool / memoSearchTool 是「灵感备忘录」工具：
+// 对话里随时记下一个想法，之后需要时再取出来。
+var memoSaveTool = provider.Tool{
+	Type: "function",
+	Function: provider.ToolFunction{
+		Name:        "memo_save",
+		Description: "把当前对话里的灵感、结论或待办整理成一条备忘录保存。用户说「记一下 / 帮我记住 / 存起来」时调用；content 用简洁完整的句子概括，不要只复制原话。",
+		Parameters: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"title":   map[string]any{"type": "string", "description": "一句话主题，不超过 60 字"},
+				"content": map[string]any{"type": "string", "description": "整理后的正文，保留关键细节、结论与下一步"},
+				"tags":    map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "可选标签，便于以后检索"},
+			},
+			"required": []string{"content"},
+		},
+	},
+}
+
+var memoSearchTool = provider.Tool{
+	Type: "function",
+	Function: provider.ToolFunction{
+		Name:        "memo_search",
+		Description: "检索主人之前记下的灵感备忘录。用户问「我上次记的那个想法」「之前记的关于 X 的笔记」时调用；query 留空表示最近记录。",
+		Parameters: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"query": map[string]any{"type": "string", "description": "关键词；留空表示最近记录"},
+				"limit": map[string]any{"type": "integer", "description": "返回条数，默认 5"},
+			},
+			"required": []string{},
+		},
+	},
+}
+
 var renderUITool = provider.Tool{
 	Type: "function",
 	Function: provider.ToolFunction{

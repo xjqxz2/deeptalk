@@ -16,6 +16,7 @@ import (
 	"deeptalk/internal/billing"
 	"deeptalk/internal/chat"
 	"deeptalk/internal/logging"
+	"deeptalk/internal/memo"
 	"deeptalk/internal/provider"
 	"deeptalk/internal/seed"
 	"deeptalk/internal/setting"
@@ -78,6 +79,7 @@ func (a *App) startDatabase(ctx context.Context) error {
 		{"provider", provider.Migrate},
 		{"chat", chat.Migrate},
 		{"billing", billing.Migrate},
+		{"memo", memo.Migrate},
 	}
 	for _, migration := range migrations {
 		if err := migration.fn(db); err != nil {
