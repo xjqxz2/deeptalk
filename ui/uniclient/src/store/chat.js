@@ -137,8 +137,14 @@ function pushMessage(message) {
 
 /** 找到正在生成的助手消息。 */
 function streamingMessage() {
-  const last = chat.messages[chat.messages.length - 1]
-  return last && last.role === 'assistant' && last.status === 'streaming' ? last : null
+  // 插话会在末尾插入一条排队中的 user 消息，此时「最后一条」不是助手消息。
+  // 从后往前找最近的流式助手消息，避免插话把正在输出的增量丢掉。
+  for (let index = chat.messages.length - 1; index >= 0; index -= 1) {
+    const item = chat.messages[index]
+    if (item.role === 'assistant' && item.status === 'streaming') return item
+    if (item.role === 'assistant') return null
+  }
+  return null
 }
 
 // ---- WebSocket 事件 -------------------------------------------------------

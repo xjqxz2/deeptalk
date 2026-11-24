@@ -1,0 +1,577 @@
+[
+  {
+    "dir": "open",
+    "url": "ws://127.0.0.1:5332/api/v1/c/ws?token=YamaAQZC4HKpFJhIaQaRE9ZZBLNQrQ-mEUBh4H3Kl4Y",
+    "t": "2.8s"
+  },
+  {
+    "dir": "sent",
+    "t": "9.3s",
+    "payload": "{\"type\":\"stream\",\"conversation_id\":\"0de5aed8ff906cac9ce491cb57deddd4\",\"content\":\"用一句话说明 SSE 是什么\",\"model_id\":20,\"attachment_ids\":[]}"
+  },
+  {
+    "dir": "recv",
+    "t": "9.3s",
+    "payload": "{\"type\":\"meta\",\"payload\":{\"assistant_message_id\":542,\"conversation_id\":113,\"deep_thinking\":true,\"model_id\":20,\"model_name\":\"Deepseek-V4.1-flash-1017\",\"title\":\"新对话\",\"user_message\":{\"attachments\":[],\"content\":\"用一句话说明 SSE 是什么\",\"created_at\":\"2026-11-24T19:27:32.220947335+08:00\",\"id\":541,\"input_tokens\":8,\"interjection\":false,\"role\":\"user\",\"status\":\"complete\"},\"user_message_id\":541,\"web_search\":false}}\n"
+  },
+  {
+    "dir": "sent",
+    "t": "10.0s",
+    "payload": "{\"type\":\"interject\",\"conversation_id\":\"113\",\"content\":\"补充一句\"}"
+  },
+  {
+    "dir": "recv",
+    "t": "10.0s",
+    "payload": "{\"type\":\"interjection_queued\",\"payload\":{\"content\":\"补充一句\",\"id\":11}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.1s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"用户\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.2s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"问 SSE 是什么\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.2s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"，一句话回答即可\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.2s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"。SSE =\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.2s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\" Server-Sent Events，服务器\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.2s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"单向\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.2s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"推送事件\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.3s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"流\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.3s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"给\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.4s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"浏览器的技术\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.4s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"。不需要\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.4s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"联网\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.4s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"。\\n\\n简单问题\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.4s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"直接\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.5s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"答。可以\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.5s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"一句话\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.5s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"，稍微\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.5s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"补充一点必要\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.5s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"说明，\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.5s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"但用户\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.6s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"要求\\\"一句话\\\"，\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.6s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"那就一句话\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.7s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"为主\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.7s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"。\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.7s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"SSE（\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.7s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"Server-Sent Events）是一种\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.7s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"基于 HTTP\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.7s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\" 的服务器单向\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.7s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"推送技术：\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.7s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"浏览器发起\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.7s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"一次长\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.8s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"连接请求\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.8s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"后，服务器可\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.8s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"沿着\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.8s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"这条连接\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.8s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"持续向\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.9s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"客户端发送文本\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.9s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"事件流，常用于\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.9s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"实时通知\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.9s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"、进度\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.9s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"更新\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "13.9s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"、行情推送等\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "14.0s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"场景。\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "14.3s",
+    "payload": "{\"type\":\"usage\",\"payload\":{\"cached_tokens\":0,\"character_count\":104,\"cost_milli_cents\":0,\"duration_ms\":2986,\"input_tokens\":2296,\"output_tokens\":108,\"tokens_per_sec\":36,\"total_tokens\":2404}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "14.3s",
+    "payload": "{\"type\":\"done\",\"payload\":{\"assistant_message_id\":542,\"status\":\"complete\",\"title\":\"SSE 服务器推送技术简介\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "14.3s",
+    "payload": "{\"type\":\"meta\",\"payload\":{\"assistant_message_id\":544,\"conversation_id\":113,\"deep_thinking\":true,\"model_id\":20,\"model_name\":\"Deepseek-V4.1-flash-1017\",\"title\":\"SSE 服务器推送技术简介\",\"user_message\":{\"attachments\":[],\"content\":\"补充一句\",\"created_at\":\"2026-11-24T19:27:37.228869402+08:00\",\"id\":543,\"input_tokens\":3,\"interjection\":true,\"role\":\"user\",\"status\":\"complete\"},\"user_message_id\":543,\"web_search\":false}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "22.6s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"用户\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "22.6s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"说\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "22.6s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"\\\"\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "22.6s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"补充一句\\\"\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "22.6s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"——意思是\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "22.7s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"让我在\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "22.7s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"刚才\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "22.7s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"那一\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "22.7s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"句话\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "22.7s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"说明\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "22.8s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\" SSE\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "22.8s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\" 的基础上再补充一句。\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "22.8s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"可能是\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "22.8s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"希望再\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "22.8s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"补\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "22.9s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"一句更精\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "22.9s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"炼/\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "22.9s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"补充说明。我就\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "22.9s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"补\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "22.9s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"一句自然\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.0s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"的话，大概是关于\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.0s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\" SSE 和 Web\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.0s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"Socket 的区别，或者\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.0s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"关于\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.0s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"单向\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.0s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"性\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.1s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"/\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.1s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"自动\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.1s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"重连。\\n\\n简洁一点，\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.2s",
+    "payload": "{\"type\":\"reasoning\",\"payload\":{\"delta\":\"一两句。\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.2s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"再\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.2s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"补一句区别\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.2s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"：SSE 只\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.2s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"支持服务器\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.2s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"向客户端单向推送，不支持\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.2s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"客户端\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.2s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"发消息\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.2s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"；如果需要\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.3s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"真正的\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.3s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"双向通信，就\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.3s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"应改用 WebSocket。\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.3s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"另外，SS\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.3s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"E 内置了\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.3s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"断\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.4s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"线自动重连机制\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.4s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"，这也是\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.4s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"它适合\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.4s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"做通知\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.4s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"类推送\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.5s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"的原因\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.5s",
+    "payload": "{\"type\":\"delta\",\"payload\":{\"delta\":\"。\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.8s",
+    "payload": "{\"type\":\"usage\",\"payload\":{\"cached_tokens\":0,\"character_count\":98,\"cost_milli_cents\":0,\"duration_ms\":3464,\"input_tokens\":2368,\"output_tokens\":121,\"tokens_per_sec\":35,\"total_tokens\":2489}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.8s",
+    "payload": "{\"type\":\"done\",\"payload\":{\"assistant_message_id\":544,\"status\":\"complete\",\"title\":\"SSE 服务器推送技术简介\"}}\n"
+  },
+  {
+    "dir": "recv",
+    "t": "23.8s",
+    "payload": "{\"type\":\"done\",\"payload\":{\"status\":\"complete\"}}\n"
+  },
+  {
+    "dir": "sent",
+    "t": "27.8s",
+    "payload": "{\"type\":\"ping\"}"
+  },
+  {
+    "dir": "recv",
+    "t": "27.8s",
+    "payload": "{\"type\":\"pong\"}\n"
+  },
+  {
+    "dir": "sent",
+    "t": "52.8s",
+    "payload": "{\"type\":\"ping\"}"
+  },
+  {
+    "dir": "recv",
+    "t": "52.8s",
+    "payload": "{\"type\":\"pong\"}\n"
+  },
+  {
+    "dir": "sent",
+    "t": "77.8s",
+    "payload": "{\"type\":\"ping\"}"
+  },
+  {
+    "dir": "recv",
+    "t": "77.8s",
+    "payload": "{\"type\":\"pong\"}\n"
+  },
+  {
+    "dir": "sent",
+    "t": "102.8s",
+    "payload": "{\"type\":\"ping\"}"
+  },
+  {
+    "dir": "recv",
+    "t": "102.8s",
+    "payload": "{\"type\":\"pong\"}\n"
+  },
+  {
+    "dir": "sent",
+    "t": "127.8s",
+    "payload": "{\"type\":\"ping\"}"
+  },
+  {
+    "dir": "recv",
+    "t": "127.8s",
+    "payload": "{\"type\":\"pong\"}\n"
+  }
+]

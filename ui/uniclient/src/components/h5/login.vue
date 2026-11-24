@@ -81,6 +81,15 @@ const loading = ref(false)
 
 const canSubmit = computed(() => email.value.trim().length > 0 && password.value.length > 0)
 
+/** 忘记密码：没有自助重置入口，提示联系管理员。 */
+function onForgot() {
+  uni.showModal({
+    title: '忘记密码',
+    content: '当前版本暂不支持自助找回，请联系管理员重置密码。',
+    showCancel: false,
+  })
+}
+
 function toggleMode() {
   mode.value = mode.value === 'login' ? 'register' : 'login'
   error.value = ''
