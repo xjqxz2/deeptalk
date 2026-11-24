@@ -76,6 +76,7 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 	chatController := capi.NewChatController(deps.Chats)
 	wsController := capi.NewWSController(deps.Chats, deps.Users, cfg.Auth)
 	memoController := capi.NewMemoController(deps.Memos)
+	bMemoController := b.NewMemoController(deps.Memos, deps.Audits)
 	memoMCP := memo.Handler(deps.Memos)
 	attachmentController := capi.NewAttachmentController(deps.Attachments)
 
@@ -185,6 +186,9 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 		bGroup.PATCH("/users/:id/plan", userController.UpdatePlan)
 		bGroup.PATCH("/users/:id/disabled", userController.ToggleDisabled)
 		bGroup.DELETE("/users/:id", userController.Delete)
+		bGroup.GET("/memos", bMemoController.List)
+		bGroup.GET("/memos/stats", bMemoController.Stats)
+		bGroup.DELETE("/memos/:id", bMemoController.Delete)
 		bGroup.POST("/users/:id/reset-password", userController.ResetPassword)
 		bGroup.POST("/users/:id/logout-all", userController.LogoutAll)
 

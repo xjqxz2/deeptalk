@@ -15,6 +15,8 @@ import type {
   User,
   UserListData,
   UserStats,
+  MemoItem,
+  MemoStats,
 } from '@deeptalk/shared'
 
 /** 厂商列表响应。 */
@@ -207,4 +209,23 @@ export function updateSettings(payload: {
 /** 用量时间序列。 */
 export function fetchUsageTimeline(days: number): Promise<UsageTimeline> {
   return get<UsageTimeline>('/b/usage', { days })
+}
+
+/** 小橘灵感录：统计卡数据。 */
+export function fetchMemoStats(): Promise<MemoStats> {
+  return get<MemoStats>('/b/memos/stats')
+}
+
+/** 小橘灵感录：分页列表。 */
+export function fetchMemos(params: {
+  q?: string
+  page?: number
+  size?: number
+}): Promise<{ items: MemoItem[]; total: number; page: number; size: number }> {
+  return get('/b/memos', params)
+}
+
+/** 删除一条灵感。 */
+export function deleteMemo(id: number): Promise<{ deleted: boolean }> {
+  return del(`/b/memos/${id}`)
 }

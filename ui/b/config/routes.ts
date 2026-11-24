@@ -8,6 +8,7 @@ import {
   ApiOutlined,
   AppstoreOutlined,
   BarChartOutlined,
+  BulbOutlined,
   SettingOutlined,
   TeamOutlined,
 } from '@ant-design/icons-vue'
@@ -55,6 +56,12 @@ export const appRoutes: RouteRecordRaw[] = [
         name: 'users',
         component: () => import('@/pages/users/UsersPage.vue'),
         meta: { title: '用户管理', menu: true, icon: TeamOutlined },
+      },
+      {
+        path: 'memos',
+        name: 'memos',
+        component: () => import('@/pages/memos/MemosPage.vue'),
+        meta: { title: '小橘灵感录', menu: true, icon: BulbOutlined },
       },
       {
         path: 'usage',

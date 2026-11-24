@@ -398,3 +398,24 @@ export interface StreamUsage {
   tokens_per_sec: number
   character_count: number
 }
+
+/** 小橘灵感录里的一条记录。 */
+export interface MemoItem {
+  id: number
+  title: string
+  content: string
+  tags: string
+  conversation_id: number
+  created_at: string
+  updated_at: string
+  user_email?: string
+}
+
+/** 灵感录的后台统计。 */
+export interface MemoStats {
+  total: number
+  today: number
+  last7: number
+  users: number
+  daily: Array<{ date: string; count: number }>
+}
