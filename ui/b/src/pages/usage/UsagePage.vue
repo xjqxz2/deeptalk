@@ -2,7 +2,7 @@
 /** 用量统计：按天查看 tokens 与消息量，支持 7 / 14 / 30 天切换。 */
 import { computed, onMounted, ref } from 'vue'
 import { message } from 'ant-design-vue'
-import { BarChartOutlined, ReloadOutlined } from '@ant-design/icons-vue'
+import { BarChartOutlined, ReloadOutlined, DownloadOutlined } from '@ant-design/icons-vue'
 import { formatNumber, formatTokens } from '@deeptalk/shared'
 import type { DailyUsage } from '@deeptalk/shared'
 import { fetchUsageTimeline } from '@/services/admin'
@@ -13,6 +13,9 @@ import StatCard from '@/components/base/StatCard.vue'
 const admin = useAdminStore()
 
 const days = ref(14)
+type SortKey = 'date' | 'messages' | 'tokens'
+const sortKey = ref<SortKey>('date')
+const sortAsc = ref(false)
 const loading = ref(true)
 const items = ref<DailyUsage[]>([])
 const totals = ref({ tokens: 0, messages: 0 })
@@ -24,6 +27,47 @@ const avgPerMessage = computed(() =>
 )
 
 /** 加载用量数据。 */
+/** 表格按当前列排序：日期 / 消息数 / tokens，点同一列切换升降序。 */
+const sortedItems = computed(() => {
+  const list = [...items.value]
+  const key = sortKey.value
+  list.sort((a, b) => {
+    const diff = key === 'date' ? a.date.localeCompare(b.date) : a[key] - b[key]
+    return sortAsc.value ? diff : -diff
+  })
+  return list
+})
+
+/** 切换排序。 */
+function toggleSort(key: SortKey): void {
+  if (sortKey.value === key) {
+    sortAsc.value = !sortAsc.value
+    return
+  }
+  sortKey.value = key
+  sortAsc.value = false
+}
+
+/** 导出当前范围的按天明细为 CSV。 */
+function exportCsv(): void {
+  const header = ['日期', '消息数', 'tokens', '单条均值', '占总量%']
+  const rows = sortedItems.value.map((item) => [
+    item.date,
+    String(item.messages),
+    String(item.tokens),
+    item.messages ? String(Math.round(item.tokens / item.messages)) : '',
+    totals.value.tokens ? String(Math.round((item.tokens / totals.value.tokens) * 100)) : '0',
+  ])
+  const csv = [header, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(',')).join('\n')
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = `deeptalk-usage-${days.value}d-${new Date().toISOString().slice(0, 10)}.csv`
+  link.click()
+  URL.revokeObjectURL(link.href)
+  message.success('已导出 CSV')
+}
+
 async function load(showError = true): Promise<void> {
   loading.value = true
   try {
@@ -75,6 +119,10 @@ onMounted(() => {
           ]"
           @change="changeDays"
         />
+        <a-button :disabled="!items.length" @click="exportCsv">
+          <DownloadOutlined />
+          导出
+        </a-button>
         <a-button :loading="loading" @click="load()">
           <ReloadOutlined />
           刷新
@@ -134,15 +182,21 @@ onMounted(() => {
         <table class="usage-table">
           <thead>
             <tr>
-              <th>日期</th>
-              <th>消息数</th>
-              <th>tokens</th>
+              <th class="sortable" @click="toggleSort('date')">
+                日期 <span class="sort-mark">{{ sortKey === 'date' ? (sortAsc ? '↑' : '↓') : '↕' }}</span>
+              </th>
+              <th class="sortable" @click="toggleSort('messages')">
+                消息数 <span class="sort-mark">{{ sortKey === 'messages' ? (sortAsc ? '↑' : '↓') : '↕' }}</span>
+              </th>
+              <th class="sortable" @click="toggleSort('tokens')">
+                tokens <span class="sort-mark">{{ sortKey === 'tokens' ? (sortAsc ? '↑' : '↓') : '↕' }}</span>
+              </th>
               <th>单条均值</th>
               <th>占总量</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in [...items].reverse()" :key="item.date">
+            <tr v-for="item in sortedItems" :key="item.date">
               <td>{{ item.date }}</td>
               <td>{{ formatNumber(item.messages) }}</td>
               <td>{{ formatTokens(item.tokens) }}</td>
@@ -353,5 +407,17 @@ onMounted(() => {
   .bar-track {
     height: 158px;
   }
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.sort-mark {
+  margin-left: 4px;
+  color: var(--dt-text-faint);
+  font-size: 10px;
 }
 </style>

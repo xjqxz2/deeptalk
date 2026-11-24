@@ -25,6 +25,7 @@ const router = useRouter()
 const admin = useAdminStore()
 
 const timeline = ref<DailyUsage[]>([])
+const rangeDays = ref(14)
 const timelineLoading = ref(false)
 const refreshing = ref(false)
 const loadFailed = ref(false)
@@ -38,13 +39,20 @@ const chartMessages = computed(() => timeline.value.reduce((sum, item) => sum + 
 async function loadTimeline(): Promise<void> {
   timelineLoading.value = true
   try {
-    const data = await fetchUsageTimeline(14)
+    const data = await fetchUsageTimeline(rangeDays.value)
     timeline.value = data.days
   } catch {
     timeline.value = []
   } finally {
     timelineLoading.value = false
   }
+}
+
+/** 切换趋势时间范围：7 / 14 / 30 天。 */
+function changeRange(days: number): void {
+  if (rangeDays.value === days) return
+  rangeDays.value = days
+  void loadTimeline()
 }
 
 /** 刷新整页。 */
@@ -127,12 +135,19 @@ onMounted(async () => {
             <div class="panel-head">
               <div>
                 <h2>用量趋势</h2>
-                <p>最近 14 天 tokens 与消息量</p>
+                <p>最近 {{ rangeDays }} 天 tokens 与消息量</p>
               </div>
-              <button type="button" class="link" @click="router.push('/usage')">
-                查看详情
-                <ArrowRightOutlined />
-              </button>
+              <div class="panel-actions">
+                <a-radio-group :value="rangeDays" size="small" button-style="solid" @change="changeRange(Number($event.target.value))">
+                  <a-radio-button :value="7">7 天</a-radio-button>
+                  <a-radio-button :value="14">14 天</a-radio-button>
+                  <a-radio-button :value="30">30 天</a-radio-button>
+                </a-radio-group>
+                <button type="button" class="link" @click="router.push('/usage')">
+                  查看详情
+                  <ArrowRightOutlined />
+                </button>
+              </div>
             </div>
 
             <div v-if="timelineLoading" class="chart-skeleton">
@@ -688,5 +703,11 @@ onMounted(async () => {
   .bar-label {
     font-size: 8px;
   }
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 </style>
