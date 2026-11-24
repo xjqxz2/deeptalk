@@ -111,7 +111,7 @@ func (s *Service) StatsOf(ctx context.Context) (*Stats, error) {
 func fillDays(db *gorm.DB, counts map[string]int64, days int) []DailyCount {
 	out := make([]DailyCount, 0, days)
 	rows, err := db.Raw(
-		"SELECT date('now', '-' || (n - 1) || ' days') FROM (SELECT 1 n UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7) ORDER BY n",
+		"SELECT date('now', '-' || (n - 1) || ' days') FROM (SELECT 1 n UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7) ORDER BY n DESC",
 	).Rows()
 	if err != nil {
 		return nil
