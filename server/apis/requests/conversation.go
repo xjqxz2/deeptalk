@@ -34,6 +34,10 @@ type StreamRequest struct {
 	WebSearch     bool   `json:"web_search"`                 // 联网搜索
 	AttachmentIDs []uint `json:"attachment_ids"`             // 图片附件 ID
 	Regenerate    bool   `json:"regenerate"`                 // 重新生成
+	// 断线续传：SSE 断开后重新连接时带上 resume 与最后收到的事件序号，
+	// 服务端会把缓冲区里漏掉的事件补发，再继续实时推送。
+	Resume  bool `json:"resume"`   // 是否为续传请求
+	LastSeq int  `json:"last_seq"` // 客户端最后收到的事件序号
 }
 
 // Bind 绑定流式请求；重新生成时 content 可为空，业务层再做校验。

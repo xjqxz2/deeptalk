@@ -68,3 +68,8 @@ export function getShared(token: string): Promise<SharedConversation> {
 export function listModels(): Promise<{ items: ModelInfo[] }> {
   return get<{ items: ModelInfo[] }>('/c/models')
 }
+
+/** 停止当前会话正在进行的生成（生成不再绑定连接，必须显式通知服务端）。 */
+export function stopGeneration(conversationID: number | string): Promise<{ stopped: boolean }> {
+  return post(`/c/conversations/${encodeURIComponent(String(conversationID))}/stop`, {})
+}

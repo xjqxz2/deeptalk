@@ -593,16 +593,19 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 				return "", ctx.Err()
 			}
 			if err != nil || len(pages) == 0 {
+				// 网页打不开是常态（反爬、境外站点超时），不该打扰用户：
+				// 检索阶段已有标题与摘要，直接让模型用这些资料作答即可。
 				slog.Warn("web fetch tool failed", "conversation_id", assistant.ConversationID, "error", err)
-				emitActivity("found", "没有打开网页", "", "")
-				_ = emit("notice", map[string]string{"message": "没有抓取到公开网页，已直接回答"})
-				return searchToolPayload(nil, map[string]any{"pages": []search.Page{}}), nil
+				emitActivity("found", "已用搜索摘要回答", "", "")
+				return searchToolPayload(toolSources, map[string]any{
+					"pages": []search.Page{},
+					"note":  "这些网页打不开，请直接用上面 sources 里的标题与摘要作答，不要再调用 web_fetch。",
+				}), nil
 			}
-			// 有页面超时（15s 单页预算）时提示一次，其余页面照常使用
+			// 部分页面超时：不提示用户，日志里留痕即可
 			if len(pages) < len(args.URLs) {
-				_ = emit("notice", map[string]string{
-					"message": fmt.Sprintf("%d 个网页查询超时，已用其余结果回答", len(args.URLs)-len(pages)),
-				})
+				slog.Info("web fetch partially timed out", "conversation_id", assistant.ConversationID,
+					"urls", len(args.URLs), "pages", len(pages))
 			}
 			emitActivity("found", fmt.Sprintf("已打开 %d 个网页", len(pages)), "", "")
 			known := make(map[string]struct{}, len(toolSources))
@@ -852,6 +855,9 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 		"character_count":  len([]rune(answer)),
 	})
 	if genErr != nil {
+		// 上游偶发 5xx / 429 时，日志里必须留下原始原因，否则只能看到用户端的「暂时不可用」
+		slog.Warn("generation failed", "conversation_id", assistant.ConversationID,
+			"model", model.ModelID, "provider", model.ProviderName, "error", genErr)
 		_ = emit("error", map[string]any{"code": 3001, "message": modelErrorMessage(genErr, model.DisplayName)})
 		_ = emit("done", map[string]any{
 			"assistant_message_id": assistant.ID,
@@ -2096,7 +2102,13 @@ func (s *Service) compactConversation(ctx context.Context, conversationID, model
 	}
 	model, prov, err := s.providers.ResolveModel(ctx, modelID)
 	if err != nil {
-		return err
+		// 模型可能已被管理员删除或停用：压缩不能因此失败，
+		// 退回到默认模型（或任意一个启用模型）继续压缩。
+		if fallback, fallbackProv, fallbackErr := s.providers.DefaultModel(ctx); fallbackErr == nil {
+			model, prov, err = fallback, fallbackProv, nil
+		} else {
+			return err
+		}
 	}
 	total := estimateTokens(conv.Summary)
 	for i := range rows {

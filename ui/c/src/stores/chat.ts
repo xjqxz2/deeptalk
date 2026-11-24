@@ -29,6 +29,8 @@ const GROUP_ORDER = ['今天', '7 天内', '30 天内', '更早'] as const
 interface SSEBlock {
   event: string
   data: string
+  /** 服务端事件序号，用于断线续传 */
+  id?: number
 }
 
 /** 单个会话的运行态；流式生成可以同时在多个会话中进行。 */
@@ -43,17 +45,20 @@ interface ConversationRun {
 /** 解析一个 SSE 事件块，忽略注释行与空块。 */
 function parseSSEBlock(block: string): SSEBlock | null {
   let event = 'message'
+  let id = 0
   const dataLines: string[] = []
   for (const rawLine of block.split('\n')) {
     const line = rawLine.replace(/\r$/, '')
     if (line.startsWith('event:')) {
       event = line.slice(6).trim()
+    } else if (line.startsWith('id:')) {
+      id = Number.parseInt(line.slice(3).trim(), 10) || 0
     } else if (line.startsWith('data:')) {
       dataLines.push(line.slice(5).replace(/^ /, ''))
     }
   }
   if (dataLines.length === 0) return null
-  return { event, data: dataLines.join('\n') }
+  return { event, data: dataLines.join('\n'), id }
 }
 
 export const useChatStore = defineStore('chat', () => {
@@ -350,7 +355,10 @@ export const useChatStore = defineStore('chat', () => {
 
   /** 停止生成：只中断当前会话，其他会话继续。 */
   function stop(): void {
+    const conversationID = current.value?.id
     currentRun.value?.abortController?.abort()
+    // 服务端生成与连接解耦，必须显式通知它停止，否则会继续消耗 token
+    if (conversationID) void chatApi.stopGeneration(conversationID).catch(() => undefined)
   }
 
   /** 更新本地消息的反馈状态。 */
@@ -627,55 +635,87 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     try {
-      const streamBody = JSON.stringify({
-        content: text,
-        // 模型可能刚被管理员删除；selectedModel 只会在当前列表中存在
-        model_id: selectedModel.value?.id ?? 0,
-        attachment_ids: pendingAttachments.map((item) => item.id),
-        regenerate,
-      })
       const streamPath = `/api/v1/c/conversations/${conversationID}/stream`
-      const signHeaders = await signatureHeadersFor('POST', streamPath, streamBody)
-      const response = await fetch(streamPath, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json', ...signHeaders },
-        body: streamBody,
-        signal: controller.signal,
-      })
-      if (!response.ok) {
-        let message = '生成失败，请稍后重试'
-        let code = 2001
+      // 断线续传：记住最后收到的事件序号，网络恢复后从这里接着收
+      let lastSeq = 0
+      const maxAttempts = 4
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        const payload =
+          attempt === 1
+            ? {
+                content: text,
+                // 模型可能刚被管理员删除；selectedModel 只会在当前列表中存在
+                model_id: selectedModel.value?.id ?? 0,
+                attachment_ids: pendingAttachments.map((item) => item.id),
+                regenerate,
+              }
+            : { resume: true, last_seq: lastSeq }
+        const streamBody = JSON.stringify(payload)
+        const signHeaders = await signatureHeadersFor('POST', streamPath, streamBody)
+        const response = await fetch(streamPath, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', ...signHeaders },
+          body: streamBody,
+          signal: controller.signal,
+        })
+        if (!response.ok) {
+          let message = '生成失败，请稍后重试'
+          let code = 2001
+          try {
+            const envelope = (await response.json()) as { code: number; msg: string }
+            message = envelope.msg || message
+            code = envelope.code ?? code
+          } catch {
+            // 非 JSON 错误体时保留默认文案
+          }
+          // 续传时服务端已经结束本轮：说明回答已落库，直接重拉消息
+          if (attempt > 1) {
+            await loadConversation(conversationID)
+            finished = true
+            break
+          }
+          throw new ApiError(message, code, response.status)
+        }
+        if (!response.body) {
+          throw new ApiError('浏览器不支持流式响应', 2001, 0)
+        }
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
         try {
-          const envelope = (await response.json()) as { code: number; msg: string }
-          message = envelope.msg || message
-          code = envelope.code ?? code
-        } catch {
-          // 非 JSON 错误体时保留默认文案
+          for (;;) {
+            const { done, value } = await reader.read()
+            if (done) break
+            buffer += decoder.decode(value, { stream: true })
+            let separator = buffer.indexOf('\n\n')
+            while (separator >= 0) {
+              const block = buffer.slice(0, separator)
+              buffer = buffer.slice(separator + 2)
+              const parsed = parseSSEBlock(block)
+              if (parsed) {
+                if (parsed.id) lastSeq = parsed.id
+                applyEvent(parsed)
+              }
+              separator = buffer.indexOf('\n\n')
+            }
+          }
+          const tail = parseSSEBlock(buffer)
+          if (tail) {
+            if (tail.id) lastSeq = tail.id
+            applyEvent(tail)
+          }
+        } catch (readError) {
+          // 读取中途断网：走下面的重连逻辑
+          if (readError instanceof DOMException && readError.name === 'AbortError') throw readError
         }
-        throw new ApiError(message, code, response.status)
+        if (finished || assistant.status !== 'streaming') break
+        if (attempt === maxAttempts) break
+        // 断线后稍等再续传，界面提示正在重连
+        assistant.notice = `网络中断，正在重新连接（${attempt}/${maxAttempts - 1}）…`
+        await new Promise((resolve) => setTimeout(resolve, 600 * attempt))
+        assistant.notice = ''
       }
-      if (!response.body) {
-        throw new ApiError('浏览器不支持流式响应', 2001, 0)
-      }
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-      for (;;) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        let separator = buffer.indexOf('\n\n')
-        while (separator >= 0) {
-          const block = buffer.slice(0, separator)
-          buffer = buffer.slice(separator + 2)
-          const parsed = parseSSEBlock(block)
-          if (parsed) applyEvent(parsed)
-          separator = buffer.indexOf('\n\n')
-        }
-      }
-      const tail = parseSSEBlock(buffer)
-      if (tail) applyEvent(tail)
       if (!finished && assistant.status === 'streaming') {
         assistant.status = assistant.content || assistant.reasoning ? 'stopped' : 'error'
         if (assistant.status === 'stopped') assistant.notice = '连接已中断，已保留当前内容'
