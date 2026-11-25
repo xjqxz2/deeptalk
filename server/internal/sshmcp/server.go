@@ -8,10 +8,12 @@
 package sshmcp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -26,7 +28,8 @@ const serverInstructions = `你可以通过 SSH 操作远端服务器，但不�
 1. 先调用 ssh_public_key 拿到公钥，把公钥和配置方法原样告诉用户，等用户把它加到目标机器的 ~/.ssh/authorized_keys；
 2. 用户确认后再调用 ssh_connect（host / username 由用户提供），拿到 session_id；
 3. 用 ssh_exec 在会话里执行命令，每次只做一件事，读结果再决定下一步；
-4. 用完调用 ssh_disconnect。
+4. 用完调用 ssh_disconnect，并把返回的 cleanup 原样转达给用户：
+   提醒他如果不再需要这台机器，就该把我们的公钥从 authorized_keys 里删掉。
 主机指纹首次会自动记录；若提示指纹不一致，必须停下来告诉用户，不要重试。`
 
 // Run 启动 stdio MCP server，直到 ctx 取消或 stdin 关闭。
@@ -104,10 +107,28 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) error {
 		Name:        "ssh_disconnect",
 		Description: "关闭一个 SSH 会话，任务完成后调用。",
 	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, args disconnectArgs) (*mcpsdk.CallToolResult, any, error) {
-		if err := manager.Disconnect(args.Owner, args.SessionID); err != nil {
+		session, err := manager.Disconnect(args.Owner, args.SessionID)
+		if err != nil {
 			return errResult(err), nil, nil
 		}
-		return jsonResult(map[string]any{"closed": true}), nil, nil
+		result := map[string]any{"closed": true, "host": session.Host, "username": session.User}
+		// 任务结束的收尾提醒：公钥留在目标机上就是一把长期钥匙，应该由用户决定是否删除
+		if pair, keyErr := manager.PublicKey(args.Owner); keyErr == nil {
+			result["cleanup"] = cleanupHint(pair, session.Host, session.User)
+		}
+		return jsonResult(result), nil, nil
+	})
+
+	mcpsdk.AddTool(server, &mcpsdk.Tool{
+		Name: "ssh_key_removal",
+		Description: "返回把这把公钥从目标机 authorized_keys 中删除的命令与说明。" +
+			"任务结束、用户表示不再需要访问时调用，并把结果原样转达给用户。",
+	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, args removalArgs) (*mcpsdk.CallToolResult, any, error) {
+		pair, err := manager.PublicKey(args.Owner)
+		if err != nil {
+			return errResult(err), nil, nil
+		}
+		return jsonResult(cleanupHint(pair, args.Host, args.Username)), nil, nil
 	})
 
 	mcpsdk.AddTool(server, &mcpsdk.Tool{
@@ -159,17 +180,49 @@ type disconnectArgs struct {
 	Owner     string `json:"owner" jsonschema:"宿主注入的 owner，模型不要设置"`
 }
 
+// removalArgs 是 ssh_key_removal 的参数。
+type removalArgs struct {
+	Host     string `json:"host,omitempty" jsonschema:"目标主机，仅用于提示文案"`
+	Username string `json:"username,omitempty" jsonschema:"目标用户，仅用于提示文案"`
+	Owner    string `json:"owner" jsonschema:"宿主注入的 owner，模型不要设置"`
+}
+
 // sessionsArgs 是 ssh_sessions 的参数。
 type sessionsArgs struct {
 	Owner string `json:"owner" jsonschema:"宿主注入的 owner，模型不要设置"`
 }
 
+// cleanupHint 生成「如何删除公钥」的提醒，包含可直接执行的命令。
+func cleanupHint(pair *KeyPair, host, username string) map[string]any {
+	if strings.TrimSpace(host) == "" {
+		host = "目标机器"
+	}
+	if strings.TrimSpace(username) == "" {
+		username = "该用户"
+	}
+	// sed 用 | 作为分隔符：base64 公钥里不含 |
+	command := fmt.Sprintf(`sed -i.bak '\|%s|d' ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys`, pair.PublicKey)
+	return map[string]any{
+		"message": fmt.Sprintf("任务已结束。如果不再需要通过小橘访问 %s（%s 用户），"+
+			"请把这把公钥从该机器的 ~/.ssh/authorized_keys 中删除，避免长期保留访问权限。", host, username),
+		"public_key":  pair.PublicKey,
+		"fingerprint": pair.Fingerprint,
+		"command":     command,
+		"manual":      "也可以手动编辑 ~/.ssh/authorized_keys，删掉以 ssh-rsa 开头、指纹匹配的那一行，再 chmod 600。",
+		"ask":         "需要我现在就断开并保留公钥，还是你去核对该机器是否还需要这条授权？",
+	}
+}
+
 // jsonResult 把结构体序列化成一条文本结果。
+// 关闭 HTML 转义：否则命令里的 && 会变成 \u0026\u0026，模型读起来容易困惑。
 func jsonResult(value any) *mcpsdk.CallToolResult {
-	data, err := json.Marshal(value)
-	if err != nil {
+	var buf bytes.Buffer
+	encoder := json.NewEncoder(&buf)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(value); err != nil {
 		return errResult(err)
 	}
+	data := bytes.TrimRight(buf.Bytes(), "\n")
 	return &mcpsdk.CallToolResult{
 		Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: string(data)}},
 	}

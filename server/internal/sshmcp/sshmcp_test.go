@@ -187,3 +187,28 @@ func TestSessionDirIsolation(t *testing.T) {
 		t.Fatal("session dirs must differ per owner")
 	}
 }
+
+// TestCleanupHint 校验删除公钥的提醒包含公钥、指纹与可执行命令。
+func TestCleanupHint(t *testing.T) {
+	pair := &KeyPair{
+		PublicKey:   "ssh-rsa AAAAB3NzaC1yc2EAAA== test",
+		Fingerprint: "SHA256:abc",
+	}
+	hint := cleanupHint(pair, "example.com", "root")
+	for _, key := range []string{"public_key", "fingerprint", "command", "message", "manual", "ask"} {
+		if hint[key] == nil || hint[key] == "" {
+			t.Fatalf("cleanup hint missing %q: %#v", key, hint)
+		}
+	}
+	command := hint["command"].(string)
+	if !strings.Contains(command, "authorized_keys") || !strings.Contains(command, "sed -i.bak") {
+		t.Fatalf("command = %q", command)
+	}
+	if !strings.Contains(command, "ssh-rsa AAAAB3NzaC1yc2EAAA== test") {
+		t.Fatalf("command should embed the public key: %q", command)
+	}
+	// 分隔符必须是 |，否则公钥里的 / 会打断 sed 表达式
+	if !strings.Contains(command, `'\|ssh-rsa`) {
+		t.Fatalf("sed delimiter should be |: %q", command)
+	}
+}

@@ -223,15 +223,15 @@ func (m *Manager) Exec(ctx context.Context, owner, sessionID, command string, ti
 	return out, nil
 }
 
-// Disconnect 关闭并移除会话。
-func (m *Manager) Disconnect(owner, sessionID string) error {
+// Disconnect 关闭并移除会话，返回被关闭会话的快照（用于生成清理提醒）。
+func (m *Manager) Disconnect(owner, sessionID string) (Session, error) {
 	session, err := m.get(owner, sessionID)
 	if err != nil {
-		return err
+		return Session{}, err
 	}
 	_ = session.client.Close()
 	m.remove(sessionID)
-	return nil
+	return *session, nil
 }
 
 // Sessions 列出该 owner 的会话。

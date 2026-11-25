@@ -194,7 +194,8 @@ push main → GitHub Actions（.github/workflows/docker.yml）
 - **每用户一把密钥**：`<data>/ssh/<owner>/id_rsa`（RSA 4096，0600），首次使用自动生成，`ssh_public_key` 返回 authorized_keys 行与 SHA256 指纹。
 - **主机指纹 TOFU**：首次连接写入 `<owner>/known_hosts`，之后不一致直接拒绝（可能中间人）。
 - **会话归属校验**：会话绑定 owner，A 用户的 session_id 在 B 用户下直接报错。
-- 工具：`ssh_public_key` / `ssh_connect`（host、port、username、可选 workdir）/ `ssh_exec`（默认 60s、上限 300s，输出 200KB 截断）/ `ssh_disconnect` / `ssh_sessions`。
+- 工具：`ssh_public_key` / `ssh_connect`（host、port、username、可选 workdir）/ `ssh_exec`（默认 60s、上限 300s，输出 200KB 截断）/ `ssh_disconnect` / `ssh_sessions` / `ssh_key_removal`。
+- **任务收尾必须提醒删公钥**：`ssh_disconnect` 返回 `cleanup`（message、public_key、fingerprint、可直接执行的 `sed` 命令、ask），模型要原样转达给用户；`ssh_key_removal` 可随时单独取这份说明。
 - `workdir` 只是「每条命令前先 cd」的便利，**不是安全边界**；要硬隔离请给目标机上的专用低权限用户。
 - `owner` 由宿主注入，模型不要自己设置；接入聊天时必须在服务端覆盖该字段。
 
@@ -228,6 +229,7 @@ push main → GitHub Actions（.github/workflows/docker.yml）
 | 模型被删后压缩上下文 | `model not found`，压缩长期失败 | 回退默认模型 |
 | 路由重复注册 | 测试 panic | 新增路由前先 grep |
 | 在同一个 `bash -c` 里 `pkill -f <模式>` | 杀掉自己 | 用脚本文件或按 PID 杀 |
+| 公钥长期留在目标机 | 等于一把长期钥匙 | 断开时把 cleanup 提醒转达给用户 |
 
 ---
 
