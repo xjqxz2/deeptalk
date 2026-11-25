@@ -95,6 +95,7 @@ func (a *App) startHTTP(ctx context.Context) error {
 	billingService := billing.NewService(a.DB)
 	memos := memo.NewService(a.DB)
 	chats := chat.NewService(a.DB, providers, users, searcher, attachments, settings, chat.Config{
+		ToolClient:       a.SSHMCP,
 		Memos:            memos,
 		MaxOutputTokens:  cfg.Upstream.MaxOutputTokens,
 		FirstByteTimeout: time.Duration(cfg.Upstream.FirstByteTimeoutSec) * time.Second,

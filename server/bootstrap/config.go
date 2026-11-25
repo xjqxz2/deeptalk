@@ -112,6 +112,13 @@ type MCPConfig struct {
 	Env             map[string]string `yaml:"env"`              // 追加/覆盖子进程环境变量
 	ProtocolVersion string            `yaml:"protocol_version"` // MCP 协议版本
 	TimeoutSec      int               `yaml:"timeout_sec"`      // 连接与单次工具调用超时
+	SSH             SSHMCPConfig      `yaml:"ssh"`              // SSH MCP（远端运维）
+}
+
+// SSHMCPConfig 配置内置的 SSH MCP server（由主程序 ssh-mcp 子命令启动）。
+type SSHMCPConfig struct {
+	Enabled    bool `yaml:"enabled"`     // 是否把 SSH 能力下发给模型
+	TimeoutSec int  `yaml:"timeout_sec"` // 单次工具调用超时（秒）
 }
 
 // WeChatConfig 保存微信小程序相关配置。

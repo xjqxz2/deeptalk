@@ -13,7 +13,7 @@ import {
   WarningOutlined,
 } from '@ant-design/icons-vue'
 import { BrandMark, copyText, enhanceMarkdown, formatNumber, formatTime, renderMarkdown } from '@deeptalk/shared'
-import type { ChatMessage, SearchActivity } from '@deeptalk/shared'
+import type { ChatMessage, SearchActivity, ToolBlock } from '@deeptalk/shared'
 import A2uiRenderer from './A2uiRenderer.vue'
 import ThinkingPanel from './ThinkingPanel.vue'
 
@@ -51,6 +51,37 @@ const thinkingActivity = computed<SearchActivity | null>(() => {
 const html = computed(() => renderMarkdown(props.message.content, sources.value))
 /** 是否处于生成中。 */
 const streaming = computed(() => props.message.status === 'streaming')
+
+/** SSH 等外部工具的工具名到中文动作的映射。 */
+const TOOL_ACTIONS: Record<string, [string, string]> = {
+  ssh_public_key: ['正在获取公钥', '已获取公钥'],
+  ssh_connect: ['正在连接服务器', '已连接服务器'],
+  ssh_exec: ['正在执行远端命令', '已执行远端命令'],
+  ssh_disconnect: ['正在断开连接', '已断开连接'],
+  ssh_key_removal: ['正在生成清理说明', '已生成清理说明'],
+  ssh_sessions: ['正在查看会话', '已查看会话'],
+}
+
+/** 工具条上的动作文案。 */
+function toolLabel(block: ToolBlock): string {
+  if (block.kind === 'ssh') {
+    const pair = TOOL_ACTIONS[block.name]
+    if (pair) return block.status === 'running' ? pair[0] : pair[1]
+    return block.status === 'running' ? '正在操作远端' : '已操作远端'
+  }
+  if (block.kind === 'search') return block.status === 'running' ? '正在搜索' : '已搜索'
+  return block.status === 'running' ? '正在读取' : '已读取'
+}
+
+/** SSH 工具的关键参数（主机或命令），用于在工具条上显示上下文。 */
+function toolDetail(block: ToolBlock): string {
+  if (block.kind !== 'ssh') return ''
+  const input = block.input ?? {}
+  const host = typeof input.host === 'string' ? input.host : ''
+  const command = typeof input.command === 'string' ? input.command : ''
+  if (command) return command.length > 48 ? `${command.slice(0, 48)}…` : command
+  return host
+}
 /** 字数展示：优先使用服务端统计。 */
 const characterCount = computed(() => props.message.character_count ?? props.message.content.length)
 /** 用户消息附带的图片。 */
@@ -145,11 +176,10 @@ watch(html, () => {
         <div v-if="message.toolBlocks?.length" class="tool-timeline">
           <div v-for="block in message.toolBlocks" :key="block.id" class="tool-chip" :class="block.status">
             <span class="tool-dot" aria-hidden="true" />
-            <span class="tool-label">
-              {{ block.kind === 'search' ? (block.status === 'running' ? '正在搜索' : '已搜索') : (block.status === 'running' ? '正在读取' : '已读取') }}
-            </span>
+            <span class="tool-label">{{ toolLabel(block) }}</span>
             <span v-for="query in block.queries" :key="query" class="tool-query">{{ query }}</span>
             <span v-if="!block.queries.length && block.urls.length" class="tool-query">{{ block.urls[0] }}</span>
+            <span v-if="toolDetail(block)" class="tool-query tool-ssh">{{ toolDetail(block) }}</span>
             <span v-if="block.status === 'failed'" class="tool-failed">失败</span>
           </div>
         </div>
@@ -514,6 +544,11 @@ watch(html, () => {
 .interject-pending {
   color: var(--dt-text-muted);
   font-size: 11.5px;
+}
+
+.tool-ssh {
+  font-family: var(--dt-mono);
+  opacity: 0.85;
 }
 
 .tool-timeline {

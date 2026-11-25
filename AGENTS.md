@@ -197,7 +197,9 @@ push main → GitHub Actions（.github/workflows/docker.yml）
 - 工具：`ssh_public_key` / `ssh_connect`（host、port、username、可选 workdir）/ `ssh_exec`（默认 60s、上限 300s，输出 200KB 截断）/ `ssh_disconnect` / `ssh_sessions` / `ssh_key_removal`。
 - **任务收尾必须提醒删公钥**：`ssh_disconnect` 返回 `cleanup`（message、public_key、fingerprint、可直接执行的 `sed` 命令、ask），模型要原样转达给用户；`ssh_key_removal` 可随时单独取这份说明。
 - `workdir` 只是「每条命令前先 cd」的便利，**不是安全边界**；要硬隔离请给目标机上的专用低权限用户。
-- `owner` 由宿主注入，模型不要自己设置；接入聊天时必须在服务端覆盖该字段。
+- `owner` 由宿主注入，模型不要自己设置；接入聊天时必须在服务端覆盖该字段（`runExternalTool` 会覆盖式写入）。
+- **接入方式**：`bootstrap/mcp.go` 用 `os.Executable() + ssh-mcp` 起子进程，数据目录与主服务一致；`chat.Config.ToolClient` 把工具交给模型。SSH 与浏览器两个 MCP **互相独立**，obscura 缺失不影响 SSH。
+- 开关：`configs/app.yaml` 的 `mcp.ssh.enabled`（默认 true），`mcp.ssh.timeout_sec` 默认 120。
 
 ---
 
@@ -230,6 +232,7 @@ push main → GitHub Actions（.github/workflows/docker.yml）
 | 路由重复注册 | 测试 panic | 新增路由前先 grep |
 | 在同一个 `bash -c` 里 `pkill -f <模式>` | 杀掉自己 | 用脚本文件或按 PID 杀 |
 | 公钥长期留在目标机 | 等于一把长期钥匙 | 断开时把 cleanup 提醒转达给用户 |
+| 把 SSH MCP 的启动写在浏览器 MCP 失败路径之后 | obscura 缺失时 SSH 一起被跳过 | 两个 MCP 独立启动（`defer a.startSSHMCP`） |
 
 ---
 

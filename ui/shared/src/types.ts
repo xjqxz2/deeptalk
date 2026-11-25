@@ -133,6 +133,8 @@ export interface ToolBlock {
   kind: 'search' | 'read' | 'browser' | string
   queries: string[]
   urls: string[]
+  /** 外部工具（SSH 等）的原始入参，用于在工具条上显示主机/命令 */
+  input?: Record<string, unknown>
   status: 'running' | 'done' | 'failed'
 }
 

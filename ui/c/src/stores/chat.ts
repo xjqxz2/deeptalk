@@ -600,10 +600,23 @@ export const useChatStore = defineStore('chat', () => {
           activeAssistant.reasoning = ''
           break
         case 'tool_call': {
-          const call = payload as { id: string; name: string; kind?: string; input?: { queries?: string[]; urls?: string[] } }
+          const call = payload as {
+            id: string
+            name: string
+            kind?: string
+            input?: { queries?: string[]; urls?: string[] } & Record<string, unknown>
+          }
           activeAssistant.toolBlocks = [
             ...(activeAssistant.toolBlocks ?? []),
-            { id: call.id, name: call.name, kind: call.kind ?? 'search', queries: call.input?.queries ?? [], urls: call.input?.urls ?? [], status: 'running' },
+            {
+              id: call.id,
+              name: call.name,
+              kind: call.kind ?? 'search',
+              queries: call.input?.queries ?? [],
+              urls: call.input?.urls ?? [],
+              input: call.input as Record<string, unknown> | undefined,
+              status: 'running',
+            },
           ]
           break
         }

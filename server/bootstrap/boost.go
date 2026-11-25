@@ -21,7 +21,8 @@ type App struct {
 	Config      *Config         // 生效配置
 	Log         *slog.Logger    // 结构化日志
 	DB          *gorm.DB        // 数据库句柄
-	MCP         *mcp.Client     // MCP client；未启用或启动失败时为 nil
+	MCP         *mcp.Client     // MCP client（Obscura 浏览器）；未启用或启动失败时为 nil
+	SSHMCP      *mcp.Client     // SSH MCP client；未启用或启动失败时为 nil
 	WeChat      *wechat.Manager // 小程序 access_token 管理器；未配置凭据时为 nil
 	dbLogCloser io.Closer       // SQL 日志文件（按天滚动）
 	server      *httpServer     // HTTP 设备

@@ -18,6 +18,7 @@ import (
 
 	"deeptalk/internal/attachment"
 	"deeptalk/internal/billing"
+	"deeptalk/internal/mcp"
 	"deeptalk/internal/memo"
 	"deeptalk/internal/provider"
 	"deeptalk/internal/search"
@@ -46,6 +47,13 @@ type Config struct {
 	Compliance       TextChecker   // 小程序端内容安全；nil 表示不校验
 	Billing          Billing       // 套餐限额与计费；nil 表示不限制
 	Memos            *memo.Service // 小橘灵感录；nil 表示不启用
+	ToolClient       ToolCaller    // 外部 MCP 工具（SSH 运维）；nil 表示不启用
+}
+
+// ToolCaller 是外部 MCP 工具的最小接口，便于测试替换。
+type ToolCaller interface {
+	Tools() []mcp.ToolInfo
+	CallTool(ctx context.Context, name string, args any) (string, error)
 }
 
 // Billing 抽象套餐限额与计费，便于测试替换。
@@ -71,6 +79,7 @@ const (
 
 // Service 提供会话与消息的业务能力。
 type Service struct {
+	toolClient  ToolCaller          // 外部 MCP 工具
 	busy        busySet             // 生成中的会话集合，用于插话判定
 	db          *gorm.DB            // 数据库句柄
 	providers   *provider.Service   // 厂商与模型能力
@@ -112,7 +121,10 @@ func NewService(db *gorm.DB, providers *provider.Service, users *user.Service, s
 	if cfg.IdleMinTokens <= 0 {
 		cfg.IdleMinTokens = 16000
 	}
-	return &Service{db: db, providers: providers, users: users, search: searcher, attachments: attachments, settings: settings, cfg: cfg}
+	return &Service{
+		db: db, providers: providers, users: users, search: searcher,
+		attachments: attachments, settings: settings, cfg: cfg, toolClient: cfg.ToolClient,
+	}
 }
 
 // List 返回用户的会话列表，支持按标题搜索。
@@ -399,6 +411,11 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 	// 浏览器动作一次回答最多 40 步，避免在同一页面里反复点击打转
 	browserLeft := browserActionsPerTurn
 	executeTool := func(call provider.ToolCall) (string, error) {
+		// 外部 MCP 工具（SSH）：owner 必须在服务端强制注入，模型无法伪造，
+		// 否则任何人都能拿别人的会话 ID 或密钥去连机器。
+		if s.isExternalTool(call.Name) {
+			return s.runExternalTool(ctx, call, userID, emit, emitActivity)
+		}
 		if call.Name == "browser" {
 			if browserLeft <= 0 {
 				return fmt.Sprintf(`{"error":"本次回答的浏览器操作已达上限（%d 次），请基于已看到的页面作答。"}`, browserActionsPerTurn), nil
@@ -912,7 +929,88 @@ func (s *Service) availableTools() []provider.Tool {
 	if s.cfg.Memos != nil {
 		tools = append(tools, memoSaveTool, memoSearchTool)
 	}
-	return append(tools, renderUITool)
+	tools = append(tools, renderUITool)
+	// 外部 MCP 工具（SSH 运维）：schema 由 MCP server 声明，这里原样透传
+	for _, item := range s.externalTools() {
+		tools = append(tools, provider.Tool{
+			Type: "function",
+			Function: provider.ToolFunction{
+				Name:        item.Name,
+				Description: item.Description,
+				Parameters:  item.InputSchema,
+			},
+		})
+	}
+	return tools
+}
+
+// runExternalTool 执行一条外部 MCP 工具调用，并注入 owner。
+func (s *Service) runExternalTool(
+	ctx context.Context,
+	call provider.ToolCall,
+	userID uint,
+	emit Emitter,
+	emitActivity func(status, label, detail, rawURL string),
+) (string, error) {
+	args := make(map[string]any)
+	if raw := strings.TrimSpace(call.Arguments); raw != "" {
+		if err := json.Unmarshal([]byte(raw), &args); err != nil {
+			return "", fmt.Errorf("invalid %s arguments: %w", call.Name, err)
+		}
+	}
+	// 覆盖式写入：模型即使自己传了 owner 也无效
+	args["owner"] = strconv.FormatUint(uint64(userID), 10)
+
+	label := "正在操作远端服务器…"
+	if host := strings.TrimSpace(fmt.Sprint(args["host"])); host != "" {
+		label = "正在连接 " + host
+	}
+	if command := strings.TrimSpace(fmt.Sprint(args["command"])); command != "" {
+		label = "正在执行命令"
+	}
+	emitActivity("running", label, "", "")
+
+	// 让前端能看到这条工具调用（web_search 走自己的事件，这里补上通用版本）
+	toolID := "mcp-" + call.ID
+	if toolID == "mcp-" {
+		toolID = "mcp-" + call.Name
+	}
+	input := map[string]any{}
+	for key, value := range args {
+		if key == "owner" {
+			continue // 不把内部字段暴露给前端
+		}
+		input[key] = value
+	}
+	_ = emit("tool_call", map[string]any{
+		"id": toolID, "name": call.Name, "kind": "ssh", "input": input,
+	})
+
+	out, err := s.toolClient.CallTool(ctx, call.Name, args)
+	if err != nil {
+		_ = emit("tool_result", map[string]any{"id": toolID, "ok": false})
+		return fmt.Sprintf("工具执行失败：%v", err), nil
+	}
+	_ = emit("tool_result", map[string]any{"id": toolID, "ok": true})
+	return out, nil
+}
+
+// externalTools 返回外部 MCP 工具定义；未配置时为空。
+func (s *Service) externalTools() []mcp.ToolInfo {
+	if s.toolClient == nil {
+		return nil
+	}
+	return s.toolClient.Tools()
+}
+
+// isExternalTool 判断工具是否来自外部 MCP server。
+func (s *Service) isExternalTool(name string) bool {
+	for _, item := range s.externalTools() {
+		if item.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // generate 执行一次上游或演示生成。

@@ -46,6 +46,7 @@ type Client struct {
 	toolsMu  sync.RWMutex
 	tools    map[string]struct{}
 	toolList []string
+	defs     []ToolInfo
 
 	callMu    sync.Mutex
 	closeOnce sync.Once
@@ -108,6 +109,11 @@ func Start(ctx context.Context, cfg Config, logger *slog.Logger) (*Client, error
 		}
 		client.tools[tool.Name] = struct{}{}
 		client.toolList = append(client.toolList, tool.Name)
+		client.defs = append(client.defs, ToolInfo{
+			Name:        tool.Name,
+			Description: tool.Description,
+			InputSchema: tool.InputSchema,
+		})
 	}
 	sort.Strings(client.toolList)
 	logger.Info("mcp server connected",
@@ -137,6 +143,23 @@ func (c *Client) ToolNames() []string {
 	c.toolsMu.RLock()
 	defer c.toolsMu.RUnlock()
 	return append([]string(nil), c.toolList...)
+}
+
+// ToolInfo 是 MCP server 声明的一个工具，用于转成模型可调用的 tool。
+type ToolInfo struct {
+	Name        string // 工具名
+	Description string // 说明
+	InputSchema any    // JSON Schema（由 SDK 反序列化，原样透传）
+}
+
+// Tools 返回工具定义，供上层转换成模型工具。
+func (c *Client) Tools() []ToolInfo {
+	if c == nil {
+		return nil
+	}
+	c.toolsMu.RLock()
+	defer c.toolsMu.RUnlock()
+	return append([]ToolInfo(nil), c.defs...)
 }
 
 // CallTool 调用一个 MCP 工具，并返回 text content 拼接后的文本。

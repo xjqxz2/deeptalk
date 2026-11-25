@@ -136,3 +136,7 @@ mcp:
   # Obscura 0.2.x 支持的协议版本
   protocol_version: "2024-11-05"
   timeout_sec: 30
+  # 内置 SSH MCP：由主程序 ssh-mcp 子命令启动，只提供远端 SSH，不提供本机 shell
+  ssh:
+    enabled: true
+    timeout_sec: 120
