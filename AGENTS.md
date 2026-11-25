@@ -47,6 +47,7 @@ server/
     provider/   厂商与模型、三种上游协议适配、加解密
     search/     自建检索、DeepSeek 检索、抓页、MCP/Obscura
     billing/    用量与三段计价
+    sshmcp/     只做 SSH 的 MCP server（`deeptalk ssh-mcp` 子命令）
     user/ setting/ audit/ attachment/ memo/ wechat/ security/ logging/ seed/ mcp/ compliance/
   web/          内嵌前端产物（dist/c、dist/b；仓库内是占位文件）
   configs/      app.yaml（默认配置）、secret.local.yaml（本地密钥，勿提交）
@@ -184,6 +185,18 @@ push main → GitHub Actions（.github/workflows/docker.yml）
 ### 7.8 安全与签名
 
 写请求（POST/PUT/PATCH/DELETE）需签名：`X-DT-Ts / Nonce / Key / Sign`，规范串 `METHOD\nPATH\nSORTED_QUERY\nSHA256(BODY)\nTS\nNONCE`。生产 `DEEPTALK_SIGN_MODE=enforce`。客户端密钥来自 `GET /c/auth/sign-key`，**签名失败会自动刷新密钥并重试一次**。GET/HEAD/OPTIONS 与 multipart 上传跳过签名。
+
+### 7.9 SSH MCP（远端运维能力）
+
+`internal/sshmcp` 是一个**独立 MCP server**，由主程序以 `deeptalk ssh-mcp` 子命令启动（stdio 传输），与主服务解耦。
+
+- **只做 SSH**：不执行本机命令、不读写本机文件；命令全部在远端执行。
+- **每用户一把密钥**：`<data>/ssh/<owner>/id_rsa`（RSA 4096，0600），首次使用自动生成，`ssh_public_key` 返回 authorized_keys 行与 SHA256 指纹。
+- **主机指纹 TOFU**：首次连接写入 `<owner>/known_hosts`，之后不一致直接拒绝（可能中间人）。
+- **会话归属校验**：会话绑定 owner，A 用户的 session_id 在 B 用户下直接报错。
+- 工具：`ssh_public_key` / `ssh_connect`（host、port、username、可选 workdir）/ `ssh_exec`（默认 60s、上限 300s，输出 200KB 截断）/ `ssh_disconnect` / `ssh_sessions`。
+- `workdir` 只是「每条命令前先 cd」的便利，**不是安全边界**；要硬隔离请给目标机上的专用低权限用户。
+- `owner` 由宿主注入，模型不要自己设置；接入聊天时必须在服务端覆盖该字段。
 
 ---
 
