@@ -4,7 +4,6 @@ package setting
 
 import (
 	"context"
-	"strconv"
 	"time"
 
 	"gorm.io/gorm"
@@ -29,61 +28,30 @@ type Setting struct {
 	UpdatedAt time.Time // 更新时间
 }
 
-// Service 提供设置的读写能力。
-type Service struct {
-	db *gorm.DB // 数据库句柄
+// Migrate 创建设置表。
+func Migrate(db *gorm.DB) error {
+	return db.AutoMigrate(&Setting{})
 }
 
-// NewService 创建设置服务。
-func NewService(db *gorm.DB) *Service {
-	return &Service{db: db}
-}
-
-// Get 读取字符串设置，不存在或查询失败时返回默认值。
-func (s *Service) Get(ctx context.Context, key, def string) string {
+// dalFindSetting 按 key 读取一条设置。
+func dalFindSetting(ctx context.Context, db *gorm.DB, key string) (*Setting, error) {
 	var item Setting
-	err := s.db.WithContext(ctx).First(&item, "key = ?", key).Error
-	if err != nil {
-		return def
+	if err := db.WithContext(ctx).First(&item, "key = ?", key).Error; err != nil {
+		return nil, err
 	}
-	return item.Value
+	return &item, nil
 }
 
-// Bool 读取布尔设置，仅 "true"/"1" 视为真。
-func (s *Service) Bool(ctx context.Context, key string, def bool) bool {
-	raw := s.Get(ctx, key, "")
-	if raw == "" {
-		return def
-	}
-	return raw == "true" || raw == "1"
+// dalSaveSetting 写入或更新单条设置。
+func dalSaveSetting(ctx context.Context, db *gorm.DB, item *Setting) error {
+	return db.WithContext(ctx).Save(item).Error
 }
 
-// Int 读取整型设置，解析失败返回默认值。
-func (s *Service) Int(ctx context.Context, key string, def int) int {
-	raw := s.Get(ctx, key, "")
-	if raw == "" {
-		return def
-	}
-	n, err := strconv.Atoi(raw)
-	if err != nil {
-		return def
-	}
-	return n
-}
-
-// Set 写入或更新单个设置。
-func (s *Service) Set(ctx context.Context, key, value string) error {
-	item := Setting{Key: key, Value: value}
-	// SQLite 的 upsert 语法由 GORM 统一生成
-	return s.db.WithContext(ctx).Save(&item).Error
-}
-
-// SetMany 在一个事务内批量写入设置，保证注册开关与默认路由同时生效。
-func (s *Service) SetMany(ctx context.Context, values map[string]string) error {
-	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for key, value := range values {
-			item := Setting{Key: key, Value: value}
-			if err := tx.Save(&item).Error; err != nil {
+// dalSaveSettings 在事务内批量写入设置。
+func dalSaveSettings(ctx context.Context, db *gorm.DB, items []Setting) error {
+	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for index := range items {
+			if err := tx.Save(&items[index]).Error; err != nil {
 				return err
 			}
 		}
@@ -91,23 +59,9 @@ func (s *Service) SetMany(ctx context.Context, values map[string]string) error {
 	})
 }
 
-// All 返回全部设置，用于后台系统设置页展示。
-func (s *Service) All(ctx context.Context) map[string]string {
+// dalAllSettings 读取全部设置。
+func dalAllSettings(ctx context.Context, db *gorm.DB) ([]Setting, error) {
 	var items []Setting
-	_ = s.db.WithContext(ctx).Find(&items).Error
-	out := make(map[string]string, len(items))
-	for _, item := range items {
-		out[item.Key] = item.Value
-	}
-	return out
-}
-
-// AllowRegistration 实现 user 包消费的注册策略接口。
-func (s *Service) AllowRegistration(ctx context.Context) (bool, error) {
-	return s.Bool(ctx, KeyAllowRegistration, true), nil
-}
-
-// Migrate 创建设置表。
-func Migrate(db *gorm.DB) error {
-	return db.AutoMigrate(&Setting{})
+	err := db.WithContext(ctx).Find(&items).Error
+	return items, err
 }

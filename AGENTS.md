@@ -211,6 +211,7 @@ push main → GitHub Actions（.github/workflows/docker.yml）
 ## 8. 代码约定
 
 - **注释用中文**，导出的类型、函数、关键分支都要有说明；前端同理。不要写「永真」注释。
+- **`internal/<模块>/model.go` 只放三样东西**：GORM 结构体、`Migrate`、`dal*` 数据访问函数。业务判断、默认值、限流、额度换算等一律放 `service.go`；Service 类型与 `NewService` 也在 `service.go`。
 - 后端分层：控制器只做参数校验与编排，业务放 `internal/<模块>`；`apis/requests` 与 `apis/responses` **按业务域分文件**（auth/conversation/provider/model/user/plan/settings/overview/usage），不要堆回单文件。
 - 所有管理操作写审计：`recordAudit(c, h.audits, "user.delete", "user", id, "…")`。
 - 前端请求一律走 `@deeptalk/shared/request.ts`（含签名与自愈），不要自己 `fetch`。

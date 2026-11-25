@@ -4,10 +4,6 @@ package user
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"time"
 
@@ -185,57 +181,6 @@ func dalRevokeUserSessions(ctx context.Context, db *gorm.DB, userID uint) error 
 	return db.WithContext(ctx).Model(&Session{}).
 		Where("user_id = ? AND revoked_at IS NULL", userID).
 		Update("revoked_at", now).Error
-}
-
-// newSessionToken 生成 32 字节随机 token 及其 SHA-256。
-// 返回值 token 只下发给浏览器，数据库只保存 hash。
-func newSessionToken() (token string, tokenHash string, err error) {
-	raw := make([]byte, 32)
-	if _, err := rand.Read(raw); err != nil {
-		return "", "", err
-	}
-	token = base64.RawURLEncoding.EncodeToString(raw)
-	sum := sha256.Sum256([]byte(token))
-	return token, hex.EncodeToString(sum[:]), nil
-}
-
-// quotaPercent 计算使用百分比，向上取整，封顶 100。
-func quotaPercent(used, quota int64) int {
-	if quota <= 0 {
-		return 0
-	}
-	if used <= 0 {
-		return 0
-	}
-	percent := int((used*100 + quota - 1) / quota)
-	if percent > 100 {
-		return 100
-	}
-	return percent
-}
-
-// resetDays 返回到下月 1 日的剩余天数（至少 1），对应设计图“重置 12 天”。
-func resetDays(now time.Time) int {
-	next := time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, now.Location())
-	days := int(next.Sub(now).Hours() / 24)
-	if days < 1 {
-		return 1
-	}
-	return days
-}
-
-// planQuota 返回套餐默认额度。
-func planQuota(plan string) int64 {
-	switch plan {
-	case PlanPro:
-		return 20_000_000
-	case PlanTeam:
-		return 50_000_000
-	case PlanUnlimited:
-		return 0
-	default:
-		return 4_000_000
-	}
 }
 
 // Migrate 创建账号与会话表。
