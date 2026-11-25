@@ -346,3 +346,32 @@ func dalDeleteUserSessions(ctx context.Context, db *gorm.DB, userID uint) error 
 func dalDeleteUser(ctx context.Context, db *gorm.DB, userID uint) error {
 	return db.WithContext(ctx).Delete(&User{}, userID).Error
 }
+
+// dalRecordLoginFailure 原子累加登录失败次数，达到阈值时直接锁定账号。
+// 用单条 UPDATE 完成「自增 + 判定 + 锁定」，避免读改写竞态导致并发爆破绕过阈值。
+// 返回本次之后账号是否处于锁定状态。
+func dalRecordLoginFailure(ctx context.Context, db *gorm.DB, userID uint, threshold int, until time.Time) (bool, error) {
+	var locked bool
+	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// UPDATE 的所有赋值都读取旧行值，两个 CASE 的判定条件因此保持一致
+		if err := tx.Exec(`UPDATE users SET
+			failed_attempts = CASE WHEN failed_attempts + 1 >= ? THEN 0 ELSE failed_attempts + 1 END,
+			locked_until = CASE WHEN failed_attempts + 1 >= ? THEN ? ELSE locked_until END
+			WHERE id = ?`, threshold, threshold, until, userID).Error; err != nil {
+			return err
+		}
+		var row struct{ LockedUntil *time.Time }
+		if err := tx.Model(&User{}).Select("locked_until").Where("id = ?", userID).Scan(&row).Error; err != nil {
+			return err
+		}
+		locked = row.LockedUntil != nil && row.LockedUntil.After(time.Now())
+		return nil
+	})
+	return locked, err
+}
+
+// dalRecordLoginSuccess 只更新登录相关字段。
+// 不用 Save：整行保存会把并发累加中的 used_tokens 覆盖回旧值。
+func dalRecordLoginSuccess(ctx context.Context, db *gorm.DB, userID uint, fields map[string]any) error {
+	return db.WithContext(ctx).Model(&User{}).Where("id = ?", userID).Updates(fields).Error
+}

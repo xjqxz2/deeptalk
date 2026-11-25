@@ -232,7 +232,11 @@ func (s *Service) Feedback(ctx context.Context, userID, messageID uint, rating s
 // 返回错误时表示“尚未写出任何 SSE 事件”，控制器可回退为 JSON 错误响应；
 // 一旦开始输出，后续错误会通过 error 事件告知前端。
 func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in StreamInput, emit Emitter) error {
-	s.busy.add(conversationID)
+	// 同一会话同时只允许一轮生成：并发的第二个请求直接拒绝，
+	// 否则两条流会交错写入同一会话，产生重复的用户消息与助手消息。
+	if !s.busy.tryAdd(conversationID) {
+		return ErrBusy
+	}
 	defer s.busy.done(conversationID)
 	conv, err := s.findConversation(ctx, userID, conversationID)
 	if err != nil {

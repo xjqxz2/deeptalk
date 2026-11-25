@@ -98,6 +98,8 @@ func FromError(c *gin.Context, err error) {
 	case errors.Is(err, user.ErrNotFound), errors.Is(err, chat.ErrNotFound), errors.Is(err, chat.ErrMessageNotOwn),
 		errors.Is(err, provider.ErrNotFound), errors.Is(err, provider.ErrModelNotFound):
 		Fail(c, CodeNotFound, "资源不存在或无权访问")
+	case errors.Is(err, chat.ErrBusy):
+		Fail(c, CodeConflict, "上一条回答还在生成中，请稍候")
 	case errors.Is(err, chat.ErrNotGenerating):
 		Fail(c, CodeInvalidArgument, "当前没有正在生成的回答，可直接发送")
 	case errors.Is(err, chat.ErrEmptyInterject):

@@ -167,23 +167,17 @@ func (s *Service) Login(ctx context.Context, email, password string, meta Reques
 		return nil, "", ErrDisabled
 	}
 	if !VerifyPassword(u.PasswordHash, password) {
-		u.FailedAttempts++
-		u.LockedUntil = nil
-		if u.FailedAttempts >= s.opt.LockThreshold {
-			until := now.Add(time.Duration(s.opt.LockMinutes) * time.Minute)
-			u.LockedUntil = &until
-			u.FailedAttempts = 0
-			if err := dalUpdateUser(ctx, s.db, u); err != nil {
-				return nil, "", err
-			}
-			return nil, "", ErrLocked
+		until := now.Add(time.Duration(s.opt.LockMinutes) * time.Minute)
+		locked, lockErr := dalRecordLoginFailure(ctx, s.db, u.ID, s.opt.LockThreshold, until)
+		if lockErr != nil {
+			return nil, "", lockErr
 		}
-		if err := dalUpdateUser(ctx, s.db, u); err != nil {
-			return nil, "", err
+		if locked {
+			return nil, "", ErrLocked
 		}
 		return nil, "", ErrInvalidCredentials
 	}
-	// 登录成功：清零失败计数并刷新最近登录信息
+	// 登录成功：清零失败计数并刷新最近登录信息（只写这几列，避免覆盖并发累加的用量）
 	u.FailedAttempts = 0
 	u.LockedUntil = nil
 	u.LastLoginAt = &now
@@ -191,7 +185,13 @@ func (s *Service) Login(ctx context.Context, email, password string, meta Reques
 	u.LastLoginCity = cityFromIP(meta.IP)
 	var token string
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := dalUpdateUser(ctx, tx, u); err != nil {
+		if err := dalRecordLoginSuccess(ctx, tx, u.ID, map[string]any{
+			"failed_attempts": 0,
+			"locked_until":    nil,
+			"last_login_at":   u.LastLoginAt,
+			"last_login_ip":   u.LastLoginIP,
+			"last_login_city": u.LastLoginCity,
+		}); err != nil {
 			return err
 		}
 		var err error

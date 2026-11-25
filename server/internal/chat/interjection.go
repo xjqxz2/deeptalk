@@ -14,6 +14,7 @@ import (
 var (
 	ErrNotGenerating  = errors.New("当前没有正在生成的回答")
 	ErrEmptyInterject = errors.New("插话内容不能为空")
+	ErrBusy           = errors.New("conversation is generating")
 )
 
 // 生成中标记：按会话记录当前是否有流式回答在跑。
@@ -21,6 +22,20 @@ var (
 type busySet struct {
 	mu   sync.Mutex
 	refs map[uint]int
+}
+
+// tryAdd 尝试占用会话；已经在生成时返回 false，用于拒绝并发重复生成。
+func (b *busySet) tryAdd(conversationID uint) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.refs == nil {
+		b.refs = make(map[uint]int)
+	}
+	if b.refs[conversationID] > 0 {
+		return false
+	}
+	b.refs[conversationID] = 1
+	return true
 }
 
 func (b *busySet) add(conversationID uint) {
@@ -99,12 +114,6 @@ func (s *Service) PopInterjection(ctx context.Context, userID, conversationID ui
 	item.ConsumedAt = &now
 	return &item, true, nil
 }
-
-// MarkBusy 在开始流式回答时标记会话为生成中。
-func (s *Service) MarkBusy(conversationID uint) { s.busy.add(conversationID) }
-
-// MarkIdle 在流式回答结束时取消标记。
-func (s *Service) MarkIdle(conversationID uint) { s.busy.done(conversationID) }
 
 // Busy 返回会话是否正在生成。
 func (s *Service) Busy(conversationID uint) bool { return s.busy.busy(conversationID) }
