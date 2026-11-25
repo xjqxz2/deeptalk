@@ -691,6 +691,18 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 
 	start := time.Now()
 	var reasoning, answer string
+	// 生成过程中定期把已产出的内容写回数据库：用户中途切走再回来，
+	// 至少能看到「已经生成到哪」，而不是一条空白气泡。
+	lastPartial := time.Now()
+	savePartial := func() {
+		if time.Since(lastPartial) < 2*time.Second || answer == "" {
+			return
+		}
+		lastPartial = time.Now()
+		_ = s.db.WithContext(context.WithoutCancel(ctx)).Model(&Message{}).
+			Where("id = ?", assistant.ID).
+			Updates(map[string]any{"content": answer, "reasoning": reasoning}).Error
+	}
 	emitDelta := func(kind, delta string) error {
 		if kind == "reset_reasoning" {
 			// 重试前清空已下发的思考，避免前端看到两段重复推理
@@ -705,6 +717,7 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 			// 某些聚合网关会把整段正文一次性返回；按 28 字符切块并轻微延迟，
 			// 保证前端始终能看到“逐字出现”的流式效果。
 			answer += delta
+			savePartial()
 			chunks := chunkRunes(delta, 28)
 			for index, chunk := range chunks {
 				if err := emit("delta", map[string]string{"delta": chunk}); err != nil {

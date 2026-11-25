@@ -27,13 +27,13 @@ type streamEvent struct {
 }
 
 type streamRun struct {
-	mu       sync.Mutex
-	events   []streamEvent
-	subs     map[int]chan streamEvent
-	nextSub  int
-	seq      int
-	done     bool
-	cancel   context.CancelFunc
+	mu      sync.Mutex
+	events  []streamEvent
+	subs    map[int]chan streamEvent
+	nextSub int
+	seq     int
+	done    bool
+	cancel  context.CancelFunc
 }
 
 func newStreamRun() *streamRun {
@@ -191,4 +191,22 @@ func (r *streamRun) hasSubscribers() bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return len(r.subs) > 0
+}
+
+// state 返回本轮是否仍在生成，以及已产生的最大事件序号。
+func (r *streamRun) state() (bool, int) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return !r.done, r.seq
+}
+
+// state 按 key 查询；没有缓冲时表示当前没有进行中的回答。
+func (h *streamHub) state(key string) (bool, int) {
+	h.mu.Lock()
+	run := h.runs[key]
+	h.mu.Unlock()
+	if run == nil {
+		return false, 0
+	}
+	return run.state()
 }

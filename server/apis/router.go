@@ -133,6 +133,7 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 		cGroup.DELETE("/conversations/:id", chatController.Delete)
 		cGroup.POST("/conversations/:id/stream", chatController.Stream)
 		cGroup.POST("/conversations/:id/stop", chatController.Stop)
+		cGroup.GET("/conversations/:id/stream-state", chatController.StreamState)
 		cGroup.POST("/conversations/:id/interjections", chatController.Interject)
 		cGroup.POST("/messages/:id/feedback", chatController.Feedback)
 

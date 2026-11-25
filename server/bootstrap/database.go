@@ -86,6 +86,13 @@ func (a *App) startDatabase(ctx context.Context) error {
 			return errors.New("migrate " + migration.name + ": " + err.Error())
 		}
 	}
+	// 进程重启后，上次「正在生成」的回答已经没有对应的后台任务：
+	// 收尾成 stopped，避免前端一直显示「生成中」转圈。
+	if err := db.Model(&chat.Message{}).
+		Where("status = ?", chat.StatusStreaming).
+		Update("status", chat.StatusStopped).Error; err != nil {
+		return errors.New("cleanup streaming messages: " + err.Error())
+	}
 	a.DB = db
 	a.Log.Info("database ready", "dsn", cfg.Database.DSN)
 	if cfg.Database.Seed {

@@ -243,6 +243,38 @@ export const useChatStore = defineStore('chat', () => {
    * 打开会话。若该会话仍在后台生成，直接切回活动消息数组，不打断流；
    * 其他会话的生成也不受影响。
    */
+  /**
+   * 后台生成跟进：生成与连接解耦后，用户可能在没有连接时让它继续跑。
+   * 这里定期同步进度，跑完拉一次最终内容，用户不用手动刷新。
+   */
+  const backgroundWatch = new Set<number>()
+
+  async function watchBackgroundRun(id: number): Promise<void> {
+    if (backgroundWatch.has(id)) return
+    const initial = await chatApi.streamState(id).catch(() => null)
+    if (!initial?.running) return
+    backgroundWatch.add(id)
+    try {
+      for (let tick = 0; tick < 240; tick += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 2500))
+        const run = findRun(id)
+        if (!run || run.generating) return
+        const latest = await chatApi.streamState(id).catch(() => null)
+        if (current.value?.id === id) {
+          const data = await chatApi.getConversation(id).catch(() => null)
+          const target = findRun(id)
+          if (data && target && !target.generating) target.messages = data.messages
+        }
+        if (!latest?.running) {
+          void userStore.refreshUsage().catch(() => undefined)
+          return
+        }
+      }
+    } finally {
+      backgroundWatch.delete(id)
+    }
+  }
+
   async function loadConversation(id: number | string): Promise<void> {
     const existing = findRun(id)
     if (existing?.generating) {
@@ -262,6 +294,8 @@ export const useChatStore = defineStore('chat', () => {
         run.loaded = true
       }
       activateRun(run)
+      // 服务端可能还在后台生成这一轮：跟进进度，完成后再刷新
+      if (!run.generating) void watchBackgroundRun(data.conversation.id)
       // 空会话保留用户在空态选择的模型；已有消息的会话恢复其最近模型
       if (!run.generating && data.messages.length > 0) {
         const modelID = data.conversation.model_id

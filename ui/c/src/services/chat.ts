@@ -73,3 +73,8 @@ export function listModels(): Promise<{ items: ModelInfo[] }> {
 export function stopGeneration(conversationID: number | string): Promise<{ stopped: boolean }> {
   return post(`/c/conversations/${encodeURIComponent(String(conversationID))}/stop`, {})
 }
+
+/** 查询某个会话是否有正在进行的回答（含后台生成）。 */
+export function streamState(conversationID: number | string): Promise<{ running: boolean; seq: number }> {
+  return get(`/c/conversations/${encodeURIComponent(String(conversationID))}/stream-state`)
+}

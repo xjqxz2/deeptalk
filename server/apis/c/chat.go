@@ -247,32 +247,8 @@ func (h *ChatController) generate(ctx context.Context, run *streamRun, key strin
 		run.finish()
 		h.hub.removeAfter(key, run, streamRunTTL)
 	}()
-	// 没人监听超过 2 分钟就取消，避免用户关页面后还在烧 token
-	go func() {
-		var idleFrom time.Time
-		ticker := time.NewTicker(15 * time.Second)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				if run.hasSubscribers() {
-					idleFrom = time.Time{}
-					continue
-				}
-				if idleFrom.IsZero() {
-					idleFrom = time.Now()
-					continue
-				}
-				if time.Since(idleFrom) > 2*time.Minute {
-					run.cancelRun()
-					return
-				}
-			}
-		}
-	}()
-
+	// 没有连接监听时也继续生成：跑完会照常落库，用户下次进入会话就能看到完整回答。
+	// 上游空闲超时（180s 无数据）与工具轮数上限已经能兜住异常情况。
 	for {
 		err := h.chats.Stream(ctx, userID, conversationID, input, publish)
 		if err != nil {
@@ -306,6 +282,18 @@ func (h *ChatController) generate(ctx context.Context, run *streamRun, key strin
 	}
 }
 
+// StreamState 返回当前会话是否有正在进行的生成。
+// 前端进入会话时据此决定要不要等它跑完再刷新消息。
+func (h *ChatController) StreamState(c *gin.Context) {
+	current := middleware.CurrentUser(c)
+	id, err := h.chats.ResolveRef(c.Request.Context(), current.ID, c.Param("id"))
+	if err != nil {
+		responses.FromError(c, err)
+		return
+	}
+	running, seq := h.hub.state(h.hub.key(current.ID, id))
+	responses.OK(c, gin.H{"running": running, "seq": seq})
+}
 
 // Stop 取消当前会话正在进行的生成。
 // 生成已经不绑定 HTTP 连接，所以「停止生成」必须显式通知服务端，否则会继续烧 token。
