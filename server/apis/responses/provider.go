@@ -28,11 +28,13 @@ type ProviderResponse struct {
 }
 
 // NewProvider 构造后台厂商响应；status 由调用方传入，避免响应层依赖业务方法。
-func NewProvider(p provider.Provider, status string) ProviderResponse {
+func NewProvider(p *provider.Provider, status string) ProviderResponse {
 	models := make([]AdminModelResponse, 0, len(p.Models))
-	for _, m := range p.Models {
-		m.ProviderName = p.Name
-		models = append(models, NewAdminModel(m))
+	for i := range p.Models {
+		// 只读取厂商名，不能改调用方对象：拷贝一份再补字段
+		model := p.Models[i]
+		model.ProviderName = p.Name
+		models = append(models, NewAdminModel(&model))
 	}
 	return ProviderResponse{
 		ID:             p.ID,
@@ -53,7 +55,7 @@ func NewProvider(p provider.Provider, status string) ProviderResponse {
 		ModelCount:     len(p.Models),
 		LastLatencyMS:  p.LastLatencyMS,
 		LastError:      p.LastError,
-		Headers:        provider.ProviderHeaders(&p),
+		Headers:        provider.ProviderHeaders(p),
 		Models:         models,
 	}
 }

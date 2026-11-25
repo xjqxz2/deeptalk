@@ -58,8 +58,8 @@ func (h *OverviewController) Overview(c *gin.Context) {
 		return
 	}
 	audits := make([]responses.AuditResponse, 0, len(logs))
-	for _, item := range logs {
-		audits = append(audits, responses.NewAudit(item))
+	for i := range logs {
+		audits = append(audits, responses.NewAudit(&logs[i]))
 	}
 	responses.OK(c, responses.OverviewResponse{
 		TotalUsers:        stats.Total,
@@ -92,8 +92,8 @@ func (h *OverviewController) AuditLogs(c *gin.Context) {
 		return
 	}
 	items := make([]responses.AuditResponse, 0, len(logs))
-	for _, item := range logs {
-		items = append(items, responses.NewAudit(item))
+	for i := range logs {
+		items = append(items, responses.NewAudit(&logs[i]))
 	}
 	responses.OK(c, gin.H{"items": items})
 }

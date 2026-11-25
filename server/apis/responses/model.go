@@ -15,7 +15,7 @@ type ModelResponse struct {
 }
 
 // NewModel 构造 C 端模型响应。
-func NewModel(m provider.Model) ModelResponse {
+func NewModel(m *provider.Model) ModelResponse {
 	return ModelResponse{
 		ID:            m.ID,
 		ModelID:       m.ModelID,
@@ -46,7 +46,7 @@ type AdminModelResponse struct {
 }
 
 // NewAdminModel 构造后台模型响应。
-func NewAdminModel(m provider.Model) AdminModelResponse {
+func NewAdminModel(m *provider.Model) AdminModelResponse {
 	return AdminModelResponse{
 		ID:               m.ID,
 		ProviderID:       m.ProviderID,

@@ -19,7 +19,7 @@ type MemoResponse struct {
 }
 
 // NewMemo 把模型转成响应结构。
-func NewMemo(item memo.Memo) MemoResponse {
+func NewMemo(item *memo.Memo) MemoResponse {
 	return MemoResponse{
 		ID:             item.ID,
 		Title:          strings.TrimSpace(item.Title),
@@ -34,8 +34,8 @@ func NewMemo(item memo.Memo) MemoResponse {
 // NewMemos 批量转换。
 func NewMemos(items []memo.Memo) []MemoResponse {
 	out := make([]MemoResponse, 0, len(items))
-	for _, item := range items {
-		out = append(out, NewMemo(item))
+	for i := range items {
+		out = append(out, NewMemo(&items[i]))
 	}
 	return out
 }
@@ -54,10 +54,10 @@ type AdminMemoResponse struct {
 // NewAdminMemos 批量转换后台条目。
 func NewAdminMemos(items []memo.AdminItem) []AdminMemoResponse {
 	out := make([]AdminMemoResponse, 0, len(items))
-	for _, item := range items {
+	for i := range items {
 		out = append(out, AdminMemoResponse{
-			MemoResponse: NewMemo(item.Memo),
-			UserEmail:    item.UserEmail,
+			MemoResponse: NewMemo(&items[i].Memo),
+			UserEmail:    items[i].UserEmail,
 		})
 	}
 	return out

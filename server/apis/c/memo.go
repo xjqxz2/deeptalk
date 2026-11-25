@@ -53,7 +53,7 @@ func (h *MemoController) Create(c *gin.Context) {
 		responses.FromError(c, err)
 		return
 	}
-	responses.OK(c, gin.H{"memo": responses.NewMemo(*item)})
+	responses.OK(c, gin.H{"memo": responses.NewMemo(item)})
 }
 
 // Update 修改一条灵感录。
@@ -77,7 +77,7 @@ func (h *MemoController) Update(c *gin.Context) {
 		writeMemoError(c, err)
 		return
 	}
-	responses.OK(c, gin.H{"memo": responses.NewMemo(*item)})
+	responses.OK(c, gin.H{"memo": responses.NewMemo(item)})
 }
 
 // Delete 删除一条灵感录。

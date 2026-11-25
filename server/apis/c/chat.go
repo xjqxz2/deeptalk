@@ -42,8 +42,8 @@ func (h *ChatController) List(c *gin.Context) {
 		return
 	}
 	out := make([]responses.ConversationResponse, 0, len(items))
-	for _, item := range items {
-		out = append(out, responses.NewConversation(item))
+	for i := range items {
+		out = append(out, responses.NewConversation(&items[i]))
 	}
 	responses.OK(c, gin.H{"items": out})
 }
@@ -78,8 +78,8 @@ func (h *ChatController) Get(c *gin.Context) {
 		return
 	}
 	out := make([]responses.MessageResponse, 0, len(messages))
-	for _, message := range messages {
-		out = append(out, responses.NewMessage(message))
+	for i := range messages {
+		out = append(out, responses.NewMessage(&messages[i]))
 	}
 	responses.OK(c, gin.H{
 		"conversation": responses.NewConversationDetail(conv),

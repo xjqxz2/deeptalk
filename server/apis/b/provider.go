@@ -42,7 +42,7 @@ func (h *ProviderController) List(c *gin.Context) {
 	}
 	out := make([]responses.ProviderResponse, 0, len(items))
 	for i := range items {
-		out = append(out, responses.NewProvider(items[i], h.providers.Status(&items[i])))
+		out = append(out, responses.NewProvider(&items[i], h.providers.Status(&items[i])))
 	}
 	responses.OK(c, gin.H{
 		"items":  out,
@@ -64,7 +64,7 @@ func (h *ProviderController) Create(c *gin.Context) {
 		return
 	}
 	recordAudit(c, h.audits, "provider.create", "provider", p.ID, "新增厂商 "+p.Name)
-	responses.OK(c, gin.H{"provider": responses.NewProvider(*p, h.providers.Status(p))})
+	responses.OK(c, gin.H{"provider": responses.NewProvider(p, h.providers.Status(p))})
 }
 
 // Update 编辑厂商。
@@ -86,7 +86,7 @@ func (h *ProviderController) Update(c *gin.Context) {
 		return
 	}
 	recordAudit(c, h.audits, "provider.update", "provider", p.ID, "更新厂商配置 "+p.Name)
-	responses.OK(c, gin.H{"provider": responses.NewProvider(*p, h.providers.Status(p))})
+	responses.OK(c, gin.H{"provider": responses.NewProvider(p, h.providers.Status(p))})
 }
 
 // Toggle 启用 / 停用厂商。
@@ -114,7 +114,7 @@ func (h *ProviderController) Toggle(c *gin.Context) {
 		detail = "启用厂商 " + p.Name
 	}
 	recordAudit(c, h.audits, action, "provider", p.ID, detail)
-	responses.OK(c, gin.H{"provider": responses.NewProvider(*p, h.providers.Status(p))})
+	responses.OK(c, gin.H{"provider": responses.NewProvider(p, h.providers.Status(p))})
 }
 
 // Delete 删除自定义厂商。
@@ -187,8 +187,8 @@ func (h *ProviderController) Models(c *gin.Context) {
 		return
 	}
 	out := make([]responses.AdminModelResponse, 0, len(items))
-	for _, item := range items {
-		out = append(out, responses.NewAdminModel(item))
+	for i := range items {
+		out = append(out, responses.NewAdminModel(&items[i]))
 	}
 	responses.OK(c, gin.H{
 		"items":   out,
@@ -213,7 +213,7 @@ func (h *ProviderController) CreateModel(c *gin.Context) {
 		return
 	}
 	recordAudit(c, h.audits, "model.create", "model", m.ID, "新增模型 "+m.ModelID)
-	responses.OK(c, gin.H{"model": responses.NewAdminModel(*m)})
+	responses.OK(c, gin.H{"model": responses.NewAdminModel(m)})
 }
 
 // UpdateModel 编辑模型。
@@ -235,7 +235,7 @@ func (h *ProviderController) UpdateModel(c *gin.Context) {
 		return
 	}
 	recordAudit(c, h.audits, "model.update", "model", m.ID, "更新模型 "+m.ModelID)
-	responses.OK(c, gin.H{"model": responses.NewAdminModel(*m)})
+	responses.OK(c, gin.H{"model": responses.NewAdminModel(m)})
 }
 
 // ToggleModel 启用 / 停用模型。
@@ -261,7 +261,7 @@ func (h *ProviderController) ToggleModel(c *gin.Context) {
 		action, detail = "model.enable", "启用模型 "+m.ModelID
 	}
 	recordAudit(c, h.audits, action, "model", m.ID, detail)
-	responses.OK(c, gin.H{"model": responses.NewAdminModel(*m)})
+	responses.OK(c, gin.H{"model": responses.NewAdminModel(m)})
 }
 
 // Routing 返回默认 / 兜底路由。

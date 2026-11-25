@@ -16,7 +16,7 @@ type AuditResponse struct {
 }
 
 // NewAudit 构造审计条目响应。
-func NewAudit(l audit.Log) AuditResponse {
+func NewAudit(l *audit.Log) AuditResponse {
 	return AuditResponse{ID: l.ID, ActorName: l.ActorName, Action: l.Action, Detail: l.Detail, CreatedAt: l.CreatedAt}
 }
 

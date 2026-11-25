@@ -311,8 +311,8 @@ func (h *AuthController) Models(c *gin.Context) {
 		return
 	}
 	out := make([]responses.ModelResponse, 0, len(items))
-	for _, item := range items {
-		out = append(out, responses.NewModel(item))
+	for i := range items {
+		out = append(out, responses.NewModel(&items[i]))
 	}
 	responses.OK(c, gin.H{"items": out})
 }

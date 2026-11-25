@@ -19,7 +19,7 @@ type ConversationResponse struct {
 }
 
 // NewConversation 由列表项构造响应。
-func NewConversation(item chat.Summary) ConversationResponse {
+func NewConversation(item *chat.Summary) ConversationResponse {
 	return ConversationResponse{ID: item.ID, PublicID: item.PublicID, Title: item.Title, ModelID: item.ModelID, UpdatedAt: item.UpdatedAt, MessageCount: item.MessageCount}
 }
 
@@ -56,7 +56,7 @@ type ShareResponse struct {
 }
 
 // NewShare 构造分享响应。
-func NewShare(share chat.Share) ShareResponse {
+func NewShare(share *chat.Share) ShareResponse {
 	return ShareResponse{Token: share.Token, CreatedAt: share.CreatedAt}
 }
 
@@ -71,8 +71,8 @@ type SharedConversationResponse struct {
 // NewSharedConversation 构造分享页响应；只暴露标题、昵称与消息。
 func NewSharedConversation(shared chat.SharedConversation) SharedConversationResponse {
 	out := make([]MessageResponse, 0, len(shared.Messages))
-	for _, message := range shared.Messages {
-		out = append(out, NewMessage(message))
+	for i := range shared.Messages {
+		out = append(out, NewMessage(&shared.Messages[i]))
 	}
 	return SharedConversationResponse{
 		Title:    shared.Conversation.Title,
@@ -83,7 +83,7 @@ func NewSharedConversation(shared chat.SharedConversation) SharedConversationRes
 }
 
 // NewMessage 构造消息响应。
-func NewMessage(m chat.Message) MessageResponse {
+func NewMessage(m *chat.Message) MessageResponse {
 	return MessageResponse{
 		ID:   m.ID,
 		Role: m.Role,

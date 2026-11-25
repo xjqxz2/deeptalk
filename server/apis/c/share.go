@@ -27,7 +27,7 @@ func (h *ChatController) GetShare(c *gin.Context) {
 		responses.FromError(c, err)
 		return
 	}
-	responses.OK(c, gin.H{"share": responses.NewShare(*share)})
+	responses.OK(c, gin.H{"share": responses.NewShare(share)})
 }
 
 // CreateShare 创建（或复用）分享链接。
@@ -43,7 +43,7 @@ func (h *ChatController) CreateShare(c *gin.Context) {
 		responses.FromError(c, err)
 		return
 	}
-	responses.OK(c, gin.H{"share": responses.NewShare(*share)})
+	responses.OK(c, gin.H{"share": responses.NewShare(share)})
 }
 
 // RevokeShare 撤销分享，旧链接立即失效。
