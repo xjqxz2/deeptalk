@@ -75,7 +75,7 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) error {
 		Description: "返回本 AI 的 SSH 公钥（authorized_keys 行）、指纹以及给用户的配置步骤。" +
 			"第一次连接某台机器前必须先调用它，并把公钥原样展示给用户。",
 	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, args publicKeyArgs) (*mcpsdk.CallToolResult, any, error) {
-		pair, err := manager.PublicKey(args.Owner)
+		pair, err := manager.PublicKey(ownerOf(args.Owner))
 		if err != nil {
 			return errResult(err), nil, nil
 		}
@@ -92,7 +92,7 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) error {
 		Description: "用本 AI 的密钥连接一台远端机器。host 与 username 必须来自用户的明确输入。" +
 			"可选 workdir 会把会话钉在某个目录（每条命令都会先 cd 进去）。返回 session_id。",
 	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, args connectArgs) (*mcpsdk.CallToolResult, any, error) {
-		session, err := manager.Connect(ctx, args.Owner, args.Host, args.Port, args.Username, args.Workdir)
+		session, err := manager.Connect(ctx, ownerOf(args.Owner), args.Host, args.Port, args.Username, args.Workdir)
 		if err != nil {
 			return errResult(err), nil, nil
 		}
@@ -114,7 +114,7 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) error {
 			"命令在远端执行，本机不受影响；单条命令默认 60 秒超时，超时会断开该会话。",
 	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, args execArgs) (*mcpsdk.CallToolResult, any, error) {
 		timeout := time.Duration(args.TimeoutSec) * time.Second
-		result, err := manager.Exec(ctx, args.Owner, args.SessionID, args.Command, timeout)
+		result, err := manager.Exec(ctx, ownerOf(args.Owner), args.SessionID, args.Command, timeout)
 		if err != nil {
 			return errResult(err), nil, nil
 		}
@@ -130,13 +130,13 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) error {
 		Name:        "ssh_disconnect",
 		Description: "关闭一个 SSH 会话，任务完成后调用。",
 	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, args disconnectArgs) (*mcpsdk.CallToolResult, any, error) {
-		session, err := manager.Disconnect(args.Owner, args.SessionID)
+		session, err := manager.Disconnect(ownerOf(args.Owner), args.SessionID)
 		if err != nil {
 			return errResult(err), nil, nil
 		}
 		result := map[string]any{"closed": true, "host": session.Host, "username": session.User}
 		// 任务结束的收尾提醒：公钥留在目标机上就是一把长期钥匙，应该由用户决定是否删除
-		if pair, keyErr := manager.PublicKey(args.Owner); keyErr == nil {
+		if pair, keyErr := manager.PublicKey(ownerOf(args.Owner)); keyErr == nil {
 			result["cleanup"] = cleanupHint(pair, session.Host, session.User)
 		}
 		return jsonResult(result), nil, nil
@@ -147,7 +147,7 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) error {
 		Description: "返回把这把公钥从目标机 authorized_keys 中删除的命令与说明。" +
 			"任务结束、用户表示不再需要访问时调用，并把结果原样转达给用户。",
 	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, args removalArgs) (*mcpsdk.CallToolResult, any, error) {
-		pair, err := manager.PublicKey(args.Owner)
+		pair, err := manager.PublicKey(ownerOf(args.Owner))
 		if err != nil {
 			return errResult(err), nil, nil
 		}
@@ -159,7 +159,7 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) error {
 		Description: "列出当前仍然打开的 SSH 会话。",
 	}, func(ctx context.Context, _ *mcpsdk.CallToolRequest, args sessionsArgs) (*mcpsdk.CallToolResult, any, error) {
 		items := make([]map[string]any, 0)
-		for _, session := range manager.Sessions(args.Owner) {
+		for _, session := range manager.Sessions(ownerOf(args.Owner)) {
 			items = append(items, map[string]any{
 				"session_id": session.ID,
 				"host":       session.Host,
@@ -175,44 +175,52 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) error {
 	return server.Run(ctx, &mcpsdk.StdioTransport{})
 }
 
+// ownerOf 取出宿主注入的 owner；模型不传时为空。
+func ownerOf(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
 // publicKeyArgs 是 ssh_public_key 的参数。
 type publicKeyArgs struct {
-	Owner string `json:"owner" jsonschema:"宿主注入的 owner，模型不要设置"`
+	Owner *string `json:"owner,omitempty" jsonschema:"可选：由宿主自动注入，模型不要设置"`
 }
 
 // connectArgs 是 ssh_connect 的参数。
 type connectArgs struct {
-	Host     string `json:"host" jsonschema:"目标主机名或 IP，来自用户输入"`
-	Port     int    `json:"port,omitempty" jsonschema:"SSH 端口，默认 22"`
-	Username string `json:"username" jsonschema:"登录用户名，来自用户输入"`
-	Workdir  string `json:"workdir,omitempty" jsonschema:"可选：把会话固定在这个绝对路径下"`
-	Owner    string `json:"owner" jsonschema:"宿主注入的 owner，模型不要设置"`
+	Host     string  `json:"host" jsonschema:"目标主机名或 IP，来自用户输入"`
+	Port     int     `json:"port,omitempty" jsonschema:"SSH 端口，默认 22"`
+	Username string  `json:"username" jsonschema:"登录用户名，来自用户输入"`
+	Workdir  string  `json:"workdir,omitempty" jsonschema:"可选：把会话固定在这个绝对路径下"`
+	Owner    *string `json:"owner,omitempty" jsonschema:"可选：由宿主自动注入，模型不要设置"`
 }
 
 // execArgs 是 ssh_exec 的参数。
 type execArgs struct {
-	SessionID  string `json:"session_id" jsonschema:"ssh_connect 返回的会话 ID"`
-	Command    string `json:"command" jsonschema:"要在远端执行的命令"`
-	TimeoutSec int    `json:"timeout_sec,omitempty" jsonschema:"超时秒数，默认 60，最大 300"`
-	Owner      string `json:"owner" jsonschema:"宿主注入的 owner，模型不要设置"`
+	SessionID  string  `json:"session_id" jsonschema:"ssh_connect 返回的会话 ID"`
+	Command    string  `json:"command" jsonschema:"要在远端执行的命令"`
+	TimeoutSec int     `json:"timeout_sec,omitempty" jsonschema:"超时秒数，默认 60，最大 300"`
+	Owner      *string `json:"owner,omitempty" jsonschema:"可选：由宿主自动注入，模型不要设置"`
 }
 
 // disconnectArgs 是 ssh_disconnect 的参数。
 type disconnectArgs struct {
-	SessionID string `json:"session_id" jsonschema:"要关闭的会话 ID"`
-	Owner     string `json:"owner" jsonschema:"宿主注入的 owner，模型不要设置"`
+	SessionID string  `json:"session_id" jsonschema:"要关闭的会话 ID"`
+	Owner     *string `json:"owner,omitempty" jsonschema:"可选：由宿主自动注入，模型不要设置"`
 }
 
 // removalArgs 是 ssh_key_removal 的参数。
 type removalArgs struct {
-	Host     string `json:"host,omitempty" jsonschema:"目标主机，仅用于提示文案"`
-	Username string `json:"username,omitempty" jsonschema:"目标用户，仅用于提示文案"`
-	Owner    string `json:"owner" jsonschema:"宿主注入的 owner，模型不要设置"`
+	Host     string  `json:"host,omitempty" jsonschema:"目标主机，仅用于提示文案"`
+	Username string  `json:"username,omitempty" jsonschema:"目标用户，仅用于提示文案"`
+	Owner    *string `json:"owner,omitempty" jsonschema:"可选：由宿主自动注入，模型不要设置"`
 }
 
 // sessionsArgs 是 ssh_sessions 的参数。
 type sessionsArgs struct {
-	Owner string `json:"owner" jsonschema:"宿主注入的 owner，模型不要设置"`
+	Owner *string `json:"owner,omitempty" jsonschema:"可选：由宿主自动注入，模型不要设置"`
 }
 
 // cleanupHint 生成「如何删除公钥」的提醒，包含可直接执行的命令。
