@@ -56,8 +56,11 @@ func (s *Service) CreateShare(ctx context.Context, userID, conversationID uint) 
 			return &share, nil
 		}
 		token := newShareToken()
-		if err := s.db.WithContext(ctx).Model(&Share{}).Where("id = ?", share.ID).
-			Updates(map[string]any{"token": token, "revoked_at": nil, "user_id": userID}).Error; err != nil {
+		if err := dalRotateShare(ctx, s.db, share.ID, ShareUpdate{
+			Token:        &token,
+			UserID:       &userID,
+			ClearRevoked: true,
+		}); err != nil {
 			return nil, err
 		}
 		share.Token = token

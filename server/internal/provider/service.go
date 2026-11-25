@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -354,10 +353,7 @@ func (s *Service) SetRouting(ctx context.Context, defaultID, fallbackID uint) er
 			return errors.New("兜底模型不可用")
 		}
 	}
-	if err := s.settings.SetMany(ctx, map[string]string{
-		setting.KeyDefaultModelID:  strconv.FormatUint(uint64(defaultID), 10),
-		setting.KeyFallbackModelID: strconv.FormatUint(uint64(fallbackID), 10),
-	}); err != nil {
+	if err := s.settings.SetRouting(ctx, defaultID, fallbackID); err != nil {
 		return err
 	}
 	return s.syncRoutingFlags(ctx, defaultID, fallbackID)
@@ -450,10 +446,7 @@ func (s *Service) RepairRouting(ctx context.Context) error {
 		}
 	}
 	if defaultID == 0 {
-		return s.settings.SetMany(ctx, map[string]string{
-			setting.KeyDefaultModelID:  "0",
-			setting.KeyFallbackModelID: "0",
-		})
+		return s.settings.SetRouting(ctx, 0, 0)
 	}
 	return s.SetRouting(ctx, defaultID, fallbackID)
 }

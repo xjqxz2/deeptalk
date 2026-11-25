@@ -370,8 +370,21 @@ func dalRecordLoginFailure(ctx context.Context, db *gorm.DB, userID uint, thresh
 	return locked, err
 }
 
+// LoginSuccess 是一次成功登录要落库的信息。
+type LoginSuccess struct {
+	At   time.Time // 登录时间
+	IP   string    // 来源 IP
+	City string    // 归属地
+}
+
 // dalRecordLoginSuccess 只更新登录相关字段。
 // 不用 Save：整行保存会把并发累加中的 used_tokens 覆盖回旧值。
-func dalRecordLoginSuccess(ctx context.Context, db *gorm.DB, userID uint, fields map[string]any) error {
-	return db.WithContext(ctx).Model(&User{}).Where("id = ?", userID).Updates(fields).Error
+func dalRecordLoginSuccess(ctx context.Context, db *gorm.DB, userID uint, in LoginSuccess) error {
+	return db.WithContext(ctx).Model(&User{}).Where("id = ?", userID).Updates(map[string]any{
+		"failed_attempts": 0,
+		"locked_until":    nil,
+		"last_login_at":   in.At,
+		"last_login_ip":   in.IP,
+		"last_login_city": in.City,
+	}).Error
 }

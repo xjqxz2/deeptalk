@@ -213,13 +213,113 @@ func dalFindOwnedAssistantMessage(ctx context.Context, db *gorm.DB, userID, mess
 	return &msg, nil
 }
 
-// dalUpdateMessageFields 按字段更新一条消息。
-func dalUpdateMessageFields(ctx context.Context, db *gorm.DB, messageID uint, fields map[string]any) error {
+// ptr 返回值的地址，用来构造「可选字段」。
+func ptr[T any](value T) *T { return &value }
+
+// MessageUpdate 是消息的部分更新；字段为 nil 表示不改该列。
+// 用结构体而不是 map，拼错列名或漏字段在编译期就能发现。
+type MessageUpdate struct {
+	Content      *string // 正文
+	Reasoning    *string // 思考链
+	Status       *string // 状态：streaming / complete / stopped / error
+	ModelName    *string // 模型展示名
+	InputTokens  *int    // 输入 token
+	OutputTokens *int    // 输出 token
+	DurationMS   *int    // 生成耗时（毫秒）
+	Feedback     *string // 赞 / 踩
+	SourcesJSON  *string // 来源列表 JSON
+	UIJSON       *string // A2UI 结构 JSON
+}
+
+// fields 只保留被设置的列。
+func (u MessageUpdate) fields() map[string]any {
+	out := make(map[string]any, 10)
+	if u.Content != nil {
+		out["content"] = *u.Content
+	}
+	if u.Reasoning != nil {
+		out["reasoning"] = *u.Reasoning
+	}
+	if u.Status != nil {
+		out["status"] = *u.Status
+	}
+	if u.ModelName != nil {
+		out["model_name"] = *u.ModelName
+	}
+	if u.InputTokens != nil {
+		out["input_tokens"] = *u.InputTokens
+	}
+	if u.OutputTokens != nil {
+		out["output_tokens"] = *u.OutputTokens
+	}
+	if u.DurationMS != nil {
+		out["duration_ms"] = *u.DurationMS
+	}
+	if u.Feedback != nil {
+		out["feedback"] = *u.Feedback
+	}
+	if u.SourcesJSON != nil {
+		out["sources_json"] = *u.SourcesJSON
+	}
+	if u.UIJSON != nil {
+		out["ui_json"] = *u.UIJSON
+	}
+	return out
+}
+
+// ConversationUpdate 是会话的部分更新；字段为 nil 表示不改该列。
+type ConversationUpdate struct {
+	Title            *string    // 标题
+	ModelID          *uint      // 当前模型
+	UpdatedAt        *time.Time // 更新时间
+	Summary          *string    // 上下文压缩摘要
+	SummaryUntilID   *uint      // 摘要覆盖到的消息 ID
+	SummaryTokens    *int       // 摘要 token 数
+	SummaryUpdatedAt *time.Time // 摘要生成时间
+}
+
+// fields 只保留被设置的列。
+func (u ConversationUpdate) fields() map[string]any {
+	out := make(map[string]any, 7)
+	if u.Title != nil {
+		out["title"] = *u.Title
+	}
+	if u.ModelID != nil {
+		out["model_id"] = *u.ModelID
+	}
+	if u.UpdatedAt != nil {
+		out["updated_at"] = *u.UpdatedAt
+	}
+	if u.Summary != nil {
+		out["summary"] = *u.Summary
+	}
+	if u.SummaryUntilID != nil {
+		out["summary_until_id"] = *u.SummaryUntilID
+	}
+	if u.SummaryTokens != nil {
+		out["summary_tokens"] = *u.SummaryTokens
+	}
+	if u.SummaryUpdatedAt != nil {
+		out["summary_updated_at"] = *u.SummaryUpdatedAt
+	}
+	return out
+}
+
+// dalUpdateMessage 按 MessageUpdate 更新一条消息。
+func dalUpdateMessage(ctx context.Context, db *gorm.DB, messageID uint, update MessageUpdate) error {
+	fields := update.fields()
+	if len(fields) == 0 {
+		return nil
+	}
 	return db.WithContext(ctx).Model(&Message{}).Where("id = ?", messageID).Updates(fields).Error
 }
 
-// dalUpdateConversationFields 按字段更新一条会话。
-func dalUpdateConversationFields(ctx context.Context, db *gorm.DB, conversationID uint, fields map[string]any) error {
+// dalUpdateConversation 按 ConversationUpdate 更新一条会话。
+func dalUpdateConversation(ctx context.Context, db *gorm.DB, conversationID uint, update ConversationUpdate) error {
+	fields := update.fields()
+	if len(fields) == 0 {
+		return nil
+	}
 	return db.WithContext(ctx).Model(&Conversation{}).Where("id = ?", conversationID).Updates(fields).Error
 }
 
@@ -237,18 +337,17 @@ func dalCreateMessage(ctx context.Context, db *gorm.DB, msg *Message) error {
 
 // dalUpdateSources 更新消息的来源列表 JSON。
 func dalUpdateSources(ctx context.Context, db *gorm.DB, messageID uint, raw string) error {
-	return db.WithContext(ctx).Model(&Message{}).Where("id = ?", messageID).Update("sources_json", raw).Error
+	return dalUpdateMessage(ctx, db, messageID, MessageUpdate{SourcesJSON: &raw})
 }
 
 // dalUpdateUI 更新消息的 A2UI 结构 JSON。
 func dalUpdateUI(ctx context.Context, db *gorm.DB, messageID uint, raw string) error {
-	return db.WithContext(ctx).Model(&Message{}).Where("id = ?", messageID).Update("ui_json", raw).Error
+	return dalUpdateMessage(ctx, db, messageID, MessageUpdate{UIJSON: &raw})
 }
 
 // dalUpdatePartialContent 更新生成中的正文与思考（用于断线后回看进度）。
 func dalUpdatePartialContent(ctx context.Context, db *gorm.DB, messageID uint, content, reasoning string) error {
-	return db.WithContext(ctx).Model(&Message{}).Where("id = ?", messageID).
-		Updates(map[string]any{"content": content, "reasoning": reasoning}).Error
+	return dalUpdateMessage(ctx, db, messageID, MessageUpdate{Content: &content, Reasoning: &reasoning})
 }
 
 // dalRecentContextMessages 取会话最近几条有效消息，供检索/推理路由参考。
@@ -375,10 +474,10 @@ func dalMessagesBefore(ctx context.Context, db *gorm.DB, conversationID, afterID
 }
 
 // dalUpdateSummaryIfNewer 乐观写入摘要边界，返回是否真的更新。
-func dalUpdateSummaryIfNewer(ctx context.Context, db *gorm.DB, conversationID, boundaryID uint, fields map[string]any) (bool, error) {
+func dalUpdateSummaryIfNewer(ctx context.Context, db *gorm.DB, conversationID, boundaryID uint, update ConversationUpdate) (bool, error) {
 	result := db.WithContext(ctx).Model(&Conversation{}).
 		Where("id = ? AND summary_until_id < ?", conversationID, boundaryID).
-		Updates(fields)
+		Updates(update.fields())
 	if result.Error != nil {
 		return false, result.Error
 	}
@@ -408,4 +507,32 @@ func dalConversationIDsByUser(ctx context.Context, db *gorm.DB, userID uint) ([]
 	var ids []uint
 	err := db.WithContext(ctx).Model(&Conversation{}).Where("user_id = ?", userID).Pluck("id", &ids).Error
 	return ids, err
+}
+
+// ShareUpdate 是分享记录的部分更新；字段为 nil 表示不改该列。
+type ShareUpdate struct {
+	Token        *string    // 新的分享令牌
+	RevokedAt    *time.Time // 撤销时间；显式置空用 ClearRevoked
+	UserID       *uint      // 归属用户
+	ClearRevoked bool       // 是否把 revoked_at 置为 NULL
+}
+
+// dalRotateShare 轮换分享令牌并恢复分享。
+func dalRotateShare(ctx context.Context, db *gorm.DB, shareID uint, update ShareUpdate) error {
+	fields := make(map[string]any, 3)
+	if update.Token != nil {
+		fields["token"] = *update.Token
+	}
+	if update.UserID != nil {
+		fields["user_id"] = *update.UserID
+	}
+	if update.ClearRevoked {
+		fields["revoked_at"] = nil
+	} else if update.RevokedAt != nil {
+		fields["revoked_at"] = *update.RevokedAt
+	}
+	if len(fields) == 0 {
+		return nil
+	}
+	return db.WithContext(ctx).Model(&Share{}).Where("id = ?", shareID).Updates(fields).Error
 }

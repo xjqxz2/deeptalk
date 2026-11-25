@@ -225,7 +225,7 @@ func (s *Service) Feedback(ctx context.Context, userID, messageID uint, rating s
 	if err != nil {
 		return ErrMessageNotOwn
 	}
-	return dalUpdateMessageFields(ctx, s.db, msg.ID, map[string]any{"feedback": rating})
+	return dalUpdateMessage(ctx, s.db, msg.ID, MessageUpdate{Feedback: ptr(rating)})
 }
 
 // Stream 编排一次完整的流式回答。
@@ -335,8 +335,10 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 				return fmt.Errorf("关联附件失败: %w", err)
 			}
 		}
-		_ = dalUpdateConversationFields(ctx, s.db, conv.ID,
-			map[string]any{"model_id": model.ID, "updated_at": time.Now()})
+		_ = dalUpdateConversation(ctx, s.db, conv.ID, ConversationUpdate{
+			ModelID:   ptr(model.ID),
+			UpdatedAt: ptr(time.Now()),
+		})
 	}
 	// 思维链始终开启：用户要求任何时候都能看到思考过程，不再按问题长短自动关闭。
 	effectiveThinking := true
@@ -853,19 +855,19 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 	if genErr != nil {
 		status = StatusError
 	}
-	_ = dalUpdateMessageFields(finishCtx, s.db, assistant.ID, map[string]any{
-		"content":       answer,
-		"reasoning":     reasoning,
-		"status":        status,
-		"model_name":    model.DisplayName,
-		"input_tokens":  inputTokens,
-		"output_tokens": outputTokens,
-		"duration_ms":   int(duration.Milliseconds()),
+	_ = dalUpdateMessage(finishCtx, s.db, assistant.ID, MessageUpdate{
+		Content:      ptr(answer),
+		Reasoning:    ptr(reasoning),
+		Status:       ptr(status),
+		ModelName:    ptr(model.DisplayName),
+		InputTokens:  ptr(inputTokens),
+		OutputTokens: ptr(outputTokens),
+		DurationMS:   ptr(int(duration.Milliseconds())),
 	})
-	_ = dalUpdateConversationFields(finishCtx, s.db, conv.ID, map[string]any{
-		"title":      title,
-		"model_id":   model.ID,
-		"updated_at": time.Now(),
+	_ = dalUpdateConversation(finishCtx, s.db, conv.ID, ConversationUpdate{
+		Title:     ptr(title),
+		ModelID:   ptr(model.ID),
+		UpdatedAt: ptr(time.Now()),
 	})
 	_ = s.users.ConsumeUsage(finishCtx, userID, int64(inputTokens+outputTokens))
 	// 三段计价：缓存命中输入 / 普通输入 / 输出；上游不给价格时也由我们兜底计费
@@ -1506,24 +1508,24 @@ func injectSearchContext(history []provider.ChatMessage, items []search.Result) 
 
 // saveStopped 保存被用户中断的回答。
 func (s *Service) saveStopped(ctx context.Context, msg *Message, reasoning, answer string, start time.Time) {
-	_ = dalUpdateMessageFields(ctx, s.db, msg.ID, map[string]any{
-		"content":       answer,
-		"reasoning":     reasoning,
-		"status":        StatusStopped,
-		"output_tokens": estimateTokens(reasoning + answer),
-		"duration_ms":   int(time.Since(start).Milliseconds()),
+	_ = dalUpdateMessage(ctx, s.db, msg.ID, MessageUpdate{
+		Content:      ptr(answer),
+		Reasoning:    ptr(reasoning),
+		Status:       ptr(StatusStopped),
+		OutputTokens: ptr(estimateTokens(reasoning + answer)),
+		DurationMS:   ptr(int(time.Since(start).Milliseconds())),
 	})
-	_ = dalUpdateConversationFields(ctx, s.db, msg.ConversationID, map[string]any{"updated_at": time.Now()})
+	_ = dalUpdateConversation(ctx, s.db, msg.ConversationID, ConversationUpdate{UpdatedAt: ptr(time.Now())})
 }
 
 // finishError 将上游错误写入消息并通知前端。
 func (s *Service) finishError(ctx context.Context, conv *Conversation, msg *Message, reasoning, answer string, err error, emit Emitter) {
-	_ = dalUpdateMessageFields(ctx, s.db, msg.ID, map[string]any{
-		"content":   answer,
-		"reasoning": reasoning,
-		"status":    StatusError,
+	_ = dalUpdateMessage(ctx, s.db, msg.ID, MessageUpdate{
+		Content:   ptr(answer),
+		Reasoning: ptr(reasoning),
+		Status:    ptr(StatusError),
 	})
-	_ = dalUpdateConversationFields(ctx, s.db, conv.ID, map[string]any{"updated_at": time.Now()})
+	_ = dalUpdateConversation(ctx, s.db, conv.ID, ConversationUpdate{UpdatedAt: ptr(time.Now())})
 	_ = emit("error", map[string]any{"code": 3001, "message": modelErrorMessage(err, msg.ModelName)})
 	_ = emit("done", map[string]any{
 		"assistant_message_id": msg.ID,
@@ -2228,11 +2230,11 @@ func (s *Service) compactConversation(ctx context.Context, conversationID, model
 	}
 	boundaryID := rows[boundary-1].ID
 	now := time.Now()
-	updated, err := dalUpdateSummaryIfNewer(ctx, s.db, conv.ID, boundaryID, map[string]any{
-		"summary":            summary,
-		"summary_until_id":   boundaryID,
-		"summary_tokens":     estimateTokens(summary),
-		"summary_updated_at": now,
+	updated, err := dalUpdateSummaryIfNewer(ctx, s.db, conv.ID, boundaryID, ConversationUpdate{
+		Summary:          ptr(summary),
+		SummaryUntilID:   ptr(boundaryID),
+		SummaryTokens:    ptr(estimateTokens(summary)),
+		SummaryUpdatedAt: ptr(now),
 	})
 	if err != nil {
 		return err

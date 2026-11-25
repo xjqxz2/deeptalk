@@ -55,13 +55,13 @@ func (s *Service) Set(ctx context.Context, key, value string) error {
 	return dalSaveSetting(ctx, s.db, &item)
 }
 
-// SetMany 在一个事务内批量写入设置，保证注册开关与默认路由同时生效。
-func (s *Service) SetMany(ctx context.Context, values map[string]string) error {
-	items := make([]Setting, 0, len(values))
-	for key, value := range values {
-		items = append(items, Setting{Key: key, Value: value})
-	}
-	return dalSaveSettings(ctx, s.db, items)
+// SetRouting 在一个事务内写入默认模型与兜底模型，保证两者同时生效。
+// 用 0 表示清空路由。
+func (s *Service) SetRouting(ctx context.Context, defaultModelID, fallbackModelID uint) error {
+	return dalSaveSettings(ctx, s.db, []Setting{
+		{Key: KeyDefaultModelID, Value: strconv.FormatUint(uint64(defaultModelID), 10)},
+		{Key: KeyFallbackModelID, Value: strconv.FormatUint(uint64(fallbackModelID), 10)},
+	})
 }
 
 // All 返回全部设置，用于后台系统设置页展示。

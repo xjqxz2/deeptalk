@@ -185,12 +185,10 @@ func (s *Service) Login(ctx context.Context, email, password string, meta Reques
 	u.LastLoginCity = cityFromIP(meta.IP)
 	var token string
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := dalRecordLoginSuccess(ctx, tx, u.ID, map[string]any{
-			"failed_attempts": 0,
-			"locked_until":    nil,
-			"last_login_at":   u.LastLoginAt,
-			"last_login_ip":   u.LastLoginIP,
-			"last_login_city": u.LastLoginCity,
+		if err := dalRecordLoginSuccess(ctx, tx, u.ID, LoginSuccess{
+			At:   now,
+			IP:   u.LastLoginIP,
+			City: u.LastLoginCity,
 		}); err != nil {
 			return err
 		}

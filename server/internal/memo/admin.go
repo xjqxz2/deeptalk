@@ -79,11 +79,7 @@ func (s *Service) StatsOf(ctx context.Context) (*Stats, error) {
 	if err != nil {
 		return nil, err
 	}
-	counts := make(map[string]int64, len(days))
-	for _, day := range days {
-		counts[day.Date] = day.Count
-	}
-	stats.Daily, err = fillDays(ctx, s.db, counts, 7)
+	stats.Daily, err = fillDays(ctx, s.db, days, 7)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +87,11 @@ func (s *Service) StatsOf(ctx context.Context) (*Stats, error) {
 }
 
 // fillDays 把稀疏的按天计数补齐成连续 7 天（缺失记 0），供前端画趋势。
-func fillDays(ctx context.Context, db *gorm.DB, counts map[string]int64, days int) ([]DailyCount, error) {
+func fillDays(ctx context.Context, db *gorm.DB, rows []DailyCount, days int) ([]DailyCount, error) {
+	counts := make(map[string]int64, len(rows))
+	for _, row := range rows {
+		counts[row.Date] = row.Count
+	}
 	dates, err := dalRecentDays(ctx, db, days)
 	if err != nil {
 		return nil, err
