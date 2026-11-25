@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+
+	"deeptalk/internal/audit"
 )
 
 // 厂商类型常量，用于前端展示与图标区分。
@@ -211,4 +213,156 @@ func dalCounts(ctx context.Context, db *gorm.DB) (Counts, error) {
 // Migrate 创建厂商与模型表。
 func Migrate(db *gorm.DB) error {
 	return db.AutoMigrate(&Provider{}, &Model{})
+}
+
+// dalClearProviderDefaults 清除厂商的默认标记；exceptID 非零时保留该厂商。
+func dalClearProviderDefaults(ctx context.Context, db *gorm.DB, exceptID uint) error {
+	query := db.WithContext(ctx).Model(&Provider{}).Where("is_default = ?", true)
+	if exceptID > 0 {
+		query = query.Where("id <> ?", exceptID)
+	}
+	return query.Update("is_default", false).Error
+}
+
+// dalCreateProvider 新建厂商。
+func dalCreateProvider(ctx context.Context, db *gorm.DB, p *Provider) error {
+	return db.WithContext(ctx).Create(p).Error
+}
+
+// dalSaveProvider 保存厂商。
+func dalSaveProvider(ctx context.Context, db *gorm.DB, p *Provider) error {
+	return db.WithContext(ctx).Save(p).Error
+}
+
+// dalSyncProviderModelConcurrency 把厂商并发同步到其下所有模型。
+func dalSyncProviderModelConcurrency(ctx context.Context, db *gorm.DB, providerID uint, concurrency int) error {
+	return db.WithContext(ctx).Model(&Model{}).Where("provider_id = ?", providerID).
+		Update("max_concurrency", concurrency).Error
+}
+
+// dalSetProviderEnabled 启停厂商。
+func dalSetProviderEnabled(ctx context.Context, db *gorm.DB, id uint, enabled bool) error {
+	return db.WithContext(ctx).Model(&Provider{}).Where("id = ?", id).Update("enabled", enabled).Error
+}
+
+// dalDeleteProviderModels 删除厂商下的全部模型。
+func dalDeleteProviderModels(ctx context.Context, db *gorm.DB, providerID uint) error {
+	return db.WithContext(ctx).Where("provider_id = ?", providerID).Delete(&Model{}).Error
+}
+
+// dalDeleteProvider 删除厂商。
+func dalDeleteProvider(ctx context.Context, db *gorm.DB, id uint) error {
+	return db.WithContext(ctx).Delete(&Provider{}, id).Error
+}
+
+// dalListModels 返回模型列表（含厂商名）；enabledOnly 为真时只返回启用的。
+func dalListModels(ctx context.Context, db *gorm.DB, enabledOnly bool) ([]Model, error) {
+	var items []Model
+	query := db.WithContext(ctx).
+		Table("models").
+		Select("models.*, providers.name AS provider_name, providers.kind AS provider_kind").
+		Joins("JOIN providers ON providers.id = models.provider_id")
+	if enabledOnly {
+		query = query.Where("models.enabled = ? AND providers.enabled = ?", true, true).
+			Order("models.is_default DESC, models.sort_order ASC, models.id ASC")
+	} else {
+		query = query.Order("models.sort_order ASC, models.id ASC")
+	}
+	if err := query.Scan(&items).Error; err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+// dalFindModelByID 按主键读取模型。
+func dalFindModelByID(ctx context.Context, db *gorm.DB, id uint) (*Model, error) {
+	var m Model
+	if err := db.WithContext(ctx).First(&m, id).Error; err != nil {
+		return nil, err
+	}
+	return &m, nil
+}
+
+// dalCreateModel 新建模型。
+func dalCreateModel(ctx context.Context, db *gorm.DB, m *Model) error {
+	return db.WithContext(ctx).Create(m).Error
+}
+
+// dalSaveModel 保存模型。
+func dalSaveModel(ctx context.Context, db *gorm.DB, m *Model) error {
+	return db.WithContext(ctx).Save(m).Error
+}
+
+// dalSetModelEnabled 启停模型。
+func dalSetModelEnabled(ctx context.Context, db *gorm.DB, id uint, enabled bool) error {
+	return db.WithContext(ctx).Model(&Model{}).Where("id = ?", id).Update("enabled", enabled).Error
+}
+
+// dalCountEnabled 统计启用的厂商与模型数量。
+func dalCountEnabled(ctx context.Context, db *gorm.DB) (int64, int64, error) {
+	var providers, models int64
+	if err := db.WithContext(ctx).Model(&Provider{}).Where("enabled = ?", true).Count(&providers).Error; err != nil {
+		return 0, 0, err
+	}
+	if err := db.WithContext(ctx).Model(&Model{}).Where("enabled = ?", true).Count(&models).Error; err != nil {
+		return 0, 0, err
+	}
+	return providers, models, nil
+}
+
+// dalListEnabledProviders 返回启用的厂商，按排序值升序。
+func dalListEnabledProviders(ctx context.Context, db *gorm.DB) ([]Provider, error) {
+	var items []Provider
+	err := db.WithContext(ctx).Where("enabled = ?", true).Order("sort_order ASC").Find(&items).Error
+	return items, err
+}
+
+// dalCountAuditSince 统计某动作自 since 起的审计条数。
+func dalCountAuditSince(ctx context.Context, db *gorm.DB, action string, since time.Time) (int64, error) {
+	var count int64
+	err := db.WithContext(ctx).Model(&audit.Log{}).
+		Where("action = ? AND created_at >= ?", action, since).
+		Count(&count).Error
+	return count, err
+}
+
+// dalTouchProviderTest 回写厂商连通性测试结果。
+func dalTouchProviderTest(ctx context.Context, db *gorm.DB, p *Provider) error {
+	return db.WithContext(ctx).Model(&Provider{}).Where("id = ?", p.ID).Updates(map[string]any{
+		"verified":        p.Verified,
+		"last_tested_at":  p.LastTestedAt,
+		"last_latency_ms": p.LastLatencyMS,
+		"last_error":      p.LastError,
+	}).Error
+}
+
+// dalClearModelFlags 清除默认 / 兜底标记。
+func dalClearModelFlags(ctx context.Context, db *gorm.DB, column string) error {
+	return db.WithContext(ctx).Model(&Model{}).Where(column+" = ?", true).Update(column, false).Error
+}
+
+// dalSetModelFlag 设置单个模型的默认 / 兜底标记。
+func dalSetModelFlag(ctx context.Context, db *gorm.DB, id uint, column string, value bool) error {
+	return db.WithContext(ctx).Model(&Model{}).Where("id = ?", id).Update(column, value).Error
+}
+
+// dalCountProviderByCode 统计指定编码的厂商数量。
+func dalCountProviderByCode(ctx context.Context, db *gorm.DB, code string) (int64, error) {
+	var count int64
+	err := db.WithContext(ctx).Model(&Provider{}).Where("code = ?", code).Count(&count).Error
+	return count, err
+}
+
+// dalFindProviderByID 按主键读取厂商。
+func dalFindProviderByID(ctx context.Context, db *gorm.DB, id uint) (*Provider, error) {
+	var p Provider
+	if err := db.WithContext(ctx).First(&p, id).Error; err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+// dalDeleteModel 删除模型。
+func dalDeleteModel(ctx context.Context, db *gorm.DB, id uint) error {
+	return db.WithContext(ctx).Delete(&Model{}, id).Error
 }

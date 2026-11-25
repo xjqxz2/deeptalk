@@ -132,11 +132,11 @@ func (s *Service) Create(ctx context.Context, in SaveInput) (*Provider, error) {
 	}
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if p.IsDefault {
-			if err := tx.Model(&Provider{}).Where("is_default = ?", true).Update("is_default", false).Error; err != nil {
+			if err := dalClearProviderDefaults(ctx, tx, 0); err != nil {
 				return err
 			}
 		}
-		if err := tx.Create(p).Error; err != nil {
+		if err := dalCreateProvider(ctx, tx, p); err != nil {
 			return err
 		}
 		if in.Models != nil {
@@ -146,8 +146,7 @@ func (s *Service) Create(ctx context.Context, in SaveInput) (*Provider, error) {
 		}
 		// 厂商并发变化时同步到该厂商的所有模型，保证卡片与模型表一致
 		if in.MaxConcurrency > 0 {
-			if err := tx.Model(&Model{}).Where("provider_id = ?", p.ID).
-				Update("max_concurrency", p.MaxConcurrency).Error; err != nil {
+			if err := dalSyncProviderModelConcurrency(ctx, tx, p.ID, p.MaxConcurrency); err != nil {
 				return err
 			}
 		}
@@ -206,11 +205,11 @@ func (s *Service) Update(ctx context.Context, id uint, in SaveInput) (*Provider,
 	}
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if p.IsDefault {
-			if err := tx.Model(&Provider{}).Where("id <> ? AND is_default = ?", p.ID, true).Update("is_default", false).Error; err != nil {
+			if err := dalClearProviderDefaults(ctx, tx, p.ID); err != nil {
 				return err
 			}
 		}
-		if err := tx.Save(p).Error; err != nil {
+		if err := dalSaveProvider(ctx, tx, p); err != nil {
 			return err
 		}
 		if in.Models != nil {
@@ -220,8 +219,7 @@ func (s *Service) Update(ctx context.Context, id uint, in SaveInput) (*Provider,
 		}
 		// 厂商并发变化时同步到该厂商的所有模型，保证卡片与模型表一致
 		if in.MaxConcurrency > 0 {
-			if err := tx.Model(&Model{}).Where("provider_id = ?", p.ID).
-				Update("max_concurrency", p.MaxConcurrency).Error; err != nil {
+			if err := dalSyncProviderModelConcurrency(ctx, tx, p.ID, p.MaxConcurrency); err != nil {
 				return err
 			}
 		}
@@ -244,7 +242,7 @@ func (s *Service) SetEnabled(ctx context.Context, id uint, enabled bool) (*Provi
 		return nil, err
 	}
 	p.Enabled = enabled
-	if err := s.db.WithContext(ctx).Model(&Provider{}).Where("id = ?", id).Update("enabled", enabled).Error; err != nil {
+	if err := dalSetProviderEnabled(ctx, s.db, id, enabled); err != nil {
 		return nil, err
 	}
 	if !enabled {
@@ -265,10 +263,10 @@ func (s *Service) Delete(ctx context.Context, id uint) error {
 		return ErrBuiltinDelete
 	}
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("provider_id = ?", id).Delete(&Model{}).Error; err != nil {
+		if err := dalDeleteProviderModels(ctx, tx, id); err != nil {
 			return err
 		}
-		return tx.Delete(&Provider{}, id).Error
+		return dalDeleteProvider(ctx, tx, id)
 	})
 	if err != nil {
 		return err
@@ -278,13 +276,7 @@ func (s *Service) Delete(ctx context.Context, id uint) error {
 
 // ListModels 返回全部模型（含厂商名）并补齐默认 / 兜底标记。
 func (s *Service) ListModels(ctx context.Context) ([]Model, error) {
-	var items []Model
-	err := s.db.WithContext(ctx).
-		Table("models").
-		Select("models.*, providers.name AS provider_name, providers.kind AS provider_kind").
-		Joins("JOIN providers ON providers.id = models.provider_id").
-		Order("models.sort_order ASC, models.id ASC").
-		Scan(&items).Error
+	items, err := dalListModels(ctx, s.db, false)
 	if err != nil {
 		return nil, err
 	}
@@ -298,34 +290,26 @@ func (s *Service) ListModels(ctx context.Context) ([]Model, error) {
 
 // EnabledModels 返回 C 端可选模型（模型与厂商都必须启用）。
 func (s *Service) EnabledModels(ctx context.Context) ([]Model, error) {
-	var items []Model
-	err := s.db.WithContext(ctx).
-		Table("models").
-		Select("models.*, providers.name AS provider_name, providers.kind AS provider_kind").
-		Joins("JOIN providers ON providers.id = models.provider_id").
-		Where("models.enabled = ? AND providers.enabled = ?", true, true).
-		Order("models.is_default DESC, models.sort_order ASC, models.id ASC").
-		Scan(&items).Error
-	return items, err
+	return dalListModels(ctx, s.db, true)
 }
 
 // ResolveModel 解析模型与所属厂商，并校验两者都处于启用状态。
 func (s *Service) ResolveModel(ctx context.Context, modelID uint) (*Model, *Provider, error) {
-	var m Model
-	if err := s.db.WithContext(ctx).First(&m, modelID).Error; err != nil {
+	mPtr, err := dalFindModelByID(ctx, s.db, modelID)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil, ErrModelNotFound
 		}
 		return nil, nil, err
 	}
-	p, err := dalFindProvider(ctx, s.db, m.ProviderID)
+	p, err := dalFindProvider(ctx, s.db, mPtr.ProviderID)
 	if err != nil {
 		return nil, nil, err
 	}
-	if !m.Enabled || !p.Enabled {
+	if !mPtr.Enabled || !p.Enabled {
 		return nil, nil, fmt.Errorf("模型已停用")
 	}
-	return &m, p, nil
+	return mPtr, p, nil
 }
 
 // DefaultModel 返回平台默认模型；设置失效时回退到第一个启用模型。
@@ -388,7 +372,7 @@ func (s *Service) CreateModel(ctx context.Context, providerID uint, in ModelInpu
 	if err != nil {
 		return nil, err
 	}
-	if err := s.db.WithContext(ctx).Create(m).Error; err != nil {
+	if err := dalCreateModel(ctx, s.db, m); err != nil {
 		return nil, err
 	}
 	return m, nil
@@ -396,10 +380,11 @@ func (s *Service) CreateModel(ctx context.Context, providerID uint, in ModelInpu
 
 // UpdateModel 编辑模型信息。
 func (s *Service) UpdateModel(ctx context.Context, id uint, in ModelInput) (*Model, error) {
-	var m Model
-	if err := s.db.WithContext(ctx).First(&m, id).Error; err != nil {
+	mPtr, err := dalFindModelByID(ctx, s.db, id)
+	if err != nil {
 		return nil, ErrModelNotFound
 	}
+	m := *mPtr
 	if strings.TrimSpace(in.ModelID) == "" {
 		return nil, errors.New("model_id is required")
 	}
@@ -416,7 +401,7 @@ func (s *Service) UpdateModel(ctx context.Context, id uint, in ModelInput) (*Mod
 	m.PriceInput = nonNegative(in.PriceInput)
 	m.PriceCachedInput = nonNegative(in.PriceCachedInput)
 	m.PriceOutput = nonNegative(in.PriceOutput)
-	if err := s.db.WithContext(ctx).Save(&m).Error; err != nil {
+	if err := dalSaveModel(ctx, s.db, &m); err != nil {
 		return nil, err
 	}
 	if err := s.RepairRouting(ctx); err != nil {
@@ -427,13 +412,14 @@ func (s *Service) UpdateModel(ctx context.Context, id uint, in ModelInput) (*Mod
 
 // SetModelEnabled 启用 / 停用模型。
 func (s *Service) SetModelEnabled(ctx context.Context, id uint, enabled bool) (*Model, error) {
-	var m Model
-	if err := s.db.WithContext(ctx).First(&m, id).Error; err != nil {
+	mPtr, err := dalFindModelByID(ctx, s.db, id)
+	if err != nil {
 		return nil, ErrModelNotFound
 	}
-	if err := s.db.WithContext(ctx).Model(&Model{}).Where("id = ?", id).Update("enabled", enabled).Error; err != nil {
+	if err := dalSetModelEnabled(ctx, s.db, id, enabled); err != nil {
 		return nil, err
 	}
+	m := *mPtr
 	m.Enabled = enabled
 	if !enabled {
 		if err := s.RepairRouting(ctx); err != nil {
@@ -474,21 +460,14 @@ func (s *Service) RepairRouting(ctx context.Context) error {
 
 // EnabledCounts 返回已启用厂商与已启用模型数量，用于后台概览。
 func (s *Service) EnabledCounts(ctx context.Context) (int64, int64, error) {
-	var providers, models int64
-	if err := s.db.WithContext(ctx).Model(&Provider{}).Where("enabled = ?", true).Count(&providers).Error; err != nil {
-		return 0, 0, err
-	}
-	if err := s.db.WithContext(ctx).Model(&Model{}).Where("enabled = ?", true).Count(&models).Error; err != nil {
-		return 0, 0, err
-	}
-	return providers, models, nil
+	return dalCountEnabled(ctx, s.db)
 }
 
 // Health 汇总接入健康数据。首字节 P95 用已启用厂商的最近延迟最大值近似。
 func (s *Service) Health(ctx context.Context) (Health, error) {
 	health := Health{UpdatedAt: time.Now()}
-	var providers []Provider
-	if err := s.db.WithContext(ctx).Where("enabled = ?", true).Order("sort_order ASC").Find(&providers).Error; err != nil {
+	providers, err := dalListEnabledProviders(ctx, s.db)
+	if err != nil {
 		return health, err
 	}
 	health.UpstreamsTotal = len(providers)
@@ -508,11 +487,9 @@ func (s *Service) Health(ctx context.Context) (Health, error) {
 	health.FirstByteP95MS = maxLatency
 	// 近 1 小时的失败测试次数由审计日志统计，保证与“最近变更”一致
 	since := time.Now().Add(-time.Hour)
-	var count int64
-	_ = s.db.WithContext(ctx).Model(&audit.Log{}).
-		Where("action = ? AND created_at >= ?", "provider.test.fail", since).
-		Count(&count).Error
-	health.Errors1H = count
+	if count, err := dalCountAuditSince(ctx, s.db, "provider.test.fail", since); err == nil {
+		health.Errors1H = count
+	}
 	return health, nil
 }
 
@@ -537,12 +514,7 @@ func (s *Service) Test(ctx context.Context, id uint) (TestResult, error) {
 		p.Verified = false
 		p.LastError = truncate(result.Message, 250)
 	}
-	_ = s.db.WithContext(ctx).Model(&Provider{}).Where("id = ?", id).Updates(map[string]any{
-		"verified":        p.Verified,
-		"last_tested_at":  p.LastTestedAt,
-		"last_latency_ms": p.LastLatencyMS,
-		"last_error":      p.LastError,
-	}).Error
+	_ = dalTouchProviderTest(ctx, s.db, p)
 	return result, nil
 }
 
@@ -604,7 +576,7 @@ func (s *Service) ValidateBaseURL(raw string) error {
 
 // replaceModels 全量替换某厂商的模型列表。
 func (s *Service) replaceModels(ctx context.Context, tx *gorm.DB, providerID uint, inputs []ModelInput) error {
-	if err := tx.WithContext(ctx).Where("provider_id = ?", providerID).Delete(&Model{}).Error; err != nil {
+	if err := dalDeleteProviderModels(ctx, tx, providerID); err != nil {
 		return err
 	}
 	seen := make(map[string]struct{}, len(inputs))
@@ -617,7 +589,7 @@ func (s *Service) replaceModels(ctx context.Context, tx *gorm.DB, providerID uin
 			continue
 		}
 		seen[m.ModelID] = struct{}{}
-		if err := tx.WithContext(ctx).Create(m).Error; err != nil {
+		if err := dalCreateModel(ctx, tx, m); err != nil {
 			return err
 		}
 	}
@@ -626,19 +598,19 @@ func (s *Service) replaceModels(ctx context.Context, tx *gorm.DB, providerID uin
 
 // syncRoutingFlags 把默认 / 兜底标记同步到模型行，便于列表直接展示。
 func (s *Service) syncRoutingFlags(ctx context.Context, defaultID, fallbackID uint) error {
-	if err := s.db.WithContext(ctx).Model(&Model{}).Where("is_default = ?", true).Update("is_default", false).Error; err != nil {
+	if err := dalClearModelFlags(ctx, s.db, "is_default"); err != nil {
 		return err
 	}
-	if err := s.db.WithContext(ctx).Model(&Model{}).Where("is_fallback = ?", true).Update("is_fallback", false).Error; err != nil {
+	if err := dalClearModelFlags(ctx, s.db, "is_fallback"); err != nil {
 		return err
 	}
 	if defaultID > 0 {
-		if err := s.db.WithContext(ctx).Model(&Model{}).Where("id = ?", defaultID).Update("is_default", true).Error; err != nil {
+		if err := dalSetModelFlag(ctx, s.db, defaultID, "is_default", true); err != nil {
 			return err
 		}
 	}
 	if fallbackID > 0 {
-		if err := s.db.WithContext(ctx).Model(&Model{}).Where("id = ?", fallbackID).Update("is_fallback", true).Error; err != nil {
+		if err := dalSetModelFlag(ctx, s.db, fallbackID, "is_fallback", true); err != nil {
 			return err
 		}
 	}
@@ -654,7 +626,7 @@ func (s *Service) uniqueCode(ctx context.Context, name string) string {
 	code := base
 	for i := 2; i < 100; i++ {
 		var count int64
-		_ = s.db.WithContext(ctx).Model(&Provider{}).Where("code = ?", code).Count(&count).Error
+		count, _ = dalCountProviderByCode(ctx, s.db, code)
 		if count == 0 {
 			return code
 		}
@@ -889,15 +861,16 @@ func validHeaderName(name string) bool {
 
 // DeleteModel 删除单个模型；预置模型只允许停用，不能删除。
 func (s *Service) DeleteModel(ctx context.Context, id uint) error {
-	var model Model
-	if err := s.db.WithContext(ctx).First(&model, id).Error; err != nil {
+	modelPtr, err := dalFindModelByID(ctx, s.db, id)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrModelNotFound
 		}
 		return err
 	}
-	var prov Provider
-	if err := s.db.WithContext(ctx).First(&prov, model.ProviderID).Error; err != nil {
+	model := *modelPtr
+	prov, err := dalFindProviderByID(ctx, s.db, model.ProviderID)
+	if err != nil {
 		return err
 	}
 	if prov.IsBuiltin && prov.IsDefault && model.IsDefault {
@@ -909,7 +882,7 @@ func (s *Service) DeleteModel(ctx context.Context, id uint) error {
 				return err
 			}
 		}
-		return tx.Delete(&Model{}, id).Error
+		return dalDeleteModel(ctx, tx, id)
 	})
 }
 
