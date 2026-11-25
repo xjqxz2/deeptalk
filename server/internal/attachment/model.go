@@ -3,6 +3,7 @@
 package attachment
 
 import (
+	"context"
 	"time"
 
 	"gorm.io/gorm"
@@ -45,4 +46,33 @@ type Asset struct {
 // Migrate 创建附件表。
 func Migrate(db *gorm.DB) error {
 	return db.AutoMigrate(&Attachment{})
+}
+
+// dalCreateAttachment 写入一条附件记录。
+func dalCreateAttachment(ctx context.Context, db *gorm.DB, row *Attachment) error {
+	return db.WithContext(ctx).Create(row).Error
+}
+
+// dalFindAttachments 按用户与 ID 集合读取附件。
+func dalFindAttachments(ctx context.Context, db *gorm.DB, userID uint, ids []uint) ([]Attachment, error) {
+	var rows []Attachment
+	err := db.WithContext(ctx).Where("user_id = ? AND id IN ?", userID, ids).Find(&rows).Error
+	return rows, err
+}
+
+// dalAttachToMessage 把附件关联到消息，返回受影响行数。
+func dalAttachToMessage(ctx context.Context, db *gorm.DB, userID, messageID uint, ids []uint) (int64, error) {
+	result := db.WithContext(ctx).Model(&Attachment{}).
+		Where("user_id = ? AND id IN ?", userID, ids).
+		Update("message_id", messageID)
+	return result.RowsAffected, result.Error
+}
+
+// dalFindAttachment 按用户与 ID 读取单条附件。
+func dalFindAttachment(ctx context.Context, db *gorm.DB, userID, id uint) (*Attachment, error) {
+	var row Attachment
+	if err := db.WithContext(ctx).Where("id = ? AND user_id = ?", id, userID).First(&row).Error; err != nil {
+		return nil, err
+	}
+	return &row, nil
 }

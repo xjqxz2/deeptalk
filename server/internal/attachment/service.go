@@ -108,7 +108,7 @@ func (s *Service) Save(ctx context.Context, userID uint, name string, data []byt
 		StorageName: storage,
 		CreatedAt:   time.Now(),
 	}
-	if err := s.db.WithContext(ctx).Create(row).Error; err != nil {
+	if err := dalCreateAttachment(ctx, s.db, row); err != nil {
 		_ = os.Remove(path)
 		return nil, err
 	}
@@ -124,8 +124,8 @@ func (s *Service) Load(ctx context.Context, userID uint, ids []uint) ([]Asset, e
 	if len(ids) > MaxFilesPerMessage {
 		return nil, ErrTooMany
 	}
-	var rows []Attachment
-	if err := s.db.WithContext(ctx).Where("user_id = ? AND id IN ?", userID, ids).Find(&rows).Error; err != nil {
+	rows, err := dalFindAttachments(ctx, s.db, userID, ids)
+	if err != nil {
 		return nil, err
 	}
 	byID := make(map[uint]Attachment, len(rows))
@@ -149,13 +149,11 @@ func (s *Service) Attach(ctx context.Context, userID, messageID uint, ids []uint
 	if len(ids) == 0 {
 		return nil
 	}
-	result := s.db.WithContext(ctx).Model(&Attachment{}).
-		Where("user_id = ? AND id IN ?", userID, ids).
-		Update("message_id", messageID)
-	if result.Error != nil {
-		return result.Error
+	affected, err := dalAttachToMessage(ctx, s.db, userID, messageID, ids)
+	if err != nil {
+		return err
 	}
-	if result.RowsAffected != int64(len(ids)) {
+	if affected != int64(len(ids)) {
 		return ErrNotFound
 	}
 	return nil
@@ -163,8 +161,8 @@ func (s *Service) Attach(ctx context.Context, userID, messageID uint, ids []uint
 
 // Open 返回附件元数据与绝对路径，供 HTTP 层输出图片。
 func (s *Service) Open(ctx context.Context, userID, id uint) (*Attachment, string, error) {
-	var row Attachment
-	if err := s.db.WithContext(ctx).Where("id = ? AND user_id = ?", id, userID).First(&row).Error; err != nil {
+	row, err := dalFindAttachment(ctx, s.db, userID, id)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, "", ErrNotFound
 		}
@@ -174,7 +172,7 @@ func (s *Service) Open(ctx context.Context, userID, id uint) (*Attachment, strin
 	if _, err := os.Stat(path); err != nil {
 		return nil, "", ErrNotFound
 	}
-	return &row, path, nil
+	return row, path, nil
 }
 
 // DataURL 把图片转成 OpenAI 兼容的 data URL，供上游视觉输入使用。

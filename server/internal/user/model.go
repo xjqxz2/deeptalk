@@ -5,6 +5,7 @@ package user
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -231,4 +232,117 @@ func migrateLegacyWeChatColumn(db *gorm.DB) error {
 	}
 	_ = db.Exec("ALTER TABLE users DROP COLUMN we_chat_open_id").Error
 	return nil
+}
+
+// dalUpdateWeChatOpenID 绑定小程序 openid。
+func dalUpdateWeChatOpenID(ctx context.Context, db *gorm.DB, userID uint, openid string) error {
+	return db.WithContext(ctx).Model(&User{}).Where("id = ?", userID).
+		Update("wechat_open_id", openid).Error
+}
+
+// dalSelectWeChatOpenID 读取用户的小程序 openid；未绑定时返回 nil。
+func dalSelectWeChatOpenID(ctx context.Context, db *gorm.DB, userID uint) (*string, error) {
+	var row struct{ WeChatOpenID *string }
+	if err := db.WithContext(ctx).Model(&User{}).Select("wechat_open_id").
+		Where("id = ?", userID).Scan(&row).Error; err != nil {
+		return nil, err
+	}
+	return row.WeChatOpenID, nil
+}
+
+// dalCountUsersWhere 按条件统计用户数。
+func dalCountUsersWhere(ctx context.Context, db *gorm.DB, where string, args ...any) (int64, error) {
+	query := db.WithContext(ctx).Model(&User{})
+	if where != "" {
+		query = query.Where(where, args...)
+	}
+	var total int64
+	err := query.Count(&total).Error
+	return total, err
+}
+
+// dalSumUsedTokens 汇总全部用户已用 token。
+func dalSumUsedTokens(ctx context.Context, db *gorm.DB) (int64, error) {
+	var row struct{ Total int64 }
+	if err := db.WithContext(ctx).Model(&User{}).
+		Select("COALESCE(SUM(used_tokens), 0) AS total").Scan(&row).Error; err != nil {
+		return 0, err
+	}
+	return row.Total, nil
+}
+
+// dalListUsers 按条件分页查询用户；返回列表与总数。
+func dalListUsers(ctx context.Context, db *gorm.DB, p ListParams) ([]User, int64, error) {
+	filter := func(query *gorm.DB) *gorm.DB {
+		if q := strings.TrimSpace(p.Query); q != "" {
+			like := "%" + q + "%"
+			query = query.Where("email LIKE ? OR nickname LIKE ?", like, like)
+		}
+		switch p.Status {
+		case "normal":
+			query = query.Where("disabled = ?", false)
+		case "restricted":
+			query = query.Where("disabled = ?", true)
+		case "quota":
+			query = query.Where("disabled = ? AND quota_tokens > 0 AND used_tokens * 10 >= quota_tokens * 9", false)
+		}
+		return query
+	}
+	var total int64
+	if err := filter(db.WithContext(ctx).Model(&User{})).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	query := filter(db.WithContext(ctx).Model(&User{}))
+	switch p.Sort {
+	case "created":
+		query = query.Order("created_at DESC, id DESC")
+	case "usage":
+		query = query.Order("used_tokens DESC, id ASC")
+	default:
+		// 最近活跃优先，从未登录的排最后
+		query = query.Order("(last_login_at IS NULL) ASC, last_login_at DESC, id ASC")
+	}
+	var items []User
+	err := query.Offset((p.Page - 1) * p.PageSize).Limit(p.PageSize).Find(&items).Error
+	return items, total, err
+}
+
+// dalListAllUsers 返回全部用户（CSV 导出用）。
+func dalListAllUsers(ctx context.Context, db *gorm.DB) ([]User, error) {
+	var items []User
+	err := db.WithContext(ctx).Order("id ASC").Find(&items).Error
+	return items, err
+}
+
+// dalAddUsedTokens 累加用户已用 token。
+func dalAddUsedTokens(ctx context.Context, db *gorm.DB, userID uint, tokens int64) error {
+	return db.WithContext(ctx).Model(&User{}).
+		Where("id = ?", userID).
+		UpdateColumn("used_tokens", gorm.Expr("used_tokens + ?", tokens)).Error
+}
+
+// dalFindSessionByTokenHash 按 token 摘要读取未撤销的会话。
+func dalFindSessionByTokenHash(ctx context.Context, db *gorm.DB, tokenHash string) (*Session, error) {
+	var session Session
+	if err := db.WithContext(ctx).Where("token_hash = ? AND revoked_at IS NULL", tokenHash).
+		First(&session).Error; err != nil {
+		return nil, err
+	}
+	return &session, nil
+}
+
+// dalUpdateSessionSignKey 给会话补发签名 key id。
+func dalUpdateSessionSignKey(ctx context.Context, db *gorm.DB, sessionID uint, keyID string) error {
+	return db.WithContext(ctx).Model(&Session{}).Where("id = ?", sessionID).
+		Update("sign_key_id", keyID).Error
+}
+
+// dalDeleteUserSessions 删除用户的全部会话记录。
+func dalDeleteUserSessions(ctx context.Context, db *gorm.DB, userID uint) error {
+	return db.WithContext(ctx).Where("user_id = ?", userID).Delete(&Session{}).Error
+}
+
+// dalDeleteUser 删除用户记录。
+func dalDeleteUser(ctx context.Context, db *gorm.DB, userID uint) error {
+	return db.WithContext(ctx).Delete(&User{}, userID).Error
 }

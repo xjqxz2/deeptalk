@@ -49,7 +49,7 @@ func (s *Service) Save(ctx context.Context, userID uint, in SaveInput) (*Memo, e
 		Tags:           strings.Join(cleanTags(in.Tags), ","),
 		ConversationID: in.ConversationID,
 	}
-	if err := s.db.WithContext(ctx).Create(item).Error; err != nil {
+	if err := dalCreateMemo(ctx, s.db, item); err != nil {
 		return nil, err
 	}
 	return item, nil
@@ -57,8 +57,8 @@ func (s *Service) Save(ctx context.Context, userID uint, in SaveInput) (*Memo, e
 
 // Update 修改标题 / 正文 / 标签。
 func (s *Service) Update(ctx context.Context, userID, id uint, in SaveInput) (*Memo, error) {
-	var item Memo
-	if err := s.db.WithContext(ctx).Where("id = ? AND user_id = ?", id, userID).First(&item).Error; err != nil {
+	item, err := dalFindMemo(ctx, s.db, userID, id)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		}
@@ -73,19 +73,19 @@ func (s *Service) Update(ctx context.Context, userID, id uint, in SaveInput) (*M
 	if in.Tags != nil {
 		item.Tags = strings.Join(cleanTags(in.Tags), ",")
 	}
-	if err := s.db.WithContext(ctx).Save(&item).Error; err != nil {
+	if err := dalSaveMemo(ctx, s.db, item); err != nil {
 		return nil, err
 	}
-	return &item, nil
+	return item, nil
 }
 
 // Delete 删除一条灵感录。
 func (s *Service) Delete(ctx context.Context, userID, id uint) error {
-	result := s.db.WithContext(ctx).Where("id = ? AND user_id = ?", id, userID).Delete(&Memo{})
-	if result.Error != nil {
-		return result.Error
+	affected, err := dalDeleteMemo(ctx, s.db, userID, id)
+	if err != nil {
+		return err
 	}
-	if result.RowsAffected == 0 {
+	if affected == 0 {
 		return ErrNotFound
 	}
 	return nil
@@ -93,14 +93,14 @@ func (s *Service) Delete(ctx context.Context, userID, id uint) error {
 
 // Get 读取一条灵感录。
 func (s *Service) Get(ctx context.Context, userID, id uint) (*Memo, error) {
-	var item Memo
-	if err := s.db.WithContext(ctx).Where("id = ? AND user_id = ?", id, userID).First(&item).Error; err != nil {
+	item, err := dalFindMemo(ctx, s.db, userID, id)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrNotFound
 		}
 		return nil, err
 	}
-	return &item, nil
+	return item, nil
 }
 
 // Search 按关键词检索标题、正文与标签；query 为空时按时间倒序返回。
@@ -108,16 +108,7 @@ func (s *Service) Search(ctx context.Context, userID uint, query string, limit i
 	if limit <= 0 || limit > 50 {
 		limit = 20
 	}
-	db := s.db.WithContext(ctx).Where("user_id = ?", userID)
-	if text := strings.TrimSpace(query); text != "" {
-		like := "%" + text + "%"
-		db = db.Where("title LIKE ? OR content LIKE ? OR tags LIKE ?", like, like, like)
-	}
-	var items []Memo
-	if err := db.Order("updated_at DESC").Limit(limit).Find(&items).Error; err != nil {
-		return nil, err
-	}
-	return items, nil
+	return dalSearchMemos(ctx, s.db, userID, strings.TrimSpace(query), limit)
 }
 
 func firstLine(text string) string {

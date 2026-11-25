@@ -64,36 +64,28 @@ func NewService(db *gorm.DB) *Service {
 
 // Plans 返回全部启用的套餐，按排序值升序。
 func (s *Service) Plans(ctx context.Context) ([]Plan, error) {
-	var items []Plan
-	if err := s.db.WithContext(ctx).Where("enabled = ?", true).Order("sort_order asc, id asc").Find(&items).Error; err != nil {
-		return nil, err
-	}
-	return items, nil
+	return dalListPlans(ctx, s.db, true)
 }
 
 // AllPlans 返回全部套餐（后台管理用）。
 func (s *Service) AllPlans(ctx context.Context) ([]Plan, error) {
-	var items []Plan
-	if err := s.db.WithContext(ctx).Order("sort_order asc, id asc").Find(&items).Error; err != nil {
-		return nil, err
-	}
-	return items, nil
+	return dalListPlans(ctx, s.db, false)
 }
 
 // PlanByCode 按编码取套餐；找不到时回退到免费版。
 func (s *Service) PlanByCode(ctx context.Context, code string) (Plan, error) {
-	var plan Plan
-	err := s.db.WithContext(ctx).Where("code = ?", code).First(&plan).Error
+	plan, err := dalFindPlanByCode(ctx, s.db, code)
 	if err == nil {
-		return plan, nil
+		return *plan, nil
 	}
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return Plan{}, err
 	}
-	if err := s.db.WithContext(ctx).Where("code = ?", PlanFree).First(&plan).Error; err != nil {
+	fallback, err := dalFindPlanByCode(ctx, s.db, PlanFree)
+	if err != nil {
 		return Plan{}, ErrPlanNotFound
 	}
-	return plan, nil
+	return *fallback, nil
 }
 
 // Snapshot 统计用户当前窗口内的花费与请求次数。
@@ -112,20 +104,14 @@ func (s *Service) Snapshot(ctx context.Context, planCode string, userID uint) (S
 	}
 	// 花费：自然月口径
 	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	var spend struct{ Total int64 }
-	if err := s.db.WithContext(ctx).Model(&Event{}).
-		Select("COALESCE(SUM(cost_milli_cents), 0) AS total").
-		Where("user_id = ? AND created_at >= ?", userID, monthStart).
-		Scan(&spend).Error; err != nil {
+	spendTotal, err := dalSumCostSince(ctx, s.db, userID, monthStart)
+	if err != nil {
 		return Snapshot{}, err
 	}
-	snap.SpendCents = spend.Total / 1000
+	snap.SpendCents = spendTotal / 1000
 
 	count := func(since time.Time) (int, error) {
-		var total int64
-		err := s.db.WithContext(ctx).Model(&Event{}).
-			Where("user_id = ? AND created_at >= ?", userID, since).
-			Count(&total).Error
+		total, err := dalCountEventsSince(ctx, s.db, userID, since)
 		return int(total), err
 	}
 	if snap.RequestsShort, err = count(now.Add(-WindowShort)); err != nil {
@@ -145,10 +131,8 @@ func (s *Service) Snapshot(ctx context.Context, planCode string, userID uint) (S
 
 // nextRelease 估算窗口内最早释放名额的时间：取窗口内第 (count-limit+1) 条事件的时间 + 窗口长度。
 func (s *Service) nextRelease(ctx context.Context, userID uint, since time.Time, window time.Duration) time.Time {
-	var first Event
-	if err := s.db.WithContext(ctx).
-		Where("user_id = ? AND created_at >= ?", userID, since).
-		Order("created_at asc").First(&first).Error; err != nil {
+	first, err := dalEarliestEventSince(ctx, s.db, userID, since)
+	if err != nil {
 		return s.now().Add(window)
 	}
 	return first.CreatedAt.Add(window)
@@ -202,7 +186,7 @@ func (s *Service) Record(ctx context.Context, event Event) error {
 	if event.UserID == 0 {
 		return nil
 	}
-	return s.db.WithContext(ctx).Create(&event).Error
+	return dalCreateEvent(ctx, s.db, &event)
 }
 
 // CostMilliCents 按模型单价（元 / 百万 token）换算本次费用，单位「分的千分之一」。
@@ -248,14 +232,14 @@ type UpdateInput struct {
 
 // Update 更新套餐配置；限额为 0 表示该条不限。
 func (s *Service) Update(ctx context.Context, id uint, in UpdateInput) (Plan, error) {
-	var plan Plan
-	err := s.db.WithContext(ctx).First(&plan, id).Error
+	planPtr, err := dalFindPlanByID(ctx, s.db, id)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return Plan{}, ErrPlanNotFound
 	}
 	if err != nil {
 		return Plan{}, err
 	}
+	plan := *planPtr
 	if in.Name != "" {
 		plan.Name = in.Name
 	}
@@ -277,7 +261,7 @@ func (s *Service) Update(ctx context.Context, id uint, in UpdateInput) (Plan, er
 	if in.Enabled != nil {
 		plan.Enabled = *in.Enabled
 	}
-	if err := s.db.WithContext(ctx).Save(&plan).Error; err != nil {
+	if err := dalSavePlan(ctx, s.db, &plan); err != nil {
 		return Plan{}, err
 	}
 	return plan, nil
@@ -285,5 +269,6 @@ func (s *Service) Update(ctx context.Context, id uint, in UpdateInput) (Plan, er
 
 // PurgeUser 删除某个用户的计费事件（管理员删号时调用）。
 func (s *Service) PurgeUser(ctx context.Context, userID uint) error {
-	return s.db.WithContext(ctx).Where("user_id = ?", userID).Delete(&Event{}).Error
+	_, err := dalDeleteEventsByUser(ctx, s.db, userID)
+	return err
 }

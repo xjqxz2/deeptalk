@@ -37,34 +37,16 @@ func (s *Service) AdminList(ctx context.Context, query string, page, size int) (
 	if size <= 0 || size > 100 {
 		size = 20
 	}
-	base := s.db.WithContext(ctx).Table("memos").
-		Joins("LEFT JOIN users ON users.id = memos.user_id")
-	if text := strings.TrimSpace(query); text != "" {
-		like := "%" + text + "%"
-		base = base.Where("memos.title LIKE ? OR memos.content LIKE ? OR memos.tags LIKE ? OR users.email LIKE ?", like, like, like, like)
-	}
-	var total int64
-	if err := base.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-	var items []AdminItem
-	err := base.Select("memos.*, COALESCE(users.email, '') AS user_email").
-		Order("memos.created_at DESC").
-		Offset((page - 1) * size).Limit(size).
-		Scan(&items).Error
-	if err != nil {
-		return nil, 0, err
-	}
-	return items, total, nil
+	return dalAdminListMemos(ctx, s.db, strings.TrimSpace(query), page, size)
 }
 
 // AdminDelete 按 ID 删除任意用户的灵感（后台操作）。
 func (s *Service) AdminDelete(ctx context.Context, id uint) error {
-	result := s.db.WithContext(ctx).Delete(&Memo{}, id)
-	if result.Error != nil {
-		return result.Error
+	affected, err := dalDeleteMemoByID(ctx, s.db, id)
+	if err != nil {
+		return err
 	}
-	if result.RowsAffected == 0 {
+	if affected == 0 {
 		return ErrNotFound
 	}
 	return nil
@@ -72,57 +54,51 @@ func (s *Service) AdminDelete(ctx context.Context, id uint) error {
 
 // StatsOf 统计总量、今日、近 7 天与每日趋势。
 func (s *Service) StatsOf(ctx context.Context) (*Stats, error) {
-	db := s.db.WithContext(ctx)
 	stats := &Stats{}
-	if err := db.Model(&Memo{}).Count(&stats.Total).Error; err != nil {
-		return nil, err
-	}
-	if err := db.Model(&Memo{}).Where("created_at >= date('now', 'start of day')").Count(&stats.Today).Error; err != nil {
-		return nil, err
-	}
-	if err := db.Model(&Memo{}).Where("created_at >= date('now', '-6 days', 'start of day')").Count(&stats.Last7).Error; err != nil {
-		return nil, err
-	}
-	if err := db.Model(&Memo{}).Distinct("user_id").Count(&stats.Users).Error; err != nil {
-		return nil, err
-	}
-	rows, err := db.Model(&Memo{}).
-		Select("date(created_at) as date, count(*) as count").
-		Where("created_at >= date('now', '-6 days', 'start of day')").
-		Group("date(created_at)").Order("date").Rows()
+	total, err := dalCountMemos(ctx, s.db, "")
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	counts := make(map[string]int64, 7)
-	for rows.Next() {
-		var day string
-		var count int64
-		if err := rows.Scan(&day, &count); err != nil {
-			return nil, err
-		}
-		counts[day] = count
+	stats.Total = total
+	today, err := dalCountMemos(ctx, s.db, "created_at >= date('now', 'start of day')")
+	if err != nil {
+		return nil, err
 	}
-	stats.Daily = fillDays(db, counts, 7)
+	stats.Today = today
+	last7, err := dalCountMemos(ctx, s.db, "created_at >= date('now', '-6 days', 'start of day')")
+	if err != nil {
+		return nil, err
+	}
+	stats.Last7 = last7
+	users, err := dalCountMemoUsers(ctx, s.db)
+	if err != nil {
+		return nil, err
+	}
+	stats.Users = users
+	days, err := dalMemoDailyCounts(ctx, s.db, "created_at >= date('now', '-6 days', 'start of day')")
+	if err != nil {
+		return nil, err
+	}
+	counts := make(map[string]int64, len(days))
+	for _, day := range days {
+		counts[day.Date] = day.Count
+	}
+	stats.Daily, err = fillDays(ctx, s.db, counts, 7)
+	if err != nil {
+		return nil, err
+	}
 	return stats, nil
 }
 
 // fillDays 把稀疏的按天计数补齐成连续 7 天（缺失记 0），供前端画趋势。
-func fillDays(db *gorm.DB, counts map[string]int64, days int) []DailyCount {
-	out := make([]DailyCount, 0, days)
-	rows, err := db.Raw(
-		"SELECT date('now', '-' || (n - 1) || ' days') FROM (SELECT 1 n UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7) ORDER BY n DESC",
-	).Rows()
+func fillDays(ctx context.Context, db *gorm.DB, counts map[string]int64, days int) ([]DailyCount, error) {
+	dates, err := dalRecentDays(ctx, db, days)
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var day string
-		if err := rows.Scan(&day); err != nil {
-			return nil
-		}
+	out := make([]DailyCount, 0, len(dates))
+	for _, day := range dates {
 		out = append(out, DailyCount{Date: day, Count: counts[day]})
 	}
-	return out
+	return out, nil
 }

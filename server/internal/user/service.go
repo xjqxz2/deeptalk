@@ -231,28 +231,23 @@ func (s *Service) SetWeChatOpenID(ctx context.Context, userID uint, openid strin
 	if openid == "" {
 		return errors.New("wechat openid is required")
 	}
-	var existing User
-	err := s.db.WithContext(ctx).Where("wechat_open_id = ?", openid).First(&existing).Error
+	existing, err := dalFindByWeChatOpenID(ctx, s.db, openid)
 	if err == nil && existing.ID != userID {
 		return ErrForbidden
 	}
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil && !errors.Is(err, ErrNotFound) {
 		return err
 	}
-	return s.db.WithContext(ctx).Model(&User{}).Where("id = ?", userID).
-		Update("wechat_open_id", openid).Error
+	return dalUpdateWeChatOpenID(ctx, s.db, userID, openid)
 }
 
 // WeChatOpenID 返回用户绑定的小程序 openid；未绑定时返回空串。
 func (s *Service) WeChatOpenID(ctx context.Context, userID uint) string {
-	var row struct {
-		WeChatOpenID *string
-	}
-	if err := s.db.WithContext(ctx).Model(&User{}).Select("wechat_open_id").
-		Where("id = ?", userID).Scan(&row).Error; err != nil || row.WeChatOpenID == nil {
+	openid, err := dalSelectWeChatOpenID(ctx, s.db, userID)
+	if err != nil || openid == nil {
 		return ""
 	}
-	return *row.WeChatOpenID
+	return *openid
 }
 
 // Logout 撤销当前会话。
@@ -317,32 +312,27 @@ func (s *Service) Stats(ctx context.Context) (Stats, error) {
 	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 	sevenDaysAgo := now.AddDate(0, 0, -7)
 	var stats Stats
-	// base 每次返回全新的查询链，避免 Where 条件互相叠加
-	base := func() *gorm.DB { return s.db.WithContext(ctx).Model(&User{}) }
-	if err := base().Count(&stats.Total).Error; err != nil {
+	var err error
+	if stats.Total, err = dalCountUsersWhere(ctx, s.db, ""); err != nil {
 		return stats, err
 	}
-	if err := base().Where("created_at >= ?", monthStart).Count(&stats.NewThisMonth).Error; err != nil {
+	if stats.NewThisMonth, err = dalCountUsersWhere(ctx, s.db, "created_at >= ?", monthStart); err != nil {
 		return stats, err
 	}
-	if err := base().Where("last_login_at >= ?", sevenDaysAgo).Count(&stats.Active7D).Error; err != nil {
+	if stats.Active7D, err = dalCountUsersWhere(ctx, s.db, "last_login_at >= ?", sevenDaysAgo); err != nil {
 		return stats, err
 	}
-	if err := base().Where("disabled = ?", true).Count(&stats.Restricted).Error; err != nil {
+	if stats.Restricted, err = dalCountUsersWhere(ctx, s.db, "disabled = ?", true); err != nil {
 		return stats, err
 	}
 	// 额度将尽：使用率 ≥90% 且未被限制；SQL 中先乘后比避免浮点误差
-	if err := base().Where("disabled = ? AND quota_tokens > 0 AND used_tokens * 10 >= quota_tokens * 9", false).
-		Count(&stats.QuotaAlert).Error; err != nil {
+	if stats.QuotaAlert, err = dalCountUsersWhere(ctx, s.db,
+		"disabled = ? AND quota_tokens > 0 AND used_tokens * 10 >= quota_tokens * 9", false); err != nil {
 		return stats, err
 	}
-	var sum struct {
-		Total int64
-	}
-	if err := base().Select("COALESCE(SUM(used_tokens), 0) AS total").Scan(&sum).Error; err != nil {
+	if stats.MonthlyTokens, err = dalSumUsedTokens(ctx, s.db); err != nil {
 		return stats, err
 	}
-	stats.MonthlyTokens = sum.Total
 	if stats.Total > 0 {
 		stats.ActiveRate = int((stats.Active7D*100 + stats.Total/2) / stats.Total)
 	}
@@ -363,45 +353,12 @@ func (s *Service) List(ctx context.Context, p ListParams) ([]User, int64, error)
 	if p.PageSize > 50 {
 		p.PageSize = 50
 	}
-	filter := func(query *gorm.DB) *gorm.DB {
-		if q := strings.TrimSpace(p.Query); q != "" {
-			like := "%" + q + "%"
-			query = query.Where("email LIKE ? OR nickname LIKE ?", like, like)
-		}
-		switch p.Status {
-		case "normal":
-			query = query.Where("disabled = ?", false)
-		case "restricted":
-			query = query.Where("disabled = ?", true)
-		case "quota":
-			query = query.Where("disabled = ? AND quota_tokens > 0 AND used_tokens * 10 >= quota_tokens * 9", false)
-		}
-		return query
-	}
-	var total int64
-	if err := filter(s.db.WithContext(ctx).Model(&User{})).Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-	query := filter(s.db.WithContext(ctx).Model(&User{}))
-	switch p.Sort {
-	case "created":
-		query = query.Order("created_at DESC, id DESC")
-	case "usage":
-		query = query.Order("used_tokens DESC, id ASC")
-	default:
-		// 最近活跃优先，从未登录的排最后
-		query = query.Order("(last_login_at IS NULL) ASC, last_login_at DESC, id ASC")
-	}
-	var items []User
-	err := query.Offset((p.Page - 1) * p.PageSize).Limit(p.PageSize).Find(&items).Error
-	return items, total, err
+	return dalListUsers(ctx, s.db, p)
 }
 
 // ExportAll 返回全部账号，供 CSV 导出使用；只包含账号字段，不含对话正文。
 func (s *Service) ExportAll(ctx context.Context) ([]User, error) {
-	var items []User
-	err := s.db.WithContext(ctx).Order("id ASC").Find(&items).Error
-	return items, err
+	return dalListAllUsers(ctx, s.db)
 }
 
 // UpdateQuota 调整用户额度。
@@ -563,9 +520,7 @@ func (s *Service) ConsumeUsage(ctx context.Context, userID uint, tokens int64) e
 	if tokens <= 0 {
 		return nil
 	}
-	return s.db.WithContext(ctx).Model(&User{}).
-		Where("id = ?", userID).
-		UpdateColumn("used_tokens", gorm.Expr("used_tokens + ?", tokens)).Error
+	return dalAddUsedTokens(ctx, s.db, userID, tokens)
 }
 
 // issueSession 生成 token 并写入会话表。
@@ -815,16 +770,15 @@ func (s *Service) SessionSignKey(ctx context.Context, token string) (string, err
 		return "", ErrUnauthenticated
 	}
 	sum := sha256Hex(token)
-	var session Session
-	if err := s.db.WithContext(ctx).Where("token_hash = ? AND revoked_at IS NULL", sum).First(&session).Error; err != nil {
+	session, err := dalFindSessionByTokenHash(ctx, s.db, sum)
+	if err != nil {
 		return "", ErrUnauthenticated
 	}
 	if session.SignKeyID != "" {
 		return session.SignKeyID, nil
 	}
 	keyID := security.NewKeyID()
-	if err := s.db.WithContext(ctx).Model(&Session{}).Where("id = ?", session.ID).
-		Update("sign_key_id", keyID).Error; err != nil {
+	if err := dalUpdateSessionSignKey(ctx, s.db, session.ID, keyID); err != nil {
 		return "", err
 	}
 	return keyID, nil
@@ -841,10 +795,10 @@ func (s *Service) Delete(ctx context.Context, userID uint) error {
 		return ErrForbidden
 	}
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("user_id = ?", userID).Delete(&Session{}).Error; err != nil {
+		if err := dalDeleteUserSessions(ctx, tx, userID); err != nil {
 			return err
 		}
-		return tx.Delete(&User{}, userID).Error
+		return dalDeleteUser(ctx, tx, userID)
 	})
 }
 
