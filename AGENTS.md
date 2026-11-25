@@ -200,6 +200,7 @@ push main → GitHub Actions（.github/workflows/docker.yml）
 - `owner` 由宿主注入，模型不要自己设置；接入聊天时必须在服务端覆盖该字段（`runExternalTool` 会覆盖式写入）。
 - **接入方式**：`bootstrap/mcp.go` 用 `os.Executable() + ssh-mcp` 起子进程，数据目录与主服务一致；`chat.Config.ToolClient` 把工具交给模型。SSH 与浏览器两个 MCP **互相独立**，obscura 缺失不影响 SSH。
 - 开关：`configs/app.yaml` 的 `mcp.ssh.enabled`（默认 true），`mcp.ssh.timeout_sec` 默认 120。
+- **密钥目录属主**：容器以 `uid=10001` 运行，`<data>/ssh` 必须是 10001 所有（宿主机 `chown -R 10001:10001 /srv/deeptalk/data/ssh`），否则启动日志会报 `ssh key dir is not writable`，模型侧表现为 `ssh_public_key` 权限错误。
 
 ---
 
@@ -233,6 +234,7 @@ push main → GitHub Actions（.github/workflows/docker.yml）
 | 在同一个 `bash -c` 里 `pkill -f <模式>` | 杀掉自己 | 用脚本文件或按 PID 杀 |
 | 公钥长期留在目标机 | 等于一把长期钥匙 | 断开时把 cleanup 提醒转达给用户 |
 | 把 SSH MCP 的启动写在浏览器 MCP 失败路径之后 | obscura 缺失时 SSH 一起被跳过 | 两个 MCP 独立启动（`defer a.startSSHMCP`） |
+| 宿主机 root 手工建 `<data>/ssh` | 容器 uid 10001 无法写入，工具全报权限错误 | `chown -R 10001:10001 <data>/ssh` |
 
 ---
 

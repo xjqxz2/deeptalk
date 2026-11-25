@@ -13,6 +13,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -32,6 +34,26 @@ const serverInstructions = `你可以通过 SSH 操作远端服务器，但不�
    提醒他如果不再需要这台机器，就该把我们的公钥从 authorized_keys 里删掉。
 主机指纹首次会自动记录；若提示指纹不一致，必须停下来告诉用户，不要重试。`
 
+// checkKeyDir 在启动时确认密钥目录可写。
+// 容器以非 root 运行、而目录是宿主机 root 建的，是最常见的失败原因，
+// 这里直接把需要执行的命令打进日志，省去翻代码。
+func checkKeyDir(cfg Config, logger *slog.Logger) {
+	dir := cfg.Normalize().DataDir
+	sshDir := filepath.Join(dir, "ssh")
+	if err := os.MkdirAll(sshDir, 0o700); err != nil {
+		logger.Error("ssh key dir unusable", "dir", sshDir, "error", err)
+		return
+	}
+	probe := filepath.Join(sshDir, ".write-probe")
+	if err := os.WriteFile(probe, []byte("ok"), 0o600); err != nil {
+		logger.Error("ssh key dir is not writable; ssh tools will fail",
+			"dir", sshDir, "error", err,
+			"hint", "在宿主机执行：chown -R 10001:10001 <宿主机数据目录>/ssh")
+		return
+	}
+	_ = os.Remove(probe)
+}
+
 // Run 启动 stdio MCP server，直到 ctx 取消或 stdin 关闭。
 func Run(ctx context.Context, cfg Config, logger *slog.Logger) error {
 	if logger == nil {
@@ -39,6 +61,7 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) error {
 	}
 	manager := NewManager(cfg)
 	defer manager.Close()
+	checkKeyDir(cfg, logger)
 
 	server := mcpsdk.NewServer(&mcpsdk.Implementation{
 		Name:    "deeptalk-ssh",

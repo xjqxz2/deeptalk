@@ -45,6 +45,7 @@ func (s *keyStore) ensure(owner string) (*KeyPair, error) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, fmt.Errorf("create key dir: %w", err)
 	}
+
 	keyPath := filepath.Join(dir, "id_rsa")
 	pubPath := keyPath + ".pub"
 
