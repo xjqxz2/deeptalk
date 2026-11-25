@@ -151,7 +151,7 @@ push main → GitHub Actions（.github/workflows/docker.yml）
 
 - **进程内共享状态才用锁**：`streamHub`、`busySet`、`interjection`、`search` 的 MCP 熔断、`security` 的签名缓存、`logging` 的按天文件、`mcp` 客户端、`wechat` manager、`sshmcp` 的密钥与会话表，都是 `sync.Mutex` / `RWMutex` / `atomic` / `sync.Map`。
 - **跨请求的持久状态用 DB 事务，不用进程锁**：事务在 Service 里开，内部语句走 `dal*(ctx, tx, ...)`。进程锁在多副本部署下无效，不能拿来做正确性保证。
-- **同一会话同时只允许一轮生成**：`chat.Service.busy.tryAdd(conversationID)`，占用失败返回 `chat.ErrBusy`（HTTP 层 `CodeConflict`「上一条回答还在生成中」）。断线续传走 `stream_hub.attach`，不经过这个判断。
+- **同一会话同时只允许一轮生成**，两道闸：控制器在 `hub.start` **之前**检查 `run.active()`，命中直接回 `409 / code 1005`（不能先 start，否则会把正在输出的那轮 finish 掉，客户端只收到空响应）；`chat.Service.busy.tryAdd` 作为第二道防线覆盖 WS 路径。断线续传走 `stream_hub.attach`，不受影响。
 - **额度是软限制**：`billing.Check` 与 `Record` 之间不是原子事务，并发请求可能小幅超发，属预期行为。
 
 ### 7.2.2 会话批量删除
@@ -247,7 +247,8 @@ push main → GitHub Actions（.github/workflows/docker.yml）
 | 公钥长期留在目标机 | 等于一把长期钥匙 | 断开时把 cleanup 提醒转达给用户 |
 | 把 SSH MCP 的启动写在浏览器 MCP 失败路径之后 | obscura 缺失时 SSH 一起被跳过 | 两个 MCP 独立启动（`defer a.startSSHMCP`） |
 | 宿主机 root 手工建 `<data>/ssh` | 容器 uid 10001 无法写入，工具全报权限错误 | `chown -R 10001:10001 <data>/ssh` |
-| 同一会话并发发起两次 `/stream` | 两条流交错写库，出现重复用户消息与助手消息 | `chat.Service.busy.tryAdd` 占用会话，第二个请求返回 `CodeConflict` |
+| 同一会话并发发起两次 `/stream` | 两条流交错写库，出现重复用户消息与助手消息 | 控制器先查 `run.active()` 再 `hub.start`，第二个请求回 409 |
+| 先 `hub.start` 再判断是否已在生成 | 旧 run 被 finish，第二个请求又立刻结束，客户端拿到空响应 | 判断必须在 `hub.start` 之前 |
 | 登录失败次数用「读-改-写」累加 | 并发爆破每次读到同一个旧值，永远到不了锁定阈值 | 单条 `UPDATE ... failed_attempts + 1` 原子自增并判定锁定 |
 | 登录成功用 `Save(user)` 整行写回 | 覆盖并发累加中的 `used_tokens` | 只 `Updates` 登录相关列 |
 

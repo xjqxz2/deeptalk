@@ -186,6 +186,14 @@ func (h *ChatController) Stream(c *gin.Context) {
 		return
 	}
 
+	// 同一会话已有回答在生成：直接拒绝。
+	// 不能走到 hub.start——那会把正在输出的那一轮 finish 掉，
+	// 第二个请求自己又因 ErrBusy 立刻结束，客户端只会收到一个空响应。
+	if run := h.hub.get(key); run != nil && run.active() {
+		responses.Fail(c, responses.CodeConflict, "上一条回答还在生成中，请稍候")
+		return
+	}
+
 	clientIP := strings.TrimSpace(c.GetHeader("X-Real-IP"))
 	if clientIP == "" {
 		clientIP = c.ClientIP()

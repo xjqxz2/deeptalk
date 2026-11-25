@@ -60,6 +60,13 @@ func (r *streamRun) publish(name string, data []byte) {
 }
 
 // finish 标记本轮结束并关闭所有订阅者通道。
+// active 表示这一轮仍在生成；已结束但还在缓冲期的 run 不算活跃。
+func (r *streamRun) active() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return !r.done
+}
+
 func (r *streamRun) finish() {
 	r.mu.Lock()
 	if r.done {
