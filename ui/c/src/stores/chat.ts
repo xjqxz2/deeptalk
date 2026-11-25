@@ -263,7 +263,11 @@ export const useChatStore = defineStore('chat', () => {
         if (current.value?.id === id) {
           const data = await chatApi.getConversation(id).catch(() => null)
           const target = findRun(id)
-          if (data && target && !target.generating) target.messages = data.messages
+          // 就地替换：messages.value 持有的是同一个数组引用，
+          // 直接赋值新数组会让界面继续渲染旧数组（看不到后台生成的进度）。
+          if (data && target && !target.generating) {
+            target.messages.splice(0, target.messages.length, ...data.messages)
+          }
         }
         if (!latest?.running) {
           void userStore.refreshUsage().catch(() => undefined)
