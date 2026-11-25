@@ -184,6 +184,36 @@ func (s *Service) Delete(ctx context.Context, userID, conversationID uint) error
 	})
 }
 
+// DeleteMany 批量删除会话，只删属于该用户的。
+// 返回实际删除的会话 ID，前端据此更新列表。
+func (s *Service) DeleteMany(ctx context.Context, userID uint, conversationIDs []uint) ([]uint, error) {
+	if len(conversationIDs) == 0 {
+		return nil, nil
+	}
+	if len(conversationIDs) > 200 {
+		conversationIDs = conversationIDs[:200]
+	}
+	var owned []uint
+	if err := s.db.WithContext(ctx).Model(&Conversation{}).
+		Where("user_id = ? AND id IN ?", userID, conversationIDs).
+		Pluck("id", &owned).Error; err != nil {
+		return nil, err
+	}
+	if len(owned) == 0 {
+		return nil, nil
+	}
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("conversation_id IN ?", owned).Delete(&Message{}).Error; err != nil {
+			return err
+		}
+		return tx.Where("id IN ?", owned).Delete(&Conversation{}).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+	return owned, nil
+}
+
 // Get 返回会话与全部消息，供刷新后恢复对话。
 func (s *Service) Get(ctx context.Context, userID, conversationID uint) (*Conversation, []Message, error) {
 	conv, err := s.findConversation(ctx, userID, conversationID)

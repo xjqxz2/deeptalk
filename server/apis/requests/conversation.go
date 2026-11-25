@@ -56,3 +56,13 @@ func (r *FeedbackRequest) Bind(c *gin.Context) error {
 }
 
 // ProviderSaveRequest 是新建 / 编辑厂商请求。
+
+// ConversationBatchDeleteRequest 是批量删除会话请求。
+type ConversationBatchDeleteRequest struct {
+	IDs []uint `json:"ids" binding:"required,min=1,max=200"` // 会话内部 ID 列表
+}
+
+// Bind 绑定批量删除请求。
+func (r *ConversationBatchDeleteRequest) Bind(c *gin.Context) error {
+	return c.ShouldBindJSON(r)
+}

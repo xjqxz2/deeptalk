@@ -147,6 +147,10 @@ push main → GitHub Actions（.github/workflows/docker.yml）
 - 停止必须显式调用 `POST /c/conversations/:id/stop`（断连接已经停不掉生成）；`GET /c/conversations/:id/stream-state` 返回是否有后台生成。
 - 进程启动时会把遗留的 `streaming` 消息收尾为 `stopped`（重启后没有对应后台任务）。
 
+### 7.2.1 会话批量删除
+
+`POST /api/v1/c/conversations/batch-delete`（body `{ids:[…]}`，上限 200）。服务端只删属于当前用户的会话，返回 `{deleted, ids}`；前端侧栏「管理」进入勾选模式，底部删除条二次确认后一次删完，被删的当前会话会清空右侧。
+
 ### 7.3 小程序 WebSocket
 
 `/api/v1/c/ws`，帧格式 `{type, ...}`：`send / stop / interject`。**`ws.send(frame)` 内部已经 `JSON.stringify`，调用方必须传对象，不能传字符串**（否则服务端解析失败直接断连）。

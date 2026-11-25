@@ -55,6 +55,69 @@ const user = computed(() => userStore.user)
 const usage = computed(() => userStore.usage)
 const currentId = computed(() => chat.current?.id ?? 0)
 
+/** 批量管理模式：进入后每行出现复选框，底部出现删除条。 */
+const selecting = ref(false)
+const selectedIds = ref<number[]>([])
+const deletingBatch = ref(false)
+
+/** 进入/退出批量模式；退出时清空已选。 */
+function toggleSelecting(): void {
+  selecting.value = !selecting.value
+  if (!selecting.value) selectedIds.value = []
+}
+
+/** 勾选/取消一条会话。 */
+function toggleSelected(id: number): void {
+  const index = selectedIds.value.indexOf(id)
+  if (index >= 0) selectedIds.value.splice(index, 1)
+  else selectedIds.value.push(id)
+}
+
+/** 当前分组里是否已全选。 */
+function groupAllSelected(items: Conversation[]): boolean {
+  return items.length > 0 && items.every((item) => selectedIds.value.includes(item.id))
+}
+
+/** 选中/取消整组。 */
+function toggleGroup(items: Conversation[]): void {
+  const all = groupAllSelected(items)
+  for (const item of items) {
+    const index = selectedIds.value.indexOf(item.id)
+    if (all && index >= 0) selectedIds.value.splice(index, 1)
+    if (!all && index < 0) selectedIds.value.push(item.id)
+  }
+}
+
+/** 批量删除：确认后一次删完。 */
+async function confirmBatchDelete(): Promise<void> {
+  const count = selectedIds.value.length
+  if (!count) return
+  const ok = await new Promise<boolean>((resolve) => {
+    Modal.confirm({
+      title: `删除选中的 ${count} 个对话？`,
+      content: '对话与其中的消息会一并删除，无法恢复。',
+      okText: '删除',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      onOk: () => resolve(true),
+      onCancel: () => resolve(false),
+    })
+  })
+  if (!ok) return
+  deletingBatch.value = true
+  try {
+    const removed = await chat.deleteConversations([...selectedIds.value])
+    message.success(`已删除 ${removed} 个对话`)
+    selectedIds.value = []
+    selecting.value = false
+    if (!chat.current) await router.push({ name: 'chat-empty' })
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : '删除失败')
+  } finally {
+    deletingBatch.value = false
+  }
+}
+
 watch(keyword, (value) => {
   if (searchTimer) clearTimeout(searchTimer)
   searchTimer = setTimeout(() => {
@@ -217,37 +280,63 @@ function conversationTime(item: Conversation): string {
           <kbd>Ctrl K</kbd>
         </button>
 
-        <a-input
-          ref="searchRef"
-          v-model:value="keyword"
-          class="search-input"
-          placeholder="搜索对话"
-          allow-clear
-          aria-label="搜索对话"
-        >
-          <template #prefix>
-            <SearchOutlined class="search-icon" />
-          </template>
-        </a-input>
+        <div class="search-row">
+          <a-input
+            ref="searchRef"
+            v-model:value="keyword"
+            class="search-input"
+            placeholder="搜索对话"
+            allow-clear
+            aria-label="搜索对话"
+          >
+            <template #prefix>
+              <SearchOutlined class="search-icon" />
+            </template>
+          </a-input>
+          <button
+            type="button"
+            class="select-toggle"
+            :class="{ active: selecting }"
+            :aria-pressed="selecting"
+            @click="toggleSelecting"
+          >
+            {{ selecting ? '完成' : '管理' }}
+          </button>
+        </div>
 
         <div class="history">
           <template v-if="chat.groupedConversations.length">
             <div v-for="group in chat.groupedConversations" :key="group.label" class="history-group">
-              <div class="group-label">{{ group.label }}</div>
+              <div class="group-label">
+                <span>{{ group.label }}</span>
+                <button
+                  v-if="selecting"
+                  type="button"
+                  class="group-select"
+                  @click="toggleGroup(group.items)"
+                >
+                  {{ groupAllSelected(group.items) ? '取消全选' : '全选' }}
+                </button>
+              </div>
               <div
                 v-for="item in group.items"
                 :key="item.id"
                 class="history-item"
-                :class="{ active: currentId === item.id }"
+                :class="{ active: currentId === item.id, selecting, picked: selectedIds.includes(item.id) }"
                 role="button"
                 tabindex="0"
-                @click="openConversation(item)"
-                @keydown.enter="openConversation(item)"
+                @click="selecting ? toggleSelected(item.id) : openConversation(item)"
+                @keydown.enter="selecting ? toggleSelected(item.id) : openConversation(item)"
               >
+                <span v-if="selecting" class="pick-box" :class="{ on: selectedIds.includes(item.id) }" aria-hidden="true">
+                  <svg v-if="selectedIds.includes(item.id)" viewBox="0 0 16 16" width="10" height="10">
+                    <path d="M2 8.5l3.4 3.4L14 3.6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </span>
                 <LoadingOutlined v-if="chat.generatingIds.includes(item.id)" class="item-icon" spin />
                 <MessageOutlined v-else class="item-icon" />
                 <span class="item-title" :title="item.title">{{ item.title }}</span>
-                <a-dropdown :trigger="['click']" placement="bottomRight">
+                <a-dropdown v-if="!selecting" :trigger="['click']" placement="bottomRight">
                   <button type="button" class="more" aria-label="会话操作" @click.stop>
                     <MoreOutlined />
                   </button>
@@ -272,6 +361,24 @@ function conversationTime(item: Conversation): string {
             <span v-else-if="keyword">没有匹配的对话</span>
             <span v-else>还没有对话，开始第一段吧</span>
           </div>
+        </div>
+      </div>
+
+      <div v-if="selecting" class="batch-bar">
+        <span class="batch-count">已选 {{ selectedIds.length }} 个</span>
+        <div class="batch-actions">
+          <button type="button" class="batch-btn" :disabled="!selectedIds.length" @click="selectedIds = []">
+            清空
+          </button>
+          <button
+            type="button"
+            class="batch-btn danger"
+            :disabled="!selectedIds.length || deletingBatch"
+            @click="confirmBatchDelete"
+          >
+            <DeleteOutlined />
+            删除
+          </button>
         </div>
       </div>
 
@@ -792,5 +899,130 @@ function conversationTime(item: Conversation): string {
 
 .chat-sidebar.mobile.mobile-open {
   transform: translateX(0);
+}
+
+/* 搜索行：输入框 + 管理按钮 */
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search-row .search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.select-toggle {
+  flex: 0 0 auto;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--dt-line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dt-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.select-toggle:hover {
+  color: var(--dt-text);
+  border-color: var(--dt-brand);
+}
+
+.select-toggle.active {
+  color: var(--dt-brand);
+  border-color: var(--dt-brand);
+  background: color-mix(in srgb, var(--dt-brand) 10%, transparent);
+}
+
+.group-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.group-select {
+  border: none;
+  background: transparent;
+  color: var(--dt-brand);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.history-item.selecting {
+  cursor: pointer;
+}
+
+.history-item.picked {
+  background: color-mix(in srgb, var(--dt-brand) 12%, transparent);
+}
+
+.pick-box {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-right: 2px;
+  border: 1.5px solid var(--dt-line);
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.pick-box.on {
+  background: var(--dt-brand);
+  border-color: var(--dt-brand);
+}
+
+/* 底部批量条 */
+.batch-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 8px 12px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--dt-line);
+  border-radius: 10px;
+  background: var(--dt-surface);
+}
+
+.batch-count {
+  font-size: 12px;
+  color: var(--dt-text-secondary);
+}
+
+.batch-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.batch-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--dt-line);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--dt-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.batch-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.batch-btn.danger:not(:disabled) {
+  color: #d92d20;
+  border-color: color-mix(in srgb, #d92d20 40%, transparent);
 }
 </style>

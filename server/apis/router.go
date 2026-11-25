@@ -131,6 +131,7 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 		cGroup.GET("/conversations/:id", chatController.Get)
 		cGroup.PATCH("/conversations/:id", chatController.Rename)
 		cGroup.DELETE("/conversations/:id", chatController.Delete)
+		cGroup.POST("/conversations/batch-delete", chatController.BatchDelete)
 		cGroup.POST("/conversations/:id/stream", chatController.Stream)
 		cGroup.POST("/conversations/:id/stop", chatController.Stop)
 		cGroup.GET("/conversations/:id/stream-state", chatController.StreamState)

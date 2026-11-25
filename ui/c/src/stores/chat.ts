@@ -333,6 +333,29 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  /** 批量删除会话：逐个中止正在生成的流，再一次性删库。 */
+  async function deleteConversations(ids: number[]): Promise<number> {
+    if (!ids.length) return 0
+    const unique = Array.from(new Set(ids))
+    for (const id of unique) {
+      runs.get(id)?.abortController?.abort()
+    }
+    const result = await chatApi.batchDeleteConversations(unique)
+    const removed = new Set(result.ids ?? unique)
+    for (const id of removed) {
+      runs.delete(id)
+    }
+    conversations.value = conversations.value.filter((item) => !removed.has(item.id))
+    // 当前会话被删掉时清空右侧，避免停留在已删除的对话上
+    if (current.value && removed.has(current.value.id)) {
+      loadSeq += 1
+      loadingMessages.value = false
+      current.value = null
+      messages.value = []
+    }
+    return removed.size
+  }
+
   /** 记录待发送的新会话首条消息。 */
   function queuePrompt(text: string): void {
     pendingPrompt.value = text
@@ -837,6 +860,7 @@ export const useChatStore = defineStore('chat', () => {
     loadConversation,
     renameConversation,
     deleteConversation,
+    deleteConversations,
     queuePrompt,
     consumePendingPrompt,
     startNewDraft,

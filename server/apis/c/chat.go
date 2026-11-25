@@ -118,6 +118,30 @@ func (h *ChatController) Delete(c *gin.Context) {
 	responses.OK(c, nil)
 }
 
+// BatchDelete 批量删除会话；只删除属于当前用户的。
+func (h *ChatController) BatchDelete(c *gin.Context) {
+	current := middleware.CurrentUser(c)
+	var req requests.ConversationBatchDeleteRequest
+	if err := req.Bind(c); err != nil {
+		responses.Fail(c, responses.CodeInvalidArgument, "请选择要删除的对话")
+		return
+	}
+	ids := make([]uint, 0, len(req.IDs))
+	for _, ref := range req.IDs {
+		id, err := h.chats.ResolveRef(c.Request.Context(), current.ID, strconv.FormatUint(uint64(ref), 10))
+		if err != nil {
+			continue
+		}
+		ids = append(ids, id)
+	}
+	deleted, err := h.chats.DeleteMany(c.Request.Context(), current.ID, ids)
+	if err != nil {
+		responses.FromError(c, err)
+		return
+	}
+	responses.OK(c, gin.H{"deleted": len(deleted), "ids": deleted})
+}
+
 // clientPlatform 读取客户端声明的平台标识，用于小程序端的内容安全校验。
 func clientPlatform(c *gin.Context) string {
 	value := strings.ToLower(strings.TrimSpace(c.GetHeader("X-Client")))

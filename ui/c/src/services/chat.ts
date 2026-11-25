@@ -78,3 +78,8 @@ export function stopGeneration(conversationID: number | string): Promise<{ stopp
 export function streamState(conversationID: number | string): Promise<{ running: boolean; seq: number }> {
   return get(`/c/conversations/${encodeURIComponent(String(conversationID))}/stream-state`)
 }
+
+/** 批量删除会话。 */
+export function batchDeleteConversations(ids: number[]): Promise<{ deleted: number; ids: number[] }> {
+  return post('/c/conversations/batch-delete', { ids })
+}
