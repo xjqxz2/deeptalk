@@ -25,7 +25,12 @@ func NewProviderController(providers *provider.Service, audits *audit.Service) *
 // List 返回厂商列表、筛选计数与接入健康。
 func (h *ProviderController) List(c *gin.Context) {
 	ctx := c.Request.Context()
-	items, counts, err := h.providers.List(ctx, c.Query("filter"))
+	var req requests.ProviderListRequest
+	if err := req.Bind(c); err != nil {
+		responses.Fail(c, responses.CodeInvalidArgument, "筛选参数不合法")
+		return
+	}
+	items, counts, err := h.providers.List(ctx, req.Filter)
 	if err != nil {
 		responses.FromError(c, err)
 		return
@@ -64,11 +69,12 @@ func (h *ProviderController) Create(c *gin.Context) {
 
 // Update 编辑厂商。
 func (h *ProviderController) Update(c *gin.Context) {
-	id, err := parseIDParam(c)
-	if err != nil {
+	var idReq requests.IDRequest
+	if err := idReq.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "厂商 ID 不合法")
 		return
 	}
+	id := idReq.ID
 	var req requests.ProviderSaveRequest
 	if err := req.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "请填写厂商名称与 Base URL")
@@ -85,11 +91,12 @@ func (h *ProviderController) Update(c *gin.Context) {
 
 // Toggle 启用 / 停用厂商。
 func (h *ProviderController) Toggle(c *gin.Context) {
-	id, err := parseIDParam(c)
-	if err != nil {
+	var idReq requests.IDRequest
+	if err := idReq.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "厂商 ID 不合法")
 		return
 	}
+	id := idReq.ID
 	var req requests.EnabledRequest
 	if err := req.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "启用状态不合法")
@@ -112,11 +119,12 @@ func (h *ProviderController) Toggle(c *gin.Context) {
 
 // Delete 删除自定义厂商。
 func (h *ProviderController) Delete(c *gin.Context) {
-	id, err := parseIDParam(c)
-	if err != nil {
+	var idReq requests.IDRequest
+	if err := idReq.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "厂商 ID 不合法")
 		return
 	}
+	id := idReq.ID
 	p, _ := h.providers.ByID(c.Request.Context(), id)
 	if err := h.providers.Delete(c.Request.Context(), id); err != nil {
 		responses.FromError(c, err)
@@ -132,11 +140,12 @@ func (h *ProviderController) Delete(c *gin.Context) {
 
 // Test 测试已保存厂商的连通性。
 func (h *ProviderController) Test(c *gin.Context) {
-	id, err := parseIDParam(c)
-	if err != nil {
+	var idReq requests.IDRequest
+	if err := idReq.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "厂商 ID 不合法")
 		return
 	}
+	id := idReq.ID
 	result, err := h.providers.Test(c.Request.Context(), id)
 	if err != nil {
 		responses.FromError(c, err)
@@ -209,11 +218,12 @@ func (h *ProviderController) CreateModel(c *gin.Context) {
 
 // UpdateModel 编辑模型。
 func (h *ProviderController) UpdateModel(c *gin.Context) {
-	id, err := parseIDParam(c)
-	if err != nil {
+	var idReq requests.IDRequest
+	if err := idReq.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "模型 ID 不合法")
 		return
 	}
+	id := idReq.ID
 	var req requests.ModelSaveRequest
 	if err := req.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "请填写模型 ID")
@@ -230,11 +240,12 @@ func (h *ProviderController) UpdateModel(c *gin.Context) {
 
 // ToggleModel 启用 / 停用模型。
 func (h *ProviderController) ToggleModel(c *gin.Context) {
-	id, err := parseIDParam(c)
-	if err != nil {
+	var idReq requests.IDRequest
+	if err := idReq.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "模型 ID 不合法")
 		return
 	}
+	id := idReq.ID
 	var req requests.EnabledRequest
 	if err := req.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "启用状态不合法")
@@ -286,11 +297,12 @@ func (h *ProviderController) Health(c *gin.Context) {
 
 // DeleteModel 删除单个模型；预置模型不可删除。
 func (h *ProviderController) DeleteModel(c *gin.Context) {
-	id, ok := parseID(c.Param("id"))
-	if !ok {
+	var idReq requests.IDRequest
+	if err := idReq.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "模型 ID 不合法")
 		return
 	}
+	id := idReq.ID
 	if err := h.providers.DeleteModel(c.Request.Context(), id); err != nil {
 		responses.FromError(c, err)
 		return

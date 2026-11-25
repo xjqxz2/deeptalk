@@ -42,10 +42,8 @@ func (h *AuthController) WeChatLogin(c *gin.Context) {
 		responses.Fail(c, responses.CodeInternal, "小程序凭据未配置")
 		return
 	}
-	var req struct {
-		Code string `json:"code"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil || strings.TrimSpace(req.Code) == "" {
+	var req requests.WeChatLoginRequest
+	if err := req.Bind(c); err != nil || strings.TrimSpace(req.Code) == "" {
 		responses.Fail(c, responses.CodeInvalidArgument, "缺少登录凭证")
 		return
 	}
@@ -74,11 +72,8 @@ func (h *AuthController) WeChatLogin(c *gin.Context) {
 // UpdateProfile 更新昵称与头像（小程序端在授权后调用）。
 func (h *AuthController) UpdateProfile(c *gin.Context) {
 	current := middleware.CurrentUser(c)
-	var req struct {
-		Nickname  string `json:"nickname"`
-		AvatarURL string `json:"avatar_url"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var req requests.UpdateProfileRequest
+	if err := req.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "请求内容不合法")
 		return
 	}
@@ -93,11 +88,8 @@ func (h *AuthController) UpdateProfile(c *gin.Context) {
 // CompleteProfile 补全邮箱与密码：补全后可用邮箱在 PC / PWA 端登录。
 func (h *AuthController) CompleteProfile(c *gin.Context) {
 	current := middleware.CurrentUser(c)
-	var req struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var req requests.CompleteProfileRequest
+	if err := req.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "请求内容不合法")
 		return
 	}
@@ -134,10 +126,8 @@ func (h *AuthController) BindWeChat(c *gin.Context) {
 		responses.Fail(c, responses.CodeInternal, "小程序凭据未配置")
 		return
 	}
-	var req struct {
-		Code string `json:"code"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil || strings.TrimSpace(req.Code) == "" {
+	var req requests.WeChatLoginRequest
+	if err := req.Bind(c); err != nil || strings.TrimSpace(req.Code) == "" {
 		responses.Fail(c, responses.CodeInvalidArgument, "缺少登录凭证")
 		return
 	}

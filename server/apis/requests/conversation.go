@@ -66,3 +66,23 @@ type ConversationBatchDeleteRequest struct {
 func (r *ConversationBatchDeleteRequest) Bind(c *gin.Context) error {
 	return c.ShouldBindJSON(r)
 }
+
+// InterjectionRequest 是生成中插话请求。
+type InterjectionRequest struct {
+	Content string `json:"content" binding:"required,max=8000"` // 插话内容
+}
+
+// Bind 绑定插话请求。
+func (r *InterjectionRequest) Bind(c *gin.Context) error {
+	return c.ShouldBindJSON(r)
+}
+
+// ConversationListRequest 是会话列表查询。
+type ConversationListRequest struct {
+	Keyword string `form:"keyword" binding:"max=60"` // 标题关键词
+}
+
+// Bind 绑定查询参数。
+func (r *ConversationListRequest) Bind(c *gin.Context) error {
+	return c.ShouldBindQuery(r)
+}

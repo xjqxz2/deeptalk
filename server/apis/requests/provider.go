@@ -54,3 +54,13 @@ func (r *ProviderTestRequest) Bind(c *gin.Context) error {
 }
 
 // EnabledRequest 是通用的启用 / 停用请求。
+
+// ProviderListRequest 是厂商列表筛选。
+type ProviderListRequest struct {
+	Filter string `form:"filter" binding:"omitempty,oneof=all enabled disabled"` // 筛选
+}
+
+// Bind 绑定查询参数。
+func (r *ProviderListRequest) Bind(c *gin.Context) error {
+	return c.ShouldBindQuery(r)
+}

@@ -31,7 +31,12 @@ func NewChatController(chats *chat.Service) *ChatController {
 // List 返回当前用户的会话列表，支持标题搜索。
 func (h *ChatController) List(c *gin.Context) {
 	current := middleware.CurrentUser(c)
-	items, err := h.chats.List(c.Request.Context(), current.ID, c.Query("keyword"))
+	var req requests.ConversationListRequest
+	if err := req.Bind(c); err != nil {
+		responses.Fail(c, responses.CodeInvalidArgument, "查询参数不合法")
+		return
+	}
+	items, err := h.chats.List(c.Request.Context(), current.ID, req.Keyword)
 	if err != nil {
 		responses.FromError(c, err)
 		return
@@ -343,10 +348,8 @@ func (h *ChatController) Interject(c *gin.Context) {
 		responses.FromError(c, err)
 		return
 	}
-	var req struct {
-		Content string `json:"content"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var req requests.InterjectionRequest
+	if err := req.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "请求内容不合法")
 		return
 	}
@@ -361,11 +364,12 @@ func (h *ChatController) Interject(c *gin.Context) {
 // Feedback 记录消息赞 / 踩。
 func (h *ChatController) Feedback(c *gin.Context) {
 	current := middleware.CurrentUser(c)
-	id, ok := parseID(c.Param("id"))
-	if !ok {
+	var idReq requests.IDRequest
+	if err := idReq.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "消息 ID 不合法")
 		return
 	}
+	id := idReq.ID
 	var req requests.FeedbackRequest
 	if err := req.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "反馈内容不合法")
@@ -376,13 +380,4 @@ func (h *ChatController) Feedback(c *gin.Context) {
 		return
 	}
 	responses.OK(c, nil)
-}
-
-// parseID 解析路径中的正整数主键。
-func parseID(raw string) (uint, bool) {
-	n, err := strconv.ParseUint(raw, 10, 64)
-	if err != nil || n == 0 {
-		return 0, false
-	}
-	return uint(n), true
 }

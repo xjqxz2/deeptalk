@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"deeptalk/apis/middleware"
+	"deeptalk/apis/requests"
 	"deeptalk/apis/responses"
 	"deeptalk/internal/attachment"
 
@@ -69,11 +70,12 @@ func (h *AttachmentController) Upload(c *gin.Context) {
 // Get 输出当前用户自己的图片。
 func (h *AttachmentController) Get(c *gin.Context) {
 	current := middleware.CurrentUser(c)
-	id, ok := parseID(c.Param("id"))
-	if !ok {
+	var idReq requests.IDRequest
+	if err := idReq.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "附件 ID 不合法")
 		return
 	}
+	id := idReq.ID
 	row, path, err := h.attachments.Open(c.Request.Context(), current.ID, id)
 	if err != nil {
 		if errors.Is(err, attachment.ErrNotFound) {

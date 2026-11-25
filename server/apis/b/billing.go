@@ -3,6 +3,7 @@ package b
 import (
 	"strconv"
 
+	"deeptalk/apis/requests"
 	"deeptalk/apis/responses"
 	"deeptalk/internal/billing"
 
@@ -36,16 +37,8 @@ func (h *BillingController) Update(c *gin.Context) {
 		responses.Fail(c, responses.CodeInvalidArgument, "套餐 ID 不合法")
 		return
 	}
-	var req struct {
-		Name            string `json:"name"`
-		Description     string `json:"description"`
-		SpendLimitCents *int64 `json:"spend_limit_cents"`
-		LimitShort      *int   `json:"limit_short"`
-		LimitWeek       *int   `json:"limit_week"`
-		LimitMonth      *int   `json:"limit_month"`
-		Enabled         *bool  `json:"enabled"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var req requests.PlanUpdateRequest
+	if err := req.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "请求内容不合法")
 		return
 	}

@@ -1,6 +1,7 @@
 package b
 
 import (
+	"deeptalk/apis/requests"
 	"deeptalk/apis/responses"
 	"deeptalk/internal/audit"
 	"deeptalk/internal/chat"
@@ -80,13 +81,12 @@ func (h *OverviewController) Overview(c *gin.Context) {
 
 // AuditLogs 返回最近变更列表。
 func (h *OverviewController) AuditLogs(c *gin.Context) {
-	limit := 6
-	if raw := c.Query("limit"); raw != "" {
-		if n, err := parsePositive(raw); err == nil {
-			limit = n
-		}
+	var req requests.AuditLogsRequest
+	if err := req.Bind(c); err != nil {
+		responses.Fail(c, responses.CodeInvalidArgument, "参数不合法")
+		return
 	}
-	logs, err := h.audits.Recent(c.Request.Context(), limit)
+	logs, err := h.audits.Recent(c.Request.Context(), req.Limit)
 	if err != nil {
 		responses.FromError(c, err)
 		return
@@ -110,13 +110,12 @@ func NewUsageController(chats *chat.Service) *UsageController {
 
 // Usage 返回最近 N 天的 tokens 与消息量。
 func (h *UsageController) Usage(c *gin.Context) {
-	days := 14
-	if raw := c.Query("days"); raw != "" {
-		if n, err := parsePositive(raw); err == nil {
-			days = n
-		}
+	var req requests.UsageQueryRequest
+	if err := req.Bind(c); err != nil {
+		responses.Fail(c, responses.CodeInvalidArgument, "参数不合法")
+		return
 	}
-	items, err := h.chats.UsageTimeline(c.Request.Context(), days)
+	items, err := h.chats.UsageTimeline(c.Request.Context(), req.Days)
 	if err != nil {
 		responses.FromError(c, err)
 		return

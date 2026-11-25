@@ -2,8 +2,8 @@ package b
 
 import (
 	"errors"
-	"strconv"
 
+	"deeptalk/apis/requests"
 	"deeptalk/apis/responses"
 	"deeptalk/internal/audit"
 	"deeptalk/internal/memo"
@@ -34,24 +34,32 @@ func (h *MemoController) Stats(c *gin.Context) {
 
 // List 分页列出全部用户的灵感。
 func (h *MemoController) List(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	size, _ := strconv.Atoi(c.DefaultQuery("size", "20"))
-	items, total, err := h.memos.AdminList(c.Request.Context(), c.Query("q"), page, size)
+	var req requests.AdminMemoListRequest
+	if err := req.Bind(c); err != nil {
+		responses.Fail(c, responses.CodeInvalidArgument, "查询参数不合法")
+		return
+	}
+	items, total, err := h.memos.AdminList(c.Request.Context(), req.Query, req.Page, req.Size)
 	if err != nil {
 		responses.FromError(c, err)
 		return
 	}
-	responses.OK(c, gin.H{"items": items, "total": total, "page": page, "size": size})
+	responses.OK(c, responses.AdminMemoListResponse{
+		Items: responses.NewAdminMemos(items),
+		Total: total,
+		Page:  req.Page,
+		Size:  req.Size,
+	})
 }
 
 // Delete 删除任意一条灵感。
 func (h *MemoController) Delete(c *gin.Context) {
-	id, err := parseIDParam(c)
-	if err != nil {
+	var req requests.MemoIDRequest
+	if err := req.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "灵感 ID 不合法")
 		return
 	}
-	if err := h.memos.AdminDelete(c.Request.Context(), id); err != nil {
+	if err := h.memos.AdminDelete(c.Request.Context(), req.ID); err != nil {
 		if errors.Is(err, memo.ErrNotFound) {
 			responses.Fail(c, responses.CodeNotFound, "灵感不存在")
 			return
@@ -59,6 +67,6 @@ func (h *MemoController) Delete(c *gin.Context) {
 		responses.FromError(c, err)
 		return
 	}
-	recordAudit(c, h.audits, "memo.delete", "memo", id, "删除灵感")
+	recordAudit(c, h.audits, "memo.delete", "memo", req.ID, "删除灵感")
 	responses.OK(c, gin.H{"deleted": true})
 }

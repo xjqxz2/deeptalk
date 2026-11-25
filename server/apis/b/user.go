@@ -90,11 +90,12 @@ func (h *UserController) List(c *gin.Context) {
 
 // Detail 返回单个账号详情；不包含任何对话正文。
 func (h *UserController) Detail(c *gin.Context) {
-	id, err := parseIDParam(c)
-	if err != nil {
+	var idReq requests.IDRequest
+	if err := idReq.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "用户 ID 不合法")
 		return
 	}
+	id := idReq.ID
 	ctx := c.Request.Context()
 	u, err := h.users.ByID(ctx, id)
 	if err != nil {
@@ -116,11 +117,12 @@ func (h *UserController) Detail(c *gin.Context) {
 
 // UpdateQuota 调整账号额度。
 func (h *UserController) UpdateQuota(c *gin.Context) {
-	id, err := parseIDParam(c)
-	if err != nil {
+	var idReq requests.IDRequest
+	if err := idReq.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "用户 ID 不合法")
 		return
 	}
+	id := idReq.ID
 	var req requests.QuotaRequest
 	if err := req.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "额度需在 1M–100M 之间")
@@ -143,11 +145,12 @@ func (h *UserController) UpdateQuota(c *gin.Context) {
 
 // UpdatePlan 调整账号套餐。
 func (h *UserController) UpdatePlan(c *gin.Context) {
-	id, err := parseIDParam(c)
-	if err != nil {
+	var idReq requests.IDRequest
+	if err := idReq.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "用户 ID 不合法")
 		return
 	}
+	id := idReq.ID
 	var req requests.PlanRequest
 	if err := req.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "套餐不合法")
@@ -164,11 +167,12 @@ func (h *UserController) UpdatePlan(c *gin.Context) {
 
 // ToggleDisabled 限制 / 恢复账号登录。
 func (h *UserController) ToggleDisabled(c *gin.Context) {
-	id, err := parseIDParam(c)
-	if err != nil {
+	var idReq requests.IDRequest
+	if err := idReq.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "用户 ID 不合法")
 		return
 	}
+	id := idReq.ID
 	var req requests.DisabledRequest
 	if err := req.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "状态不合法")
@@ -189,11 +193,12 @@ func (h *UserController) ToggleDisabled(c *gin.Context) {
 
 // Delete 删除用户及其会话、计费数据。
 func (h *UserController) Delete(c *gin.Context) {
-	id, err := parseIDParam(c)
-	if err != nil {
+	var idReq requests.IDRequest
+	if err := idReq.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "用户 ID 不合法")
 		return
 	}
+	id := idReq.ID
 	ctx := c.Request.Context()
 	u, err := h.users.ByID(ctx, id)
 	if err != nil {
@@ -217,11 +222,12 @@ func (h *UserController) Delete(c *gin.Context) {
 
 // ResetPassword 重置密码并返回一次性密码。
 func (h *UserController) ResetPassword(c *gin.Context) {
-	id, err := parseIDParam(c)
-	if err != nil {
+	var idReq requests.IDRequest
+	if err := idReq.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "用户 ID 不合法")
 		return
 	}
+	id := idReq.ID
 	u, err := h.users.ByID(c.Request.Context(), id)
 	if err != nil {
 		responses.FromError(c, err)
@@ -241,11 +247,12 @@ func (h *UserController) ResetPassword(c *gin.Context) {
 
 // LogoutAll 强制退出账号全部设备。
 func (h *UserController) LogoutAll(c *gin.Context) {
-	id, err := parseIDParam(c)
-	if err != nil {
+	var idReq requests.IDRequest
+	if err := idReq.Bind(c); err != nil {
 		responses.Fail(c, responses.CodeInvalidArgument, "用户 ID 不合法")
 		return
 	}
+	id := idReq.ID
 	u, err := h.users.ByID(c.Request.Context(), id)
 	if err != nil {
 		responses.FromError(c, err)
