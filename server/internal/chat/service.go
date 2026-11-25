@@ -129,16 +129,7 @@ func NewService(db *gorm.DB, providers *provider.Service, users *user.Service, s
 
 // List 返回用户的会话列表，支持按标题搜索。
 func (s *Service) List(ctx context.Context, userID uint, keyword string) ([]Summary, error) {
-	query := s.db.WithContext(ctx).Model(&Conversation{}).
-		Select("conversations.id, conversations.public_id, conversations.title, conversations.model_id, conversations.updated_at, "+
-			"(SELECT COUNT(*) FROM messages WHERE messages.conversation_id = conversations.id) AS message_count").
-		Where("conversations.user_id = ? AND conversations.deleted_at IS NULL", userID)
-	if q := strings.TrimSpace(keyword); q != "" {
-		query = query.Where("conversations.title LIKE ?", "%"+q+"%")
-	}
-	var items []Summary
-	err := query.Order("conversations.updated_at DESC, conversations.id DESC").Scan(&items).Error
-	return items, err
+	return dalListSummaries(ctx, s.db, userID, strings.TrimSpace(keyword))
 }
 
 // Create 新建会话；默认标题“新对话”，首轮回答完成后自动生成短标题。
@@ -147,7 +138,7 @@ func (s *Service) Create(ctx context.Context, userID uint) (*Conversation, error
 	if m, _, err := s.providers.DefaultModel(ctx); err == nil {
 		conv.ModelID = m.ID
 	}
-	if err := s.db.WithContext(ctx).Create(conv).Error; err != nil {
+	if err := dalCreateConversation(ctx, s.db, conv); err != nil {
 		return nil, err
 	}
 	return conv, nil
@@ -164,7 +155,7 @@ func (s *Service) Rename(ctx context.Context, userID, conversationID uint, title
 		return nil, errors.New("invalid title")
 	}
 	conv.Title = title
-	if err := s.db.WithContext(ctx).Save(conv).Error; err != nil {
+	if err := dalSaveConversation(ctx, s.db, conv); err != nil {
 		return nil, err
 	}
 	return conv, nil
@@ -177,10 +168,10 @@ func (s *Service) Delete(ctx context.Context, userID, conversationID uint) error
 		return err
 	}
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("conversation_id = ?", conv.ID).Delete(&Message{}).Error; err != nil {
+		if err := dalDeleteConversationMessages(ctx, tx, conv.ID); err != nil {
 			return err
 		}
-		return tx.Delete(&Conversation{}, conv.ID).Error
+		return dalDeleteConversation(ctx, tx, conv.ID)
 	})
 }
 
@@ -193,20 +184,18 @@ func (s *Service) DeleteMany(ctx context.Context, userID uint, conversationIDs [
 	if len(conversationIDs) > 200 {
 		conversationIDs = conversationIDs[:200]
 	}
-	var owned []uint
-	if err := s.db.WithContext(ctx).Model(&Conversation{}).
-		Where("user_id = ? AND id IN ?", userID, conversationIDs).
-		Pluck("id", &owned).Error; err != nil {
+	owned, err := dalOwnedConversationIDs(ctx, s.db, userID, conversationIDs)
+	if err != nil {
 		return nil, err
 	}
 	if len(owned) == 0 {
 		return nil, nil
 	}
-	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("conversation_id IN ?", owned).Delete(&Message{}).Error; err != nil {
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := dalDeleteConversationsMessages(ctx, tx, owned); err != nil {
 			return err
 		}
-		return tx.Where("id IN ?", owned).Delete(&Conversation{}).Error
+		return dalDeleteConversations(ctx, tx, owned)
 	})
 	if err != nil {
 		return nil, err
@@ -220,9 +209,8 @@ func (s *Service) Get(ctx context.Context, userID, conversationID uint) (*Conver
 	if err != nil {
 		return nil, nil, err
 	}
-	var messages []Message
-	if err := s.db.WithContext(ctx).Where("conversation_id = ?", conv.ID).
-		Order("id ASC").Find(&messages).Error; err != nil {
+	messages, err := dalListMessages(ctx, s.db, conv.ID)
+	if err != nil {
 		return nil, nil, err
 	}
 	return conv, messages, nil
@@ -233,12 +221,11 @@ func (s *Service) Feedback(ctx context.Context, userID, messageID uint, rating s
 	if rating != "" && rating != "up" && rating != "down" {
 		return errors.New("invalid rating")
 	}
-	var msg Message
-	if err := s.db.WithContext(ctx).Where("id = ? AND user_id = ? AND role = ?", messageID, userID, RoleAssistant).
-		First(&msg).Error; err != nil {
+	msg, err := dalFindOwnedAssistantMessage(ctx, s.db, userID, messageID)
+	if err != nil {
 		return ErrMessageNotOwn
 	}
-	return s.db.WithContext(ctx).Model(&Message{}).Where("id = ?", msg.ID).Update("feedback", rating).Error
+	return dalUpdateMessageFields(ctx, s.db, msg.ID, map[string]any{"feedback": rating})
 }
 
 // Stream 编排一次完整的流式回答。
@@ -312,9 +299,7 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 		if err != nil {
 			return fmt.Errorf("附件不可用: %w", err)
 		}
-		if err := s.db.WithContext(ctx).
-			Where("conversation_id = ? AND id > ? AND role = ?", conv.ID, userMsg.ID, RoleAssistant).
-			Delete(&Message{}).Error; err != nil {
+		if err := dalDeleteAssistantAfter(ctx, s.db, conv.ID, userMsg.ID); err != nil {
 			return err
 		}
 	} else {
@@ -334,7 +319,7 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 			AttachmentsJSON: marshalInfos(assets),
 			Interjection:    in.Interjection,
 		}
-		if err := s.db.WithContext(ctx).Create(userMsg).Error; err != nil {
+		if err := dalCreateMessage(ctx, s.db, userMsg); err != nil {
 			return err
 		}
 		if len(assets) > 0 {
@@ -346,8 +331,8 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 				return fmt.Errorf("关联附件失败: %w", err)
 			}
 		}
-		_ = s.db.WithContext(ctx).Model(&Conversation{}).Where("id = ?", conv.ID).
-			Updates(map[string]any{"model_id": model.ID, "updated_at": time.Now()}).Error
+		_ = dalUpdateConversationFields(ctx, s.db, conv.ID,
+			map[string]any{"model_id": model.ID, "updated_at": time.Now()})
 	}
 	// 思维链始终开启：用户要求任何时候都能看到思考过程，不再按问题长短自动关闭。
 	effectiveThinking := true
@@ -368,7 +353,7 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 		Status:         StatusStreaming,
 		ModelName:      model.DisplayName,
 	}
-	if err := s.db.WithContext(ctx).Create(assistant).Error; err != nil {
+	if err := dalCreateMessage(ctx, s.db, assistant); err != nil {
 		return err
 	}
 	// 首轮对话在问答的同时并行生成短标题，回答结束时通常已经就绪
@@ -477,8 +462,7 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 						Viewed: true,
 					})
 					if raw, marshalErr := json.Marshal(toolSources); marshalErr == nil {
-						_ = s.db.WithContext(context.WithoutCancel(ctx)).Model(&Message{}).
-							Where("id = ?", assistant.ID).Update("sources_json", string(raw)).Error
+						_ = dalUpdateSources(context.WithoutCancel(ctx), s.db, assistant.ID, string(raw))
 					}
 					_ = emit("sources", map[string]any{"items": toolSources})
 				}
@@ -550,8 +534,7 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 			}
 			uiMessages = append(uiMessages, batch...)
 			if raw, marshalErr := json.Marshal(uiMessages); marshalErr == nil {
-				_ = s.db.WithContext(context.WithoutCancel(ctx)).Model(&Message{}).
-					Where("id = ?", assistant.ID).Update("ui_json", string(raw)).Error
+				_ = dalUpdateUI(context.WithoutCancel(ctx), s.db, assistant.ID, string(raw))
 			}
 			if err := emit("a2ui", map[string]any{"messages": batch}); err != nil {
 				return "", err
@@ -684,8 +667,7 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 				})
 			}
 			if raw, marshalErr := json.Marshal(toolSources); marshalErr == nil {
-				_ = s.db.WithContext(context.WithoutCancel(ctx)).Model(&Message{}).
-					Where("id = ?", assistant.ID).Update("sources_json", string(raw)).Error
+				_ = dalUpdateSources(context.WithoutCancel(ctx), s.db, assistant.ID, string(raw))
 			}
 			_ = emit("sources", map[string]any{"items": toolSources})
 			return searchToolPayload(toolSources, map[string]any{"pages": pages}), nil
@@ -727,8 +709,7 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 			toolSources = append(toolSources, item)
 		}
 		if raw, marshalErr := json.Marshal(toolSources); marshalErr == nil {
-			_ = s.db.WithContext(context.WithoutCancel(ctx)).Model(&Message{}).
-				Where("id = ?", assistant.ID).Update("sources_json", string(raw)).Error
+			_ = dalUpdateSources(context.WithoutCancel(ctx), s.db, assistant.ID, string(raw))
 		}
 		_ = emit("sources", map[string]any{"items": toolSources})
 		return searchToolPayload(toolSources, nil), nil
@@ -746,9 +727,7 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 			return
 		}
 		lastPartial = time.Now()
-		_ = s.db.WithContext(context.WithoutCancel(ctx)).Model(&Message{}).
-			Where("id = ?", assistant.ID).
-			Updates(map[string]any{"content": answer, "reasoning": reasoning}).Error
+		_ = dalUpdatePartialContent(context.WithoutCancel(ctx), s.db, assistant.ID, answer, reasoning)
 	}
 	emitDelta := func(kind, delta string) error {
 		if kind == "reset_reasoning" {
@@ -870,7 +849,7 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 	if genErr != nil {
 		status = StatusError
 	}
-	_ = s.db.WithContext(finishCtx).Model(&Message{}).Where("id = ?", assistant.ID).Updates(map[string]any{
+	_ = dalUpdateMessageFields(finishCtx, s.db, assistant.ID, map[string]any{
 		"content":       answer,
 		"reasoning":     reasoning,
 		"status":        status,
@@ -878,12 +857,12 @@ func (s *Service) Stream(ctx context.Context, userID, conversationID uint, in St
 		"input_tokens":  inputTokens,
 		"output_tokens": outputTokens,
 		"duration_ms":   int(duration.Milliseconds()),
-	}).Error
-	_ = s.db.WithContext(finishCtx).Model(&Conversation{}).Where("id = ?", conv.ID).Updates(map[string]any{
+	})
+	_ = dalUpdateConversationFields(finishCtx, s.db, conv.ID, map[string]any{
 		"title":      title,
 		"model_id":   model.ID,
 		"updated_at": time.Now(),
-	}).Error
+	})
 	_ = s.users.ConsumeUsage(finishCtx, userID, int64(inputTokens+outputTokens))
 	// 三段计价：缓存命中输入 / 普通输入 / 输出；上游不给价格时也由我们兜底计费
 	cost := billing.CostMilliCentsCached(inputTokens, cachedTokens, outputTokens,
@@ -1266,8 +1245,7 @@ func (s *Service) retrieve(ctx context.Context, assistant *Message, query string
 		return nil
 	}
 	if raw, marshalErr := json.Marshal(items); marshalErr == nil {
-		_ = s.db.WithContext(context.WithoutCancel(ctx)).Model(&Message{}).
-			Where("id = ?", assistant.ID).Update("sources_json", string(raw)).Error
+		_ = dalUpdateSources(context.WithoutCancel(ctx), s.db, assistant.ID, string(raw))
 	}
 	_ = emit("sources", map[string]any{"items": items})
 	return items
@@ -1373,10 +1351,7 @@ func (s *Service) preferredSearchRoute(ctx context.Context, model *provider.Mode
 	}
 	// 把最近几轮对话一起给路由器，才能把“我说的是 V4.1-Flash”还原成
 	// “DeepSeek V4.1-Flash 价格”，而不是只拿最后一句去搜。
-	var recent []Message
-	_ = s.db.WithContext(ctx).
-		Where("conversation_id = ? AND status <> ? AND content <> ''", conversationID, StatusError).
-		Order("id DESC").Limit(6).Find(&recent).Error
+	recent, _ := dalRecentContextMessages(ctx, s.db, conversationID, 6)
 	var contextText strings.Builder
 	for i := len(recent) - 1; i >= 0; i-- {
 		role := "用户"
@@ -1527,26 +1502,24 @@ func injectSearchContext(history []provider.ChatMessage, items []search.Result) 
 
 // saveStopped 保存被用户中断的回答。
 func (s *Service) saveStopped(ctx context.Context, msg *Message, reasoning, answer string, start time.Time) {
-	_ = s.db.WithContext(ctx).Model(&Message{}).Where("id = ?", msg.ID).Updates(map[string]any{
+	_ = dalUpdateMessageFields(ctx, s.db, msg.ID, map[string]any{
 		"content":       answer,
 		"reasoning":     reasoning,
 		"status":        StatusStopped,
 		"output_tokens": estimateTokens(reasoning + answer),
 		"duration_ms":   int(time.Since(start).Milliseconds()),
-	}).Error
-	_ = s.db.WithContext(ctx).Model(&Conversation{}).Where("id = ?", msg.ConversationID).
-		Update("updated_at", time.Now()).Error
+	})
+	_ = dalUpdateConversationFields(ctx, s.db, msg.ConversationID, map[string]any{"updated_at": time.Now()})
 }
 
 // finishError 将上游错误写入消息并通知前端。
 func (s *Service) finishError(ctx context.Context, conv *Conversation, msg *Message, reasoning, answer string, err error, emit Emitter) {
-	_ = s.db.WithContext(ctx).Model(&Message{}).Where("id = ?", msg.ID).Updates(map[string]any{
+	_ = dalUpdateMessageFields(ctx, s.db, msg.ID, map[string]any{
 		"content":   answer,
 		"reasoning": reasoning,
 		"status":    StatusError,
-	}).Error
-	_ = s.db.WithContext(ctx).Model(&Conversation{}).Where("id = ?", conv.ID).
-		Update("updated_at", time.Now()).Error
+	})
+	_ = dalUpdateConversationFields(ctx, s.db, conv.ID, map[string]any{"updated_at": time.Now()})
 	_ = emit("error", map[string]any{"code": 3001, "message": modelErrorMessage(err, msg.ModelName)})
 	_ = emit("done", map[string]any{
 		"assistant_message_id": msg.ID,
@@ -1835,11 +1808,7 @@ func (s *Service) firstByteTimeout(ctx context.Context) time.Duration {
 // buildHistory 组装完整上下文：系统提示 + 历史摘要 + 摘要边界之后的原始消息。
 // 消息不再固定截断为 20 条；超过窗口阈值时由后台压缩前缀，当前请求继续用旧上下文。
 func (s *Service) buildHistory(ctx context.Context, conv *Conversation, untilMessageID uint, runtimeInfo string) ([]provider.ChatMessage, int, error) {
-	var rows []Message
-	err := s.db.WithContext(ctx).
-		Where("conversation_id = ? AND id > ? AND id <= ? AND status <> ? AND (content <> '' OR attachments_json <> '')",
-			conv.ID, conv.SummaryUntilID, untilMessageID, StatusError).
-		Order("id ASC").Find(&rows).Error
+	rows, err := dalMessagesBefore(ctx, s.db, conv.ID, conv.SummaryUntilID, untilMessageID)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -1949,14 +1918,13 @@ func (s *Service) ResolveRef(ctx context.Context, userID uint, ref string) (uint
 	if ref == "" {
 		return 0, ErrNotFound
 	}
-	var conv Conversation
-	query := s.db.WithContext(ctx).Where("user_id = ? AND deleted_at IS NULL", userID)
-	if parsed, err := strconv.ParseUint(ref, 10, 64); err == nil {
-		query = query.Where("id = ?", parsed)
-	} else {
-		query = query.Where("public_id = ?", ref)
+	var numeric *uint
+	if parsed, parseErr := strconv.ParseUint(ref, 10, 64); parseErr == nil {
+		value := uint(parsed)
+		numeric = &value
 	}
-	if err := query.First(&conv).Error; err != nil {
+	conv, err := dalFindConversationByRef(ctx, s.db, userID, ref, numeric)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return 0, ErrNotFound
 		}
@@ -1967,27 +1935,23 @@ func (s *Service) ResolveRef(ctx context.Context, userID uint, ref string) (uint
 
 // findConversation 查询会话并强制校验归属，防止越权读取。
 func (s *Service) findConversation(ctx context.Context, userID, conversationID uint) (*Conversation, error) {
-	var conv Conversation
-	err := s.db.WithContext(ctx).Where("id = ? AND user_id = ?", conversationID, userID).First(&conv).Error
+	conv, err := dalFindConversation(ctx, s.db, userID, conversationID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrNotFound
 	}
 	if err != nil {
 		return nil, err
 	}
-	return &conv, nil
+	return conv, nil
 }
 
 // lastUserMessage 取会话中最后一条用户消息。
 func (s *Service) lastUserMessage(ctx context.Context, conversationID uint) (*Message, error) {
-	var msg Message
-	err := s.db.WithContext(ctx).
-		Where("conversation_id = ? AND role = ?", conversationID, RoleUser).
-		Order("id DESC").First(&msg).Error
+	msg, err := dalLastUserMessage(ctx, s.db, conversationID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, errors.New("没有可重新生成的用户消息")
 	}
-	return &msg, err
+	return msg, err
 }
 
 // CountByUsers 批量统计多个用户的会话数，供后台列表一次性补齐。
@@ -1996,30 +1960,17 @@ func (s *Service) CountByUsers(ctx context.Context, userIDs []uint) (map[uint]in
 	if len(userIDs) == 0 {
 		return out, nil
 	}
-	var rows []struct {
-		UserID uint
-		Total  int64
-	}
-	err := s.db.WithContext(ctx).Model(&Conversation{}).
-		Select("user_id, COUNT(*) AS total").
-		Where("user_id IN ?", userIDs).
-		Group("user_id").Scan(&rows).Error
-	if err != nil {
-		return out, err
-	}
-	for _, row := range rows {
-		out[row.UserID] = row.Total
-	}
-	return out, nil
+	return dalCountConversationsByUsers(ctx, s.db, userIDs)
 }
 
 // UserStats 返回单个用户的会话数与消息数，用于后台详情。
 func (s *Service) UserStats(ctx context.Context, userID uint) (int64, int64, error) {
-	var conversations, messages int64
-	if err := s.db.WithContext(ctx).Model(&Conversation{}).Where("user_id = ?", userID).Count(&conversations).Error; err != nil {
+	conversations, err := dalCountUserConversations(ctx, s.db, userID)
+	if err != nil {
 		return 0, 0, err
 	}
-	if err := s.db.WithContext(ctx).Model(&Message{}).Where("user_id = ?", userID).Count(&messages).Error; err != nil {
+	messages, err := dalCountUserMessages(ctx, s.db, userID)
+	if err != nil {
 		return 0, 0, err
 	}
 	return conversations, messages, nil
@@ -2027,18 +1978,14 @@ func (s *Service) UserStats(ctx context.Context, userID uint) (int64, int64, err
 
 // CountConversations 统计平台会话总数，用于后台概览。
 func (s *Service) CountConversations(ctx context.Context) (int64, error) {
-	var total int64
-	err := s.db.WithContext(ctx).Model(&Conversation{}).Count(&total).Error
-	return total, err
+	return dalCountConversations(ctx, s.db)
 }
 
 // CountMonthlyMessages 统计本月消息数，用于后台概览与侧栏。
 func (s *Service) CountMonthlyMessages(ctx context.Context) (int64, error) {
 	now := time.Now()
 	start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	var total int64
-	err := s.db.WithContext(ctx).Model(&Message{}).Where("created_at >= ?", start).Count(&total).Error
-	return total, err
+	return dalCountMessagesSince(ctx, s.db, start)
 }
 
 // UsageTimeline 返回最近 N 天的 tokens 与消息量，缺失日期补 0。
@@ -2048,12 +1995,7 @@ func (s *Service) UsageTimeline(ctx context.Context, days int) ([]DailyUsage, er
 	}
 	now := time.Now()
 	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, -(days - 1))
-	var rows []DailyUsage
-	err := s.db.WithContext(ctx).Model(&Message{}).
-		Select("date(created_at) AS date, COALESCE(SUM(input_tokens + output_tokens), 0) AS tokens, COUNT(*) AS messages").
-		Where("created_at >= ? AND role = ?", start, RoleAssistant).
-		Group("date(created_at)").
-		Scan(&rows).Error
+	rows, err := dalUsageTimeline(ctx, s.db, start)
 	if err != nil {
 		return nil, err
 	}
@@ -2224,18 +2166,16 @@ func (s *Service) startCompaction(conv *Conversation, modelID, untilID uint, idl
 
 // compactConversation 执行一次前缀压缩，并以乐观条件写回摘要边界。
 func (s *Service) compactConversation(ctx context.Context, conversationID, modelID, untilID uint, idle bool) error {
-	var conv Conversation
-	if err := s.db.WithContext(ctx).First(&conv, conversationID).Error; err != nil {
+	convPtr, err := dalFindConversationByID(ctx, s.db, conversationID)
+	if err != nil {
 		return err
 	}
+	conv := *convPtr
 	if conv.SummaryUntilID >= untilID {
 		return nil
 	}
-	var rows []Message
-	if err := s.db.WithContext(ctx).
-		Where("conversation_id = ? AND id > ? AND id <= ? AND status <> ? AND (content <> '' OR attachments_json <> '')",
-			conv.ID, conv.SummaryUntilID, untilID, StatusError).
-		Order("id ASC").Find(&rows).Error; err != nil {
+	rows, err := dalMessagesBefore(ctx, s.db, conv.ID, conv.SummaryUntilID, untilID)
+	if err != nil {
 		return err
 	}
 	if len(rows) < 3 {
@@ -2284,18 +2224,16 @@ func (s *Service) compactConversation(ctx context.Context, conversationID, model
 	}
 	boundaryID := rows[boundary-1].ID
 	now := time.Now()
-	result := s.db.WithContext(ctx).Model(&Conversation{}).
-		Where("id = ? AND summary_until_id < ?", conv.ID, boundaryID).
-		Updates(map[string]any{
-			"summary":            summary,
-			"summary_until_id":   boundaryID,
-			"summary_tokens":     estimateTokens(summary),
-			"summary_updated_at": now,
-		})
-	if result.Error != nil {
-		return result.Error
+	updated, err := dalUpdateSummaryIfNewer(ctx, s.db, conv.ID, boundaryID, map[string]any{
+		"summary":            summary,
+		"summary_until_id":   boundaryID,
+		"summary_tokens":     estimateTokens(summary),
+		"summary_updated_at": now,
+	})
+	if err != nil {
+		return err
 	}
-	if result.RowsAffected == 0 {
+	if !updated {
 		return nil
 	}
 	slog.Info("context compacted", "conversation_id", conv.ID, "until_message_id", boundaryID, "summary_tokens", estimateTokens(summary))
@@ -2395,10 +2333,8 @@ func (s *Service) StartCompactionWorker(ctx context.Context) {
 
 func (s *Service) sweepIdleConversations(ctx context.Context) {
 	cutoff := time.Now().Add(-time.Duration(s.cfg.CacheIdleHours) * time.Hour)
-	var conversations []Conversation
-	if err := s.db.WithContext(ctx).
-		Where("deleted_at IS NULL AND updated_at < ?", cutoff).
-		Order("updated_at ASC").Limit(20).Find(&conversations).Error; err != nil {
+	conversations, err := dalIdleConversations(ctx, s.db, cutoff, 20)
+	if err != nil {
 		slog.Warn("context compaction sweep failed", "error", err)
 		return
 	}
@@ -2416,10 +2352,7 @@ func (s *Service) sweepIdleConversations(ctx context.Context) {
 		if modelID == 0 {
 			continue
 		}
-		var lastID uint
-		_ = s.db.WithContext(ctx).Model(&Message{}).
-			Where("conversation_id = ? AND id > ?", conv.ID, conv.SummaryUntilID).
-			Select("COALESCE(MAX(id), 0)").Scan(&lastID).Error
+		lastID, _ := dalMaxMessageID(ctx, s.db, conv.ID, conv.SummaryUntilID)
 		if lastID == 0 {
 			continue
 		}
@@ -2469,15 +2402,15 @@ func (s *Service) searchParallel(ctx context.Context, queries []string, engines 
 // PurgeUser 删除某个用户的全部会话与消息（管理员删号时调用）。
 func (s *Service) PurgeUser(ctx context.Context, userID uint) error {
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var ids []uint
-		if err := tx.Model(&Conversation{}).Where("user_id = ?", userID).Pluck("id", &ids).Error; err != nil {
+		ids, err := dalConversationIDsByUser(ctx, tx, userID)
+		if err != nil {
 			return err
 		}
 		if len(ids) > 0 {
-			if err := tx.Where("conversation_id IN ?", ids).Delete(&Message{}).Error; err != nil {
+			if err := dalDeleteConversationsMessages(ctx, tx, ids); err != nil {
 				return err
 			}
-			if err := tx.Where("id IN ?", ids).Delete(&Conversation{}).Error; err != nil {
+			if err := dalDeleteConversations(ctx, tx, ids); err != nil {
 				return err
 			}
 		}
