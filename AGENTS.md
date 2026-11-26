@@ -292,6 +292,7 @@ push main / 打 v* tag → GitHub Actions（.github/workflows/docker.yml）
 
 ## 11. 文档索引
 
+- `INSTALL.md` — **给 AI 读的部署手册**（两条路线：二进制 + systemd / docker compose，README 直接引用）
 - `docs/GETTING-STARTED.md` — **配置与运行教程**（新手从这里开始；含 Docker / docker compose 两种部署方式与自动发布流水线）
 - `docs/DEPLOY.md` — 部署脚本、回滚、环境变量
 - `docs/requirements/` — 需求地图

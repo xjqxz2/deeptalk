@@ -2,7 +2,30 @@
 
 DeepTalk 是一个 AI 对话工作台，支持多轮对话、深度思考、联网搜索、图片理解和历史会话管理。
 
-## 自己部署
+## 快速部署（推荐：交给 AI 执行）
+
+把下面这份文件的内容整段复制给 AI，说「按这个部署」，它会自己装好：
+
+```
+https://github.com/<你的仓库>/blob/main/INSTALL.md
+```
+
+或者本地直接：
+
+```bash
+cat INSTALL.md        # 整段复制给 AI
+```
+
+`INSTALL.md` 是给 AI 读的部署手册，包含两条互斥路线：
+
+| 路线 | 适合 | 依赖 |
+| --- | --- | --- |
+| **A 直接部署** | 一台干净 Linux，不想装 Docker | 构建机需要 Go 1.26 + Node 22 + pnpm；产物是单二进制 + systemd |
+| **B Docker Compose** | 已有 Docker，或要接 CI 自动发布 | 只需要 Docker；数据在卷或宿主机目录 |
+
+两条路线都包含：环境变量、数据目录权限、健康检查、首次登录、配模型、故障排查与验收清单。
+
+## 自己部署（手动）
 
 完整的配置与运行步骤见 [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md)：
 环境准备 → 配置 → 本地开发 → 首次进入 → 配置模型 → 生产部署。
