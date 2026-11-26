@@ -7,7 +7,7 @@ DeepTalk 是一个 AI 对话工作台，支持多轮对话、深度思考、联�
 把下面这份文件的内容整段复制给 AI，说「按这个部署」，它会自己装好：
 
 ```
-https://github.com/<你的仓库>/blob/main/INSTALL.md
+https://github.com/xjqxz2/deeptalk/blob/main/INSTALL.md
 ```
 
 或者本地直接：

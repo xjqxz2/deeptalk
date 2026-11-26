@@ -34,7 +34,7 @@
 需要：Go **1.26+**、Node.js **22+**、pnpm **9+**。
 
 ```bash
-git clone <repo> deeptalk && cd deeptalk
+git clone https://github.com/xjqxz2/deeptalk.git && cd deeptalk
 
 # 一条命令：构建前端 → 拷进 server/web/dist → 编译二进制
 cd server
@@ -134,7 +134,7 @@ journalctl -u deeptalk -n 50 --no-pager      # 看启动日志
 **B1-a 在目标机构建**（适合内网/离线，源码在机器上）：
 
 ```bash
-git clone <repo> deeptalk && cd deeptalk
+git clone https://github.com/xjqxz2/deeptalk.git && cd deeptalk
 cp .env.example .env
 sed -i "s|^DEEPTALK_SECRET=.*|DEEPTALK_SECRET=$(openssl rand -hex 32)|" .env
 

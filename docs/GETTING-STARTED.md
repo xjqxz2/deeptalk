@@ -38,7 +38,7 @@ app.yaml（默认值，提交到仓库）
 | Obscura | 可选 | 联网检索的浏览器引擎；没有也能跑，自动回退普通 HTTP |
 
 ```bash
-git clone <repo> deeptalk && cd deeptalk
+git clone https://github.com/xjqxz2/deeptalk.git && cd deeptalk
 ```
 
 Go 依赖与缓存统一放在仓库上一级（`Makefile` 已配好），首次 `make dev` 会自动下载。
