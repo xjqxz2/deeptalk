@@ -117,11 +117,20 @@ process.env.FONTCONFIG_FILE = path.join(deps,'fonts.conf'); process.env.FONTCONF
 ## 6. 发布流程
 
 ```text
-push main → GitHub Actions（.github/workflows/docker.yml）
-          → ghcr.nju.edu.cn/xjqxz2/deeptalk:latest
-          → ssh root@peon.top 'cd /srv/deeptalk && ./deploy.sh latest'
-          → curl http://127.0.0.1:9821/healthz
+push main / 打 v* tag → GitHub Actions（.github/workflows/docker.yml）
+                     → ghcr.nju.edu.cn/xjqxz2/deeptalk
+                     → 仅 tag + DEPLOY_ENABLED=true 时自动执行 scripts/deploy.sh
+                     → curl http://127.0.0.1:9821/healthz
 ```
+
+两种部署形态（详见 `docs/GETTING-STARTED.md` 第 6 节）：
+
+| 文件 | 用途 | 数据 |
+| --- | --- | --- |
+| `docker-compose.yml` | 目标机本地构建镜像，适合内网/离线 | docker 卷 `deeptalk-data` |
+| `docker-compose.prod.yml` | 只拉 GHCR 镜像，配合 `scripts/deploy.sh` | 宿主机目录 `${DEEPTALK_DATA_DIR}` |
+
+`deploy.sh` 会先停容器备份数据（SQLite 的 db/wal/shm 一起），健康检查失败自动回滚到上一个 tag，并只清理本仓库的旧镜像（保留 3 个）。
 
 - 生产目录 `/srv/deeptalk`；数据库 `/srv/deeptalk/data/deeptalk.db`；环境变量在 `/srv/deeptalk/.env`。
 - 生产保留最近 3 个镜像（`KEEP_IMAGES=3`），旧镜像自动清理。
@@ -283,7 +292,7 @@ push main → GitHub Actions（.github/workflows/docker.yml）
 
 ## 11. 文档索引
 
-- `docs/GETTING-STARTED.md` — **配置与运行教程**（新手从这里开始）
+- `docs/GETTING-STARTED.md` — **配置与运行教程**（新手从这里开始；含 Docker / docker compose 两种部署方式与自动发布流水线）
 - `docs/DEPLOY.md` — 部署脚本、回滚、环境变量
 - `docs/requirements/` — 需求地图
 - `docs/design/` — 设计稿与小程序包

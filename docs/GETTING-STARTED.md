@@ -152,21 +152,150 @@ pnpm dev:h5          # 浏览器预览，http://localhost:5273
 
 ---
 
-## 6. 生产部署
+## 6. 用 Docker 部署
 
-### 6.1 一键部署（推荐）
+镜像内部已经包含前端产物、Go 二进制与 Obscura，**一个容器就是全部服务**，监听 `9821`，数据统一落在 `/app/data`。
+
+### 6.1 方式一：本机/服务器直接构建（最简单）
+
+仓库自带 `docker-compose.yml`，它在目标机器上构建镜像，适合内网、离线、或你还没有 CI 的场景。
 
 ```bash
-# 服务器目录
-mkdir -p /srv/deeptalk && cd /srv/deeptalk
-cp .env.production.example .env    # 填 DEEPTALK_SECRET / BASE_URL / 端口
-./deploy.sh latest                  # 拉镜像并重启
+cd deeptalk
+cp .env.example .env          # 至少填 DEEPTALK_SECRET
+docker compose up -d --build  # 第一次会构建，需要几分钟
+docker compose logs -f        # 看启动日志
 curl http://127.0.0.1:9821/healthz
 ```
 
-发布流水线：push `main` → GitHub Actions 构建镜像 → 拉取 → 重启 → 健康检查。
+数据存在 docker 卷 `deeptalk-data` 里（不是宿主机目录），备份方式：
 
-### 6.2 生产必改项
+```bash
+docker run --rm -v deeptalk-data:/data -v "$PWD":/backup alpine \
+  tar -czf /backup/deeptalk-$(date +%F).tar.gz -C /data .
+```
+
+常用命令：
+
+```bash
+docker compose restart          # 重启
+docker compose down             # 停止并删除容器（卷保留）
+docker compose up -d --build    # 改完代码重新构建
+```
+
+### 6.2 方式二：拉取已构建镜像（生产推荐）
+
+`docker-compose.prod.yml` 不在服务器上构建，只拉 GHCR 上的镜像，配合 `scripts/deploy.sh` 使用。
+
+服务器首次准备：
+
+```bash
+mkdir -p /srv/deeptalk && cd /srv/deeptalk
+# 放入 docker-compose.prod.yml、scripts/deploy.sh、.env
+cp .env.production.example .env
+
+# 必改：密钥、域名、数据目录
+vi .env
+#   DEEPTALK_SECRET=<openssl rand -hex 32 生成>
+#   DEEPTALK_IMAGE=ghcr.nju.edu.cn/xjqxz2/deeptalk
+#   DEEPTALK_IMAGE_TAG=latest
+#   DEEPTALK_BASE_URL=https://your-domain.example.com
+#   DEEPTALK_DATA_DIR=/srv/deeptalk/data
+```
+
+首次部署：
+
+```bash
+chmod +x deploy.sh
+./deploy.sh latest
+```
+
+`deploy.sh` 做了这些事，出问题会自动回滚：
+
+1. 停容器 → 打包备份数据目录（SQLite 的 `db`/`wal`/`shm` 一起，避免快照不一致）→ 起容器
+2. 拉取目标 tag 的镜像
+3. `docker compose up -d` 启动
+4. 轮询 `http://127.0.0.1:<端口>/healthz`，最多 60 秒
+5. **健康检查失败 → 自动切回上一个 tag**
+6. 健康通过后才把新 tag 写进 `.env`，供下次回滚
+7. 只清理本项目仓库的旧镜像，保留最近 3 个（`KEEP_IMAGES=3`）
+
+指定版本与回滚：
+
+```bash
+./deploy.sh v1.2.0     # 部署某个 tag
+./deploy.sh latest     # 部署最新
+```
+
+备份在 `/srv/deeptalk/backups/`，自动保留 14 天。
+
+### 6.3 自动发布流水线
+
+```text
+push main / 打 tag
+  → GitHub Actions 构建镜像（linux/amd64 + arm64）
+  → 推送到 ghcr.nju.edu.cn/xjqxz2/deeptalk
+  → 仅在「打 v* tag 且 DEPLOY_ENABLED=true」时，SSH 调用服务器上的 ./deploy.sh <tag>
+  → 健康检查通过才算完成
+```
+
+日常 `push main` 只构建镜像、**不会**部署到服务器。真正发布要打 tag：
+
+```bash
+git tag v1.2.0 && git push origin v1.2.0
+```
+
+需要在仓库 Settings 里配置：
+
+| 类型 | 名称 | 说明 |
+| --- | --- | --- |
+| Secret | `DEPLOY_HOST` | 服务器地址 |
+| Secret | `DEPLOY_USER` | 登录用户（如 `root`） |
+| Secret | `DEPLOY_SSH_KEY` | 能登录服务器的私钥 |
+| Secret | `DEPLOY_KNOWN_HOSTS` | `ssh-keyscan` 结果，用于校验主机 |
+| Secret | `DEPLOY_PORT` | 可选，默认 22 |
+| Variable | `DEPLOY_ENABLED` | 设为 `true` 才会自动部署 |
+| Variable | `DEPLOY_PATH` | 服务器上的目录，默认 `/srv/deeptalk` |
+
+### 6.4 容器里的路径与权限
+
+| 容器内路径 | 说明 |
+| --- | --- |
+| `/app/deeptalk` | Go 二进制（入口） |
+| `/app/configs/app.yaml` | 配置（镜像内只带这一份，不含任何密钥） |
+| `/app/data` | 数据卷：SQLite、上传图片、日志、SSH 密钥 |
+| `/app/web/dist` | 内嵌前端产物 |
+
+容器以 `uid=10001`（`deeptalk`）运行。**宿主机挂载目录必须先授权**，否则上传与 SSH MCP 会报权限错误：
+
+```bash
+mkdir -p /srv/deeptalk/data
+chown -R 10001:10001 /srv/deeptalk/data
+```
+
+后续升级、换密钥、换域名都只改 `.env`，然后 `./deploy.sh <tag>` 重启即可。
+
+### 6.5 反向代理（HTTPS）
+
+容器只监听 HTTP，HTTPS 交给 Nginx/Caddy。Nginx 关键配置：
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:9821;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+
+    # SSE 必须关闭缓冲，否则回答会攒着一次性吐出来
+    proxy_buffering off;
+    proxy_cache off;
+    proxy_read_timeout 3600s;
+}
+```
+
+启用 HTTPS 后记得把 `.env` 改为 `DEEPTALK_ENV=prod`、`DEEPTALK_COOKIE_SECURE=true`、`DEEPTALK_SIGN_MODE=enforce`。
+
+### 6.6 生产必改项
 
 | 项 | 值 | 原因 |
 | --- | --- | --- |
@@ -175,12 +304,7 @@ curl http://127.0.0.1:9821/healthz
 | `DEEPTALK_COOKIE_SECURE` | `true` | 仅 HTTPS 传输 |
 | `DEEPTALK_SIGN_MODE` | `enforce` | 拒绝未签名写请求 |
 | `DEEPTALK_SECRET` | 随机长串 | 加密密钥，**永不更换** |
-
-数据目录 `<data>/ssh` 必须属于容器用户（否则 SSH MCP 报权限错误）：
-
-```bash
-chown -R 10001:10001 /srv/deeptalk/data/ssh
-```
+| `DEEPTALK_DATA_DIR` | 宿主机绝对路径 | 数据卷挂载点 |
 
 ---
 
