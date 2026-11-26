@@ -133,6 +133,13 @@ push main → GitHub Actions（.github/workflows/docker.yml）
 
 ## 7. 架构要点（改代码前必读）
 
+### 7.0 配置的唯一真相
+
+- **配置文件只有 `server/configs/app.yaml`**（可选 `app-{env}.yaml` / `secret.local.yaml` 覆盖），`DEEPTALK_*` 环境变量只做覆盖层。
+- **后台能配的绝不写进配置文件**：厂商与模型（含 API Key）、输出预算、生成超时、注册开关、检索来源、套餐全部存数据库，在管理后台改。`upstream.max_output_tokens` / `first_byte_timeout_sec` / `deepseek_api_key` 已删除，不要再加回来。
+- **管理员账号由迁移写入**：`user.Migrate` 里 `ensureInitialAdmin` 只在 `users` 表**完全为空**时插入 `admin/123456`，有数据就一行都不动。注册与微信首登都**不能**产出管理员，管理员只能在后台授予。
+- **角色调整**：`PATCH /b/users/:id/role`，禁止取消自己、禁止取消最后一个管理员；`Auth` 每次请求实时查库，改角色立即生效。
+
 ### 7.1 请求链路
 
 `Gin 路由（/api/v1/c|b）→ 中间件（鉴权 → 签名 → 审计）→ 控制器 → internal 服务 → GORM`。
@@ -254,6 +261,7 @@ push main → GitHub Actions（.github/workflows/docker.yml）
 | 先 `hub.start` 再判断是否已在生成 | 旧 run 被 finish，第二个请求又立刻结束，客户端拿到空响应 | 判断必须在 `hub.start` 之前 |
 | 登录失败次数用「读-改-写」累加 | 并发爆破每次读到同一个旧值，永远到不了锁定阈值 | 单条 `UPDATE ... failed_attempts + 1` 原子自增并判定锁定 |
 | 登录成功用 `Save(user)` 整行写回 | 覆盖并发累加中的 `used_tokens` | 只 `Updates` 登录相关列 |
+| 「第一个注册/首登的人当管理员」 | 删掉管理员后下一个人自动提权 | 管理员只由迁移创建或后台授予 |
 
 ---
 
@@ -275,10 +283,11 @@ push main → GitHub Actions（.github/workflows/docker.yml）
 
 ## 11. 文档索引
 
+- `docs/GETTING-STARTED.md` — **配置与运行教程**（新手从这里开始）
 - `docs/DEPLOY.md` — 部署脚本、回滚、环境变量
 - `docs/requirements/` — 需求地图
 - `docs/design/` — 设计稿与小程序包
 - `docs/qa/ux/` — 交互测试截图（pwa / admin / uni）
 - `docs/qa/regress/` — 回归证据（b / c / c2 / c3）
-- `SPEC.md`、`SPEC_v1.0.0.md` — 接口与数据模型规范
+- `SPEC.md` — 接口与数据模型规范
 - `ChatDemo.md` — 流式交错（思考 ↔ 工具）协议说明

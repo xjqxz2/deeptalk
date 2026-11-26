@@ -43,7 +43,8 @@ func newTestService(t *testing.T) (*Service, *setting.Service, *gorm.DB) {
 	return svc, settings, db
 }
 
-// TestRegisterLoginAndRoles 校验注册即登录、首个账号管理员与邮箱唯一。
+// TestRegisterLoginAndRoles 校验注册即登录、注册账号为普通用户与邮箱唯一。
+// 管理员由迁移写入（admin），不再由「第一个注册的人」担任。
 func TestRegisterLoginAndRoles(t *testing.T) {
 	svc, _, _ := newTestService(t)
 	ctx := context.Background()
@@ -53,8 +54,8 @@ func TestRegisterLoginAndRoles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("register first: %v", err)
 	}
-	if first.Role != RoleAdmin {
-		t.Fatalf("first user role = %s, want admin", first.Role)
+	if first.Role != RoleUser {
+		t.Fatalf("registered user role = %s, want user", first.Role)
 	}
 	if first.Email != "lmo@deeptalk.app" {
 		t.Fatalf("email should be normalized, got %s", first.Email)

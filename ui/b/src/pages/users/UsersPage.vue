@@ -24,6 +24,7 @@ import {
   fetchUsers,
   logoutAllSessions,
   setUserDisabled,
+  setUserRole,
   updatePlan,
 } from '@/services/admin'
 import { useAdminStore } from '@/stores/admin'
@@ -271,6 +272,31 @@ function onToggleDisabled(disabled: boolean): void {
   })
 }
 
+/** 设为 / 取消管理员（二次确认）。 */
+function onToggleRole(user: User): void {
+  const promote = user.role !== 'admin'
+  const label = user.display_name || user.nickname || user.email
+  Modal.confirm({
+    title: promote ? `将「${label}」设为管理员？` : `取消「${label}」的管理员权限？`,
+    content: promote
+      ? '设为管理员后，该账号可以登录管理后台，拥有厂商、用户、套餐等全部管理权限。'
+      : '取消后该账号立即失去后台访问权限，已登录的后台页面下次请求会被拒绝。',
+    okText: promote ? '设为管理员' : '取消管理员',
+    okType: promote ? 'primary' : 'danger',
+    cancelText: '取消',
+    async onOk() {
+      try {
+        const data = await setUserRole(user.id, promote ? 'admin' : 'user')
+        if (selectedUser.value?.id === data.user.id) selectedUser.value = data.user
+        message.success(promote ? '已设为管理员' : '已取消管理员')
+        await loadList()
+      } catch (error) {
+        message.error(error instanceof Error ? error.message : promote ? '设置失败' : '取消失败')
+      }
+    },
+  })
+}
+
 /** 打开重置密码；禁止在列表里重置当前登录管理员。 */
 function openReset(): void {
   const user = selectedUser.value
@@ -334,6 +360,7 @@ function onRowAction(info: { key: string }, user: User): void {
   if (info.key === 'quota') openQuota()
   if (info.key === 'reset') openReset()
   if (info.key === 'toggle') onToggleDisabled(!user.disabled)
+  if (info.key === 'role') onToggleRole(user)
   if (info.key === 'logout') onLogoutAll()
   if (info.key === 'delete') void onDeleteUser(user)
 }
@@ -604,6 +631,9 @@ onBeforeUnmount(() => {
                         <a-menu-item key="quota">调整额度</a-menu-item>
                         <a-menu-item key="reset">重置密码</a-menu-item>
                         <a-menu-divider />
+                        <a-menu-item key="role">
+                          {{ user.role === 'admin' ? '取消管理员' : '设为管理员' }}
+                        </a-menu-item>
                         <a-menu-item key="toggle" :danger="!user.disabled">
                           {{ user.disabled ? '恢复登录' : '限制登录' }}
                         </a-menu-item>

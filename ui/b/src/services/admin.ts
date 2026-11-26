@@ -165,6 +165,11 @@ export function setUserDisabled(id: number, disabled: boolean): Promise<{ user: 
   return patch<{ user: User }>(`/b/users/${id}/disabled`, { disabled })
 }
 
+/** 设为 / 取消管理员。 */
+export function setUserRole(id: number, role: 'admin' | 'user'): Promise<{ user: User }> {
+  return patch<{ user: User }>(`/b/users/${id}/role`, { role })
+}
+
 /** 重置密码，返回一次性密码。 */
 export function resetUserPassword(id: number): Promise<{ password: string; expires_hint: string }> {
   return post<{ password: string; expires_hint: string }>(`/b/users/${id}/reset-password`)

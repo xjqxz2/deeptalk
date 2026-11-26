@@ -83,7 +83,8 @@ func NewService(db *gorm.DB, policy RegistrationPolicy, recorder AuditRecorder, 
 }
 
 // Register 完成注册并直接创建会话（注册即登录）。
-// 首个账号自动成为平台管理员；其余账号为普通用户。
+// 管理员账号由迁移创建（admin），注册出来的账号一律是普通用户：
+// 不能再让「第一个注册的人」拿到管理员，否则删掉管理员行就等于开了提权后门。
 // 返回用户、会话 token；错误包括邮箱冲突、注册关闭、密码不合规。
 func (s *Service) Register(ctx context.Context, in RegisterInput, meta RequestMeta) (*User, string, error) {
 	email := NormalizeEmail(in.Email)
@@ -93,7 +94,7 @@ func (s *Service) Register(ctx context.Context, in RegisterInput, meta RequestMe
 	if err := ValidatePassword(in.Password); err != nil {
 		return nil, "", err
 	}
-	// 先查询账号数，用于判定首个管理员与注册开关
+	// 只有库里已经有账号时才检查注册开关（空库首次注册必须放行）
 	count, err := dalCountUsers(ctx, s.db)
 	if err != nil {
 		return nil, "", err
@@ -116,15 +117,11 @@ func (s *Service) Register(ctx context.Context, in RegisterInput, meta RequestMe
 	if err != nil {
 		return nil, "", err
 	}
-	role := RoleUser
-	if count == 0 {
-		role = RoleAdmin
-	}
 	u := &User{
 		Email:        email,
 		Nickname:     nicknameFromEmail(email),
 		PasswordHash: hash,
-		Role:         role,
+		Role:         RoleUser,
 		Plan:         PlanFree,
 		QuotaTokens:  s.opt.DefaultQuota,
 	}
@@ -427,6 +424,38 @@ func (s *Service) SetDisabled(ctx context.Context, userID uint, disabled bool) (
 	return u, nil
 }
 
+// SetRole 调整用户角色（设为 / 取消管理员）。
+// 保护规则：不能取消最后一个管理员，也不能取消自己，避免把后台锁死。
+func (s *Service) SetRole(ctx context.Context, operatorID, userID uint, role string) (*User, error) {
+	if role != RoleAdmin && role != RoleUser {
+		return nil, errors.New("invalid role")
+	}
+	u, err := dalFindByID(ctx, s.db, userID)
+	if err != nil {
+		return nil, err
+	}
+	if u.Role == role {
+		return u, nil
+	}
+	if role == RoleUser {
+		if userID == operatorID {
+			return nil, errors.New("不能取消自己的管理员权限")
+		}
+		total, err := dalCountAdmins(ctx, s.db)
+		if err != nil {
+			return nil, err
+		}
+		if total <= 1 {
+			return nil, errors.New("至少要保留一个管理员")
+		}
+	}
+	if err := dalUpdateRole(ctx, s.db, userID, role); err != nil {
+		return nil, err
+	}
+	u.Role = role
+	return u, nil
+}
+
 // ResetPassword 生成一次性强密码、更新哈希并撤销全部会话。
 // 返回的明文密码只在此处返回一次，服务端不保存。
 func (s *Service) ResetPassword(ctx context.Context, userID uint) (string, error) {
@@ -647,19 +676,13 @@ func (s *Service) LoginByOpenID(ctx context.Context, openid, nickname string, me
 	}
 	// 不塞默认昵称：没有昵称时前端统一回退显示邮箱
 	nickname = strings.TrimSpace(nickname)
-	count, err := dalCountUsers(ctx, s.db)
-	if err != nil {
-		return nil, "", err
-	}
-	role := RoleUser
-	if count == 0 {
-		role = RoleAdmin
-	}
+	// 微信首次登录一律是普通用户：管理员只能由迁移创建或在后台授予，
+	// 否则删掉管理员后第一个微信登录的人就能拿到后台权限。
 	u = &User{
 		Email:            placeholderEmail(openid),
 		Nickname:         truncate(nickname, 24),
 		PasswordHash:     hash,
-		Role:             role,
+		Role:             RoleUser,
 		Plan:             PlanFree,
 		QuotaTokens:      s.opt.DefaultQuota,
 		WeChatOpenID:     &openid,

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -38,10 +39,20 @@ func main() {
 	app.Waiting()
 }
 
-// runSSHMCP 运行只做 SSH 的 MCP server，参数全部来自环境变量。
+// runSSHMCP 运行只做 SSH 的 MCP server。
+// 参数优先读 app.yaml 的 mcp.ssh（与主服务同一份配置），环境变量仅作容器覆盖。
 func runSSHMCP() error {
-	cfg := sshmcp.Config{
-		DataDir: os.Getenv("DEEPTALK_DATA_DIR"),
+	cfg := sshmcp.Config{DataDir: os.Getenv("DEEPTALK_DATA_DIR")}
+	configDir := os.Getenv("DEEPTALK_CONFIG_DIR")
+	if configDir == "" {
+		configDir = "configs"
+	}
+	if file, err := bootstrap.LoadConfig(configDir, ""); err == nil {
+		cfg.KeyBits = file.MCP.SSH.KeyBits
+		cfg.DefaultTimeout = time.Duration(file.MCP.SSH.TimeoutSec) * time.Second
+		if cfg.DataDir == "" {
+			cfg.DataDir = filepath.Dir(file.Database.DSN)
+		}
 	}
 	if raw := os.Getenv("DEEPTALK_SSH_KEY_BITS"); raw != "" {
 		if bits, err := strconv.Atoi(raw); err == nil {

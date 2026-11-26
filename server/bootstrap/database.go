@@ -18,7 +18,6 @@ import (
 	"deeptalk/internal/logging"
 	"deeptalk/internal/memo"
 	"deeptalk/internal/provider"
-	"deeptalk/internal/seed"
 	"deeptalk/internal/setting"
 	"deeptalk/internal/user"
 
@@ -95,15 +94,6 @@ func (a *App) startDatabase(ctx context.Context) error {
 	}
 	a.DB = db
 	a.Log.Info("database ready", "dsn", cfg.Database.DSN)
-	if cfg.Database.Seed {
-		if err := seed.Run(ctx, db, seed.Config{
-			Secret:         cfg.Security.Secret,
-			DeepSeekAPIKey: cfg.Upstream.DeepSeekAPIKey,
-		}); err != nil {
-			return err
-		}
-		a.Log.Info("seed data ready")
-	}
 	return nil
 }
 

@@ -3,7 +3,6 @@ package billing
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -215,9 +214,6 @@ func (s *Service) monthStart() time.Time {
 	now := s.now()
 	return time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 }
-
-// CountHours 用于日志与测试。
-func CountHours(hours int) string { return fmt.Sprintf("%dh", hours) }
 
 // UpdateInput 是套餐更新的可选字段；nil 表示不改。
 type UpdateInput struct {

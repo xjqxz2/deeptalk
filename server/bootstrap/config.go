@@ -41,8 +41,7 @@ type AppConfig struct {
 
 // DatabaseConfig 保存 SQLite 相关配置。
 type DatabaseConfig struct {
-	DSN  string `yaml:"dsn"`  // 数据库文件路径
-	Seed bool   `yaml:"seed"` // 是否写入演示种子数据
+	DSN string `yaml:"dsn"` // 数据库文件路径
 }
 
 // AuthConfig 保存登录、会话与锁定策略。
@@ -75,11 +74,10 @@ type ContextConfig struct {
 	IdleMinTokens  int     `yaml:"idle_min_tokens"`  // 空闲压缩的最小上下文 token 数
 }
 
+// UpstreamConfig 只保留「后台改不了」的上游调优项。
+// 输出预算与生成超时由后台系统设置维护（存数据库），不要写回配置文件。
 type UpstreamConfig struct {
-	MaxOutputTokens     int    `yaml:"max_output_tokens"`      // 单次回答最大输出 tokens
-	FirstByteTimeoutSec int    `yaml:"first_byte_timeout_sec"` // 首字节超时（秒）
-	ReasoningEffort     string `yaml:"reasoning_effort"`       // 深度思考强度：low / medium / high
-	DeepSeekAPIKey      string `yaml:"deepseek_api_key"`       // 仅本地种子使用，加密入库后不再读取
+	ReasoningEffort string `yaml:"reasoning_effort"` // 深度思考强度：low / medium / high
 }
 
 // WebSearchConfig 保存联网检索配置。
@@ -119,6 +117,7 @@ type MCPConfig struct {
 type SSHMCPConfig struct {
 	Enabled    bool `yaml:"enabled"`     // 是否把 SSH 能力下发给模型
 	TimeoutSec int  `yaml:"timeout_sec"` // 单次工具调用超时（秒）
+	KeyBits    int  `yaml:"key_bits"`    // 首次生成用户 SSH 密钥的 RSA 位数
 }
 
 // WeChatConfig 保存微信小程序相关配置。
@@ -226,14 +225,8 @@ func applyEnvOverrides(cfg *Config) {
 	if v := os.Getenv("DEEPTALK_SECRET"); v != "" {
 		cfg.Security.Secret = v
 	}
-	if v := os.Getenv("DEEPTALK_DEEPSEEK_KEY"); v != "" {
-		cfg.Upstream.DeepSeekAPIKey = v
-	}
 	if v := os.Getenv("DEEPTALK_COOKIE_SECURE"); v != "" {
 		cfg.Auth.CookieSecure = v == "true" || v == "1"
-	}
-	if v := os.Getenv("DEEPTALK_SEED"); v != "" {
-		cfg.Database.Seed = v == "true" || v == "1"
 	}
 	if v := os.Getenv("DEEPTALK_SESSION_TTL_HOURS"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
@@ -251,11 +244,6 @@ func applyEnvOverrides(cfg *Config) {
 	}
 	if v := os.Getenv("DEEPTALK_SEARCH_HTTP_FALLBACK"); v != "" {
 		cfg.WebSearch.HTTPFallback = v == "true" || v == "1"
-	}
-	if v := os.Getenv("DEEPTALK_MAX_OUTPUT_TOKENS"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			cfg.Upstream.MaxOutputTokens = n
-		}
 	}
 	if v := os.Getenv("DEEPTALK_REASONING_EFFORT"); v != "" {
 		cfg.Upstream.ReasoningEffort = strings.ToLower(v)
@@ -307,6 +295,11 @@ func applyEnvOverrides(cfg *Config) {
 	if v := os.Getenv("DEEPTALK_MCP_PROTOCOL_VERSION"); v != "" {
 		cfg.MCP.ProtocolVersion = v
 	}
+	if v := os.Getenv("DEEPTALK_SSH_KEY_BITS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.MCP.SSH.KeyBits = n
+		}
+	}
 	if v := os.Getenv("DEEPTALK_MCP_TIMEOUT_SEC"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			cfg.MCP.TimeoutSec = n
@@ -338,15 +331,6 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.WebSearch.PageTimeoutSec <= 0 {
 		cfg.WebSearch.PageTimeoutSec = 15
-	}
-	if cfg.Upstream.MaxOutputTokens <= 0 {
-		cfg.Upstream.MaxOutputTokens = 384000
-	}
-	if cfg.Upstream.MaxOutputTokens > 1_000_000 {
-		cfg.Upstream.MaxOutputTokens = 1_000_000
-	}
-	if cfg.Upstream.FirstByteTimeoutSec <= 0 {
-		cfg.Upstream.FirstByteTimeoutSec = 30
 	}
 	if cfg.Context.CompactRatio <= 0 || cfg.Context.CompactRatio >= 1 {
 		cfg.Context.CompactRatio = 0.85

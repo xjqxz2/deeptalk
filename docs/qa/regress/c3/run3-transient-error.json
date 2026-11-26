@@ -1,0 +1,151 @@
+{
+  "modal": {
+    "present": true,
+    "title": "忘记密码",
+    "body": "当前版本暂不支持自助找回，请联系管理员重置密码。",
+    "maskPresent": true
+  },
+  "pre": {
+    "generating": false,
+    "n": 1,
+    "len": 0,
+    "typing": false
+  },
+  "tInterject": 9347,
+  "queuedState": {
+    "queued": [],
+    "tags": 0,
+    "assistantLens": [
+      0,
+      0
+    ]
+  },
+  "final": {
+    "generating": false,
+    "assistantCount": 2,
+    "assistants": [
+      {
+        "i": 0,
+        "len": 0,
+        "typing": false,
+        "cls": "message assistant error",
+        "head": "",
+        "tail": ""
+      },
+      {
+        "i": 1,
+        "len": 0,
+        "typing": false,
+        "cls": "message assistant error",
+        "head": "",
+        "tail": ""
+      }
+    ],
+    "users": [
+      {
+        "cls": "message user complete",
+        "tag": "",
+        "queued": "",
+        "text": "请用 300 字解释 TCP 三次握手，并说明为什么不是两次"
+      },
+      {
+        "cls": "message user complete",
+        "tag": "",
+        "queued": "",
+        "text": "补充：再解释一下四次挥手"
+      }
+    ],
+    "title": "新对话"
+  },
+  "done": true,
+  "totalMs": 14284,
+  "timelineHead": [
+    {
+      "t": 9883,
+      "generating": true,
+      "n": 2,
+      "lens": [
+        0,
+        0
+      ],
+      "typing": [
+        false,
+        true
+      ],
+      "queued": 0
+    },
+    {
+      "t": 10387,
+      "generating": true,
+      "n": 2,
+      "lens": [
+        0,
+        0
+      ],
+      "typing": [
+        false,
+        true
+      ],
+      "queued": 0
+    }
+  ],
+  "timelineTail": [
+    {
+      "t": 9883,
+      "generating": true,
+      "n": 2,
+      "lens": [
+        0,
+        0
+      ],
+      "typing": [
+        false,
+        true
+      ],
+      "queued": 0
+    },
+    {
+      "t": 10387,
+      "generating": true,
+      "n": 2,
+      "lens": [
+        0,
+        0
+      ],
+      "typing": [
+        false,
+        true
+      ],
+      "queued": 0
+    },
+    {
+      "t": 10892,
+      "generating": true,
+      "n": 2,
+      "lens": [
+        0,
+        0
+      ],
+      "typing": [
+        false,
+        true
+      ],
+      "queued": 0
+    },
+    {
+      "t": 11399,
+      "generating": false,
+      "n": 2,
+      "lens": [
+        0,
+        0
+      ],
+      "typing": [
+        false,
+        false
+      ],
+      "queued": 0
+    }
+  ],
+  "logs": []
+}

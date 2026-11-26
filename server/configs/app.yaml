@@ -16,9 +16,8 @@ app:
 
 database:
   # SQLite 数据文件路径（相对 server 目录）；目录不存在会自动创建
+  # 初始管理员 admin/123456 由迁移写入，厂商与模型在后台配置
   dsn: data/deeptalk.db
-  # 首次启动是否写入初始管理员、DeepSeek 厂商与 deepseek-flash 模型
-  seed: true
 
 auth:
   # 会话 Cookie 名
@@ -37,6 +36,8 @@ auth:
 security:
   # AES-GCM 与签名密钥；生产必须通过环境变量 DEEPTALK_SECRET 覆盖
   secret: deeptalk-mvp-local-secret-change-me
+  # 写请求签名校验：off / log（只记日志）/ enforce（拒绝）；生产用 enforce
+  sign_mode: log
 
 cors:
   # 开发期允许的跨域来源（Vite 两个应用）
@@ -47,11 +48,8 @@ cors:
     - http://127.0.0.1:5174
 
 upstream:
-  # 单次流式回答最大输出 tokens；深度思考与正文共用这份预算
-  # 默认拉满到 384K；后台系统设置可在线调整（1024–1,000,000）
-  max_output_tokens: 384000
-  # 上游首字节超时（秒）
-  first_byte_timeout_sec: 30
+  # 输出预算与生成超时属于后台「系统设置」，存数据库、可在管理端随时调整，
+  # 因此不再写进本文件；这里的零值表示使用代码内置默认（384K / 30s）。
   # 深度思考强度：low / medium / high；仅在用户开启深度思考时发送 reasoning_effort
   reasoning_effort: medium
 
@@ -136,7 +134,11 @@ mcp:
   # Obscura 0.2.x 支持的协议版本
   protocol_version: "2024-11-05"
   timeout_sec: 30
+  # 追加给 MCP 子进程的环境变量（默认空；需要时例如代理）
+  env: {}
   # 内置 SSH MCP：由主程序 ssh-mcp 子命令启动，只提供远端 SSH，不提供本机 shell
   ssh:
     enabled: true
     timeout_sec: 120
+    # 首次为每个用户生成 RSA 密钥的位数（1024–8192，默认 4096）
+    key_bits: 4096

@@ -1,0 +1,56 @@
+{
+  "preSnapshot": {
+    "generating": true,
+    "n": 1,
+    "len": 0,
+    "typing": true,
+    "err": "",
+    "t": 2384
+  },
+  "tInterject": 2405,
+  "queuedState": {
+    "queued": [
+      "排队中，本轮结束后处理 ·"
+    ],
+    "tags": 1
+  },
+  "final": {
+    "generating": false,
+    "assistants": [
+      {
+        "i": 0,
+        "cls": "message assistant complete",
+        "len": 430,
+        "typing": false,
+        "err": "",
+        "notice": ""
+      },
+      {
+        "i": 1,
+        "cls": "message assistant complete",
+        "len": 552,
+        "typing": false,
+        "err": "",
+        "notice": ""
+      }
+    ],
+    "users": [
+      {
+        "cls": "message user complete",
+        "tag": "",
+        "queued": ""
+      },
+      {
+        "cls": "message user complete",
+        "tag": "插话",
+        "queued": ""
+      }
+    ],
+    "title": "TCP三次握手原理解析"
+  },
+  "done": true,
+  "totalMs": 20240,
+  "logs": [
+    "[ws.open] ws://127.0.0.1:5333/api/v1/c/ws?token=7w1xl8m7cwdBAzCZLogbQSs0ZFoJeJfmFfPPp0sPZCY"
+  ]
+}

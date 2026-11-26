@@ -1,0 +1,308 @@
+{
+  "modal": {
+    "present": true,
+    "title": "忘记密码",
+    "body": "当前版本暂不支持自助找回，请联系管理员重置密码。",
+    "fullText": "忘记密码\n当前版本暂不支持自助找回，请联系管理员重置密码。\nOK",
+    "maskPresent": true
+  },
+  "afterLogin": {
+    "url": "http://127.0.0.1:5333/#/",
+    "title": "补充一句的内容"
+  },
+  "tInterject": 3111,
+  "firstStreamAt": 279,
+  "beforeInterject": {
+    "tag": "pre12",
+    "t": 3089,
+    "generating": true,
+    "assistantCount": 1,
+    "lens": [
+      0
+    ],
+    "typing": [
+      true
+    ],
+    "queued": [],
+    "interjectTags": [],
+    "userLens": [
+      30
+    ],
+    "lastText": ""
+  },
+  "justAfterInterject": {
+    "generating": true,
+    "assistantCount": 1,
+    "lens": [
+      0
+    ],
+    "typing": [
+      true
+    ],
+    "queued": [
+      "排队中，本轮结束后处理 ·"
+    ],
+    "interjectTags": [
+      "插话"
+    ],
+    "userLens": [
+      30,
+      14
+    ],
+    "lastText": ""
+  },
+  "final": {
+    "generating": false,
+    "assistantCount": 2,
+    "assistants": [
+      {
+        "i": 0,
+        "len": 452,
+        "typing": false,
+        "streamingCursor": false,
+        "cls": "message assistant complete",
+        "head": "TCP 建立连接需要三次握手：客户端先发 SYN 报文（携带初始序列号 seq=x），请求建立连接；服务器回复 SYN+ACK（seq=y，ack=x+1），表示同意并同步自己的序列号；客户端再回 A",
+        "tail": "依赖双方各自的初始序列号，服务器需要客户端确认“已收到我的 ISN（初始序列号）”，两次握手缺少这一步，可靠传输的起点就不完整。\n\n本质上，三次握手是用最少的报文，完成双方收发能力与序列号的双向确认。"
+      },
+      {
+        "i": 1,
+        "len": 519,
+        "typing": false,
+        "streamingCursor": false,
+        "cls": "message assistant complete",
+        "head": "TCP 是全双工的，两个方向要各自独立关闭，所以拆连接需要四次挥手。\n\n客户端发 FIN（seq=u），表示「我没有数据要发了」，进入 FIN_WAIT_1。\n服务器回 ACK（ack=u+1），确认",
+        "tail": "_WAIT 才能再回一次 ACK；另外也让本次连接中滞留的旧报文在网络中彻底失效，避免干扰使用相同四元组的新连接。\n\n所以四次挥手的本质是：把「我不发了」和「我发完了」拆成两个独立步骤，各自确认一次。"
+      }
+    ],
+    "userCount": 2,
+    "users": [
+      {
+        "cls": "message user complete",
+        "len": 30,
+        "tag": "",
+        "queued": ""
+      },
+      {
+        "cls": "message user complete",
+        "len": 14,
+        "tag": "插话",
+        "queued": ""
+      }
+    ]
+  },
+  "timelineHead": [
+    {
+      "t": 3738,
+      "generating": true,
+      "assistantCount": 1,
+      "lens": [
+        0
+      ],
+      "typing": [
+        true
+      ],
+      "queued": 1,
+      "interjectTags": 1
+    },
+    {
+      "t": 4243,
+      "generating": true,
+      "assistantCount": 1,
+      "lens": [
+        0
+      ],
+      "typing": [
+        true
+      ],
+      "queued": 1,
+      "interjectTags": 1
+    },
+    {
+      "t": 4747,
+      "generating": true,
+      "assistantCount": 1,
+      "lens": [
+        0
+      ],
+      "typing": [
+        true
+      ],
+      "queued": 1,
+      "interjectTags": 1
+    }
+  ],
+  "timelineTail": [
+    {
+      "t": 14368,
+      "generating": true,
+      "assistantCount": 2,
+      "lens": [
+        452,
+        58
+      ],
+      "typing": [
+        false,
+        false
+      ],
+      "queued": 0,
+      "interjectTags": 1
+    },
+    {
+      "t": 14873,
+      "generating": true,
+      "assistantCount": 2,
+      "lens": [
+        452,
+        199
+      ],
+      "typing": [
+        false,
+        false
+      ],
+      "queued": 0,
+      "interjectTags": 1
+    },
+    {
+      "t": 15375,
+      "generating": true,
+      "assistantCount": 2,
+      "lens": [
+        452,
+        323
+      ],
+      "typing": [
+        false,
+        false
+      ],
+      "queued": 0,
+      "interjectTags": 1
+    },
+    {
+      "t": 15881,
+      "generating": true,
+      "assistantCount": 2,
+      "lens": [
+        452,
+        454
+      ],
+      "typing": [
+        false,
+        false
+      ],
+      "queued": 0,
+      "interjectTags": 1
+    },
+    {
+      "t": 16387,
+      "generating": true,
+      "assistantCount": 2,
+      "lens": [
+        452,
+        519
+      ],
+      "typing": [
+        false,
+        false
+      ],
+      "queued": 0,
+      "interjectTags": 1
+    },
+    {
+      "t": 16893,
+      "generating": false,
+      "assistantCount": 2,
+      "lens": [
+        452,
+        519
+      ],
+      "typing": [
+        false,
+        false
+      ],
+      "queued": 0,
+      "interjectTags": 1
+    }
+  ],
+  "samples": [
+    {
+      "tag": "pre10",
+      "t": 2578,
+      "generating": true,
+      "assistantCount": 1,
+      "lens": [
+        0
+      ],
+      "typing": [
+        true
+      ],
+      "queued": [],
+      "interjectTags": [],
+      "userLens": [
+        30
+      ],
+      "lastText": ""
+    },
+    {
+      "tag": "pre11",
+      "t": 2834,
+      "generating": true,
+      "assistantCount": 1,
+      "lens": [
+        0
+      ],
+      "typing": [
+        true
+      ],
+      "queued": [],
+      "interjectTags": [],
+      "userLens": [
+        30
+      ],
+      "lastText": ""
+    },
+    {
+      "tag": "pre12",
+      "t": 3089,
+      "generating": true,
+      "assistantCount": 1,
+      "lens": [
+        0
+      ],
+      "typing": [
+        true
+      ],
+      "queued": [],
+      "interjectTags": [],
+      "userLens": [
+        30
+      ],
+      "lastText": ""
+    },
+    {
+      "tag": "after-interject",
+      "t": 3546,
+      "generating": true,
+      "assistantCount": 1,
+      "lens": [
+        0
+      ],
+      "typing": [
+        true
+      ],
+      "queued": [
+        "排队中，本轮结束后处理 ·"
+      ],
+      "interjectTags": [
+        "插话"
+      ],
+      "userLens": [
+        30,
+        14
+      ],
+      "lastText": ""
+    }
+  ],
+  "sawSecondRound": true,
+  "durationMs": 19141,
+  "logs": []
+}

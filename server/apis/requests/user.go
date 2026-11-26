@@ -67,3 +67,13 @@ func (q *UserListQuery) Bind(c *gin.Context) error {
 }
 
 // SettingsRequest 是系统设置更新请求，字段均可选。
+
+// RoleRequest 是调整用户角色的请求。
+type RoleRequest struct {
+	Role string `json:"role" binding:"required,oneof=admin user"` // admin / user
+}
+
+// Bind 绑定角色请求。
+func (r *RoleRequest) Bind(c *gin.Context) error {
+	return c.ShouldBindJSON(r)
+}

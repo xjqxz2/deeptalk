@@ -2,6 +2,14 @@
 
 DeepTalk 是一个 AI 对话工作台，支持多轮对话、深度思考、联网搜索、图片理解和历史会话管理。
 
+## 自己部署
+
+完整的配置与运行步骤见 [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md)：
+环境准备 → 配置 → 本地开发 → 首次进入 → 配置模型 → 生产部署。
+
+- 本地最快路径：`cp .env.example .env`（填 `DEEPTALK_SECRET`）→ `cd server && make dev` → `cd ui && pnpm dev:c`
+- 默认管理员：`admin` / `123456`，登录后请立即修改
+
 ## 访问地址
 
 - 对话工作台：<https://deeptalk.peon.top/>

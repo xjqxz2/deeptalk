@@ -95,19 +95,17 @@ func (a *App) startHTTP(ctx context.Context) error {
 	billingService := billing.NewService(a.DB)
 	memos := memo.NewService(a.DB)
 	chats := chat.NewService(a.DB, providers, users, searcher, attachments, settings, chat.Config{
-		ToolClient:       a.SSHMCP,
-		Memos:            memos,
-		MaxOutputTokens:  cfg.Upstream.MaxOutputTokens,
-		FirstByteTimeout: time.Duration(cfg.Upstream.FirstByteTimeoutSec) * time.Second,
-		ReasoningEffort:  cfg.Upstream.ReasoningEffort,
-		CompactRatio:     cfg.Context.CompactRatio,
-		KeepRatio:        cfg.Context.KeepRatio,
-		CacheIdleHours:   cfg.Context.CacheIdleHours,
-		IdleMinTokens:    cfg.Context.IdleMinTokens,
-		Location:         cfg.App.Location,
-		Timezone:         cfg.App.Timezone,
-		Compliance:       checker,
-		Billing:          billingService,
+		ToolClient:      a.SSHMCP,
+		Memos:           memos,
+		ReasoningEffort: cfg.Upstream.ReasoningEffort,
+		CompactRatio:    cfg.Context.CompactRatio,
+		KeepRatio:       cfg.Context.KeepRatio,
+		CacheIdleHours:  cfg.Context.CacheIdleHours,
+		IdleMinTokens:   cfg.Context.IdleMinTokens,
+		Location:        cfg.App.Location,
+		Timezone:        cfg.App.Timezone,
+		Compliance:      checker,
+		Billing:         billingService,
 	})
 	chats.StartCompactionWorker(ctx)
 

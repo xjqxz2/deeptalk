@@ -15,8 +15,10 @@ func (r *RegisterRequest) Bind(c *gin.Context) error {
 }
 
 // LoginRequest 是 C 端登录请求。
+// LoginRequest 是登录请求。
+// 账号既可以是邮箱，也可以是初始管理员这种纯用户名（admin），所以不校验邮箱格式。
 type LoginRequest struct {
-	Email    string `json:"email" binding:"required,email,max=190"`    // 邮箱
+	Email    string `json:"email" binding:"required,max=190"`          // 账号：邮箱或用户名
 	Password string `json:"password" binding:"required,min=1,max=128"` // 密码
 }
 

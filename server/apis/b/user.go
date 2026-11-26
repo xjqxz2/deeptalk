@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"deeptalk/apis/middleware"
 	"deeptalk/apis/requests"
 	"deeptalk/apis/responses"
 	"deeptalk/internal/audit"
@@ -187,6 +188,31 @@ func (h *UserController) ToggleDisabled(c *gin.Context) {
 		recordAudit(c, h.audits, "user.disable", "user", id, "限制登录 "+u.Email)
 	} else {
 		recordAudit(c, h.audits, "user.enable", "user", id, "恢复登录 "+u.Email)
+	}
+	responses.OK(c, gin.H{"user": responses.NewUser(u)})
+}
+
+// SetRole 设为 / 取消管理员。
+func (h *UserController) SetRole(c *gin.Context) {
+	var idReq requests.IDRequest
+	if err := idReq.Bind(c); err != nil {
+		responses.Fail(c, responses.CodeInvalidArgument, "用户 ID 不合法")
+		return
+	}
+	var req requests.RoleRequest
+	if err := req.Bind(c); err != nil {
+		responses.Fail(c, responses.CodeInvalidArgument, "角色不合法")
+		return
+	}
+	u, err := h.users.SetRole(c.Request.Context(), middleware.CurrentUser(c).ID, idReq.ID, req.Role)
+	if err != nil {
+		responses.FromError(c, err)
+		return
+	}
+	if req.Role == user.RoleAdmin {
+		recordAudit(c, h.audits, "user.promote", "user", idReq.ID, "设为管理员 "+u.Email)
+	} else {
+		recordAudit(c, h.audits, "user.demote", "user", idReq.ID, "取消管理员 "+u.Email)
 	}
 	responses.OK(c, gin.H{"user": responses.NewUser(u)})
 }

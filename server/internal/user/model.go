@@ -191,7 +191,43 @@ func Migrate(db *gorm.DB) error {
 	if err := migrateLegacyWeChatColumn(db); err != nil {
 		return err
 	}
-	return db.AutoMigrate(&User{}, &Session{})
+	if err := db.AutoMigrate(&User{}, &Session{}); err != nil {
+		return err
+	}
+	return ensureInitialAdmin(db)
+}
+
+// 初始管理员账号：只在库里还没有这个账号时写入一次。
+// 放在迁移里而不是配置或 seed 代码里，避免账号密码散落在仓库文件中。
+const (
+	initialAdminEmail    = "admin"
+	initialAdminPassword = "123456"
+)
+
+// ensureInitialAdmin 只在「空库首次部署」时写入初始管理员。
+// 判断依据是 users 表完全没有数据：只要有任意账号（包括已有的生产数据），
+// 就完全不动这张表，绝不会覆盖或新增用户。
+func ensureInitialAdmin(db *gorm.DB) error {
+	var count int64
+	if err := db.Model(&User{}).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+	hash, err := HashPassword(initialAdminPassword)
+	if err != nil {
+		return err
+	}
+	admin := User{
+		Email:        initialAdminEmail,
+		Nickname:     "admin",
+		PasswordHash: hash,
+		Role:         RoleAdmin,
+		Plan:         PlanFree,
+		QuotaTokens:  planQuota(PlanFree),
+	}
+	return db.Create(&admin).Error
 }
 
 // dalFindByWeChatOpenID 按 openid 查询用户。
@@ -248,6 +284,18 @@ func dalSelectWeChatOpenID(ctx context.Context, db *gorm.DB, userID uint) (*stri
 		return nil, err
 	}
 	return row.WeChatOpenID, nil
+}
+
+// dalCountAdmins 统计管理员数量（判断是否为最后一个管理员）。
+func dalCountAdmins(ctx context.Context, db *gorm.DB) (int64, error) {
+	var total int64
+	err := db.WithContext(ctx).Model(&User{}).Where("role = ?", RoleAdmin).Count(&total).Error
+	return total, err
+}
+
+// dalUpdateRole 更新用户角色。
+func dalUpdateRole(ctx context.Context, db *gorm.DB, userID uint, role string) error {
+	return db.WithContext(ctx).Model(&User{}).Where("id = ?", userID).Update("role", role).Error
 }
 
 // dalCountUsersWhere 按条件统计用户数。

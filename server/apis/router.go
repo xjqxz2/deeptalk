@@ -188,6 +188,7 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 		bGroup.PATCH("/users/:id/quota", userController.UpdateQuota)
 		bGroup.PATCH("/users/:id/plan", userController.UpdatePlan)
 		bGroup.PATCH("/users/:id/disabled", userController.ToggleDisabled)
+		bGroup.PATCH("/users/:id/role", userController.SetRole)
 		bGroup.DELETE("/users/:id", userController.Delete)
 		bGroup.GET("/memos", bMemoController.List)
 		bGroup.GET("/memos/stats", bMemoController.Stats)
