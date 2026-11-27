@@ -170,7 +170,17 @@ push main / 打 v* tag → GitHub Actions（.github/workflows/docker.yml）
 - **同一会话同时只允许一轮生成**，两道闸：控制器在 `hub.start` **之前**检查 `run.active()`，命中直接回 `409 / code 1005`（不能先 start，否则会把正在输出的那轮 finish 掉，客户端只收到空响应）；`chat.Service.busy.tryAdd` 作为第二道防线覆盖 WS 路径。断线续传走 `stream_hub.attach`，不受影响。
 - **额度是软限制**：`billing.Check` 与 `Record` 之间不是原子事务，并发请求可能小幅超发，属预期行为。
 
-### 7.2.2 会话批量删除
+### 7.2.2 地理位置（IP 定位）
+
+- **只做城市级 IP 定位**，不采集浏览器精确坐标（评估后放弃，隐私与实现成本都不划算）。
+- 客户端 IP 必须经过 Nginx 透传：`proxy_set_header X-Real-IP $remote_addr;` 与 `X-Forwarded-For $proxy_add_x_forwarded_for;`。
+- Gin 只信任本机与私有网段代理（`SetTrustedProxies` 白名单），因此 `c.ClientIP()` 取到的是真实公网 IP，而外网直连伪造的头会被忽略。**不要改回 `SetTrustedProxies(nil)`**，那样所有 IP 都会变成 Docker 网关。
+- 统一入口 `middleware.ClientIP(c)`，控制器不要自己读头。
+- 定位实现在 `internal/geo`：端点可配（默认 `ipapi.co`）、2s 超时、12 小时缓存、私网/失败走兜底（`app.location` / `app.timezone`）。
+- 用途：① 对话每轮注入「当前时间 + 当前位置」（`runtimeContext`）；② 登录写入 `last_login_city`。
+- 配置：`app.yaml` 的 `geo.enabled / endpoint / timeout_sec / cache_hours`，环境变量 `DEEPTALK_GEO_*`。
+
+### 7.2.3 会话批量删除
 
 `POST /api/v1/c/conversations/batch-delete`（body `{ids:[…]}`，上限 200）。服务端只删属于当前用户的会话，返回 `{deleted, ids}`；前端侧栏「管理」进入勾选模式，底部删除条二次确认后一次删完，被删的当前会话会清空右侧。
 

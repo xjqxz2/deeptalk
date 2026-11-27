@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"log/slog"
+	"net"
 	"net/http"
 	"runtime/debug"
 	"strings"
@@ -83,7 +84,7 @@ func AccessLog(log *slog.Logger) gin.HandlerFunc {
 			"path", path,
 			"status", c.Writer.Status(),
 			"latency_ms", time.Since(start).Milliseconds(),
-			"ip", c.ClientIP(),
+			"ip", ClientIP(c),
 			"user_id", UserIDFrom(c),
 		)
 	}
@@ -159,6 +160,20 @@ func sessionTokenFrom(c *gin.Context, cfg Config) string {
 		return header
 	}
 	return ""
+}
+
+// ClientIP 返回真实客户端 IP。
+// 生产环境在 Nginx 之后：Gin 只在请求来自受信代理时才采用 X-Forwarded-For / X-Real-IP，
+// 因此这里优先用 c.ClientIP()，再退回并清理端口。
+func ClientIP(c *gin.Context) string {
+	if ip := strings.TrimSpace(c.ClientIP()); ip != "" {
+		return ip
+	}
+	host, _, err := net.SplitHostPort(strings.TrimSpace(c.Request.RemoteAddr))
+	if err == nil {
+		return host
+	}
+	return strings.TrimSpace(c.Request.RemoteAddr)
 }
 
 // AdminOnly 校验管理员身份；必须在 Auth 之后使用。

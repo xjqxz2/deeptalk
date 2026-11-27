@@ -14,6 +14,7 @@ import (
 	"deeptalk/internal/billing"
 	"deeptalk/internal/chat"
 	"deeptalk/internal/compliance"
+	"deeptalk/internal/geo"
 	"deeptalk/internal/memo"
 	"deeptalk/internal/provider"
 	"deeptalk/internal/search"
@@ -33,11 +34,22 @@ func (a *App) startHTTP(ctx context.Context) error {
 	// 业务服务按依赖方向手动注入，不使用全局单例
 	settings := setting.NewService(a.DB)
 	audits := audit.NewService(a.DB)
+	// IP 定位：对话注入与登录城市共用同一个实例（带缓存，避免重复查询）
+	geoService := geo.NewService(geo.Options{
+		Endpoint: cfg.Geo.Endpoint,
+		Timeout:  time.Duration(cfg.Geo.TimeoutSec) * time.Second,
+		TTL:      time.Duration(cfg.Geo.CacheHours) * time.Hour,
+		Fallback: geo.Location{},
+	})
+	if !cfg.Geo.Enabled {
+		geoService = nil
+	}
 	users := user.NewService(a.DB, settings, audits, user.Options{
 		SessionTTL:    cfg.Auth.SessionTTL(),
 		LockThreshold: cfg.Auth.LockThreshold,
 		LockMinutes:   cfg.Auth.LockMinutes,
 		DefaultQuota:  cfg.Auth.DefaultQuotaTokens,
+		Geo:           geoService,
 	})
 	providers := provider.NewService(a.DB, cfg.Security.Secret, cfg.App.Env == "dev", settings, audits)
 	attachments, err := attachment.NewService(a.DB, cfg.Uploads.Dir, int64(cfg.Uploads.MaxMB)<<20)

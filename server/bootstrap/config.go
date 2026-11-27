@@ -27,6 +27,7 @@ type Config struct {
 	Uploads   UploadsConfig   `yaml:"uploads"`    // 图片附件存储
 	WeChat    WeChatConfig    `yaml:"wechat"`     // 小程序凭据（access_token 管理）
 	Context   ContextConfig   `yaml:"context"`    // 长上下文压缩
+	Geo       GeoConfig       `yaml:"geo"`        // IP 定位
 }
 
 // AppConfig 保存进程级基础配置。
@@ -118,6 +119,15 @@ type SSHMCPConfig struct {
 	Enabled    bool `yaml:"enabled"`     // 是否把 SSH 能力下发给模型
 	TimeoutSec int  `yaml:"timeout_sec"` // 单次工具调用超时（秒）
 	KeyBits    int  `yaml:"key_bits"`    // 首次生成用户 SSH 密钥的 RSA 位数
+}
+
+// GeoConfig 保存 IP 定位配置。
+// 只做城市级定位，不采集浏览器精确坐标。
+type GeoConfig struct {
+	Enabled    bool   `yaml:"enabled"`     // 是否启用 IP 定位
+	Endpoint   string `yaml:"endpoint"`    // 定位服务端点，{ip} 会被替换
+	TimeoutSec int    `yaml:"timeout_sec"` // 单次查询超时（秒）
+	CacheHours int    `yaml:"cache_hours"` // 结果缓存时长（小时）
 }
 
 // WeChatConfig 保存微信小程序相关配置。
@@ -286,6 +296,17 @@ func applyEnvOverrides(cfg *Config) {
 			cfg.WebSearch.TimeoutSec = n
 		}
 	}
+	if v := os.Getenv("DEEPTALK_GEO_ENABLED"); v != "" {
+		cfg.Geo.Enabled = v == "true" || v == "1"
+	}
+	if v := os.Getenv("DEEPTALK_GEO_ENDPOINT"); v != "" {
+		cfg.Geo.Endpoint = v
+	}
+	if v := os.Getenv("DEEPTALK_GEO_TIMEOUT_SEC"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.Geo.TimeoutSec = n
+		}
+	}
 	if v := os.Getenv("DEEPTALK_MCP_ENABLED"); v != "" {
 		cfg.MCP.Enabled = v == "true" || v == "1"
 	}
@@ -331,6 +352,12 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.WebSearch.PageTimeoutSec <= 0 {
 		cfg.WebSearch.PageTimeoutSec = 15
+	}
+	if cfg.Geo.TimeoutSec <= 0 {
+		cfg.Geo.TimeoutSec = 2
+	}
+	if cfg.Geo.CacheHours <= 0 {
+		cfg.Geo.CacheHours = 12
 	}
 	if cfg.Context.CompactRatio <= 0 || cfg.Context.CompactRatio >= 1 {
 		cfg.Context.CompactRatio = 0.85

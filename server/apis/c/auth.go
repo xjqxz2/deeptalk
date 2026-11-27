@@ -53,7 +53,7 @@ func (h *AuthController) WeChatLogin(c *gin.Context) {
 		return
 	}
 	current, token, err := h.users.LoginByOpenID(c.Request.Context(), session.OpenID, "", user.RequestMeta{
-		IP:        c.ClientIP(),
+		IP:        middleware.ClientIP(c),
 		UserAgent: c.Request.UserAgent(),
 	})
 	if err != nil {
@@ -200,7 +200,7 @@ func (h *AuthController) Register(c *gin.Context) {
 	u, token, err := h.users.Register(c.Request.Context(), user.RegisterInput{
 		Email:    req.Email,
 		Password: req.Password,
-	}, user.RequestMeta{IP: c.ClientIP(), UserAgent: c.Request.UserAgent()})
+	}, user.RequestMeta{IP: middleware.ClientIP(c), UserAgent: c.Request.UserAgent()})
 	if err != nil {
 		responses.FromError(c, err)
 		return
@@ -218,7 +218,7 @@ func (h *AuthController) Login(c *gin.Context) {
 		return
 	}
 	u, token, err := h.users.Login(c.Request.Context(), req.Email, req.Password,
-		user.RequestMeta{IP: c.ClientIP(), UserAgent: c.Request.UserAgent()})
+		user.RequestMeta{IP: middleware.ClientIP(c), UserAgent: c.Request.UserAgent()})
 	if err != nil {
 		responses.FromError(c, err)
 		return

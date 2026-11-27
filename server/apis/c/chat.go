@@ -196,7 +196,7 @@ func (h *ChatController) Stream(c *gin.Context) {
 
 	clientIP := strings.TrimSpace(c.GetHeader("X-Real-IP"))
 	if clientIP == "" {
-		clientIP = c.ClientIP()
+		clientIP = middleware.ClientIP(c)
 	}
 	input := chat.StreamInput{
 		Content:       req.Content,

@@ -125,6 +125,16 @@ web_search:
   # 是否启用 Obscura 反检测模式；默认关闭以降低延迟
   stealth: false
 
+geo:
+  # 是否启用 IP 定位（把客户端公网 IP 解析成城市，注入对话并记录登录地）
+  enabled: true
+  # 定位服务端点，{ip} 会被替换；默认 ipapi.co，免费无需 Key
+  endpoint: https://ipapi.co/{ip}/json/
+  # 单次查询超时（秒）；超时后静默使用兜底位置
+  timeout_sec: 2
+  # 结果缓存时长（小时），同一 IP 不会重复查询
+  cache_hours: 12
+
 mcp:
   # 使用 Obscura 的 stdio MCP server；启动失败时自动回退到现有本地检索链路
   enabled: true

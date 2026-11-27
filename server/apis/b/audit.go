@@ -23,6 +23,6 @@ func recordAudit(c *gin.Context, recorder *audit.Service, action, targetType str
 		TargetType: targetType,
 		TargetID:   targetID,
 		Detail:     detail,
-		IP:         c.ClientIP(),
+		IP:         middleware.ClientIP(c),
 	})
 }

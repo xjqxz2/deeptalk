@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"deeptalk/internal/audit"
+	"deeptalk/internal/geo"
 	"deeptalk/internal/security"
 
 	"gorm.io/gorm"
@@ -34,6 +35,7 @@ type Options struct {
 	LockThreshold int           // 连续失败锁定阈值
 	LockMinutes   int           // 锁定时长（分钟）
 	DefaultQuota  int64         // 新用户默认额度
+	Geo           *geo.Service  // IP 定位；为空时城市记为「未知」
 }
 
 // RequestMeta 记录会话签发时的客户端信息，用于安全审计。
@@ -59,6 +61,7 @@ type AdminCreateInput struct {
 
 // Service 提供账号、会话与额度相关业务。
 type Service struct {
+	geo    *geo.Service       // IP 定位
 	db     *gorm.DB           // 数据库句柄
 	policy RegistrationPolicy // 注册开关
 	audit  AuditRecorder      // 审计记录器，可为 nil
@@ -79,7 +82,7 @@ func NewService(db *gorm.DB, policy RegistrationPolicy, recorder AuditRecorder, 
 	if opt.DefaultQuota <= 0 {
 		opt.DefaultQuota = 4_000_000
 	}
-	return &Service{db: db, policy: policy, audit: recorder, opt: opt}
+	return &Service{db: db, policy: policy, audit: recorder, opt: opt, geo: opt.Geo}
 }
 
 // Register 完成注册并直接创建会话（注册即登录）。
@@ -179,7 +182,7 @@ func (s *Service) Login(ctx context.Context, email, password string, meta Reques
 	u.LockedUntil = nil
 	u.LastLoginAt = &now
 	u.LastLoginIP = meta.IP
-	u.LastLoginCity = cityFromIP(meta.IP)
+	u.LastLoginCity = s.cityFromIP(meta.IP)
 	var token string
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := dalRecordLoginSuccess(ctx, tx, u.ID, LoginSuccess{
@@ -608,15 +611,22 @@ func randomPassword() (string, error) {
 	return "Dt-" + string(raw), nil
 }
 
-// cityFromIP 将登录 IP 粗略映射为城市。
+// cityFromIP 将登录 IP 解析为城市名；私网或查询失败时记为「本地」。
 // 说明：MVP 不接入 IP 库；本机/内网显示“本地”，其余显示“未知”，避免伪造地理位置。
-func cityFromIP(ip string) string {
+func (s *Service) cityFromIP(ip string) string {
 	ip = strings.TrimSpace(ip)
 	if ip == "" || ip == "::1" || ip == "127.0.0.1" || strings.HasPrefix(ip, "192.168.") ||
 		strings.HasPrefix(ip, "10.") || strings.HasPrefix(ip, "172.16.") {
 		return "本地"
 	}
-	return "未知"
+	if s.geo == nil {
+		return "未知"
+	}
+	location, ok := s.geo.Lookup(context.Background(), ip)
+	if !ok {
+		return "未知"
+	}
+	return location.Label()
 }
 
 // truncate 按字符数截断字符串，防止超长 UA 写库失败。
@@ -651,7 +661,7 @@ func (s *Service) LoginByOpenID(ctx context.Context, openid, nickname string, me
 		now := time.Now()
 		u.LastLoginAt = &now
 		u.LastLoginIP = meta.IP
-		u.LastLoginCity = cityFromIP(meta.IP)
+		u.LastLoginCity = s.cityFromIP(meta.IP)
 		var token string
 		if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 			if err := dalUpdateUser(ctx, tx, u); err != nil {

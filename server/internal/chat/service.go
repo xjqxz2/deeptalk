@@ -5,10 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
-	"net"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -18,6 +15,7 @@ import (
 
 	"deeptalk/internal/attachment"
 	"deeptalk/internal/billing"
+	"deeptalk/internal/geo"
 	"deeptalk/internal/mcp"
 	"deeptalk/internal/memo"
 	"deeptalk/internal/provider"
@@ -40,6 +38,7 @@ type Config struct {
 	KeepRatio        float64       // 压缩后保留最近上下文的比例
 	CacheIdleHours   int           // 空闲多久后尝试在缓存失效前压缩
 	IdleMinTokens    int           // 空闲压缩的最小 token 数
+	Geo              *geo.Service  // IP 定位服务
 	Location         string        // IP 定位失败时的位置兜底
 	Timezone         string        // IP 定位失败时的时区兜底
 	MaxSitesPerTurn  int           // 单次回答最多打开多少个网页
@@ -89,7 +88,7 @@ type Service struct {
 	settings    *setting.Service    // 运行期设置（输出预算等）
 	cfg         Config              // 流式策略
 	compacting  sync.Map            // conversationID -> 正在压缩，避免重复触发
-	geoCache    sync.Map            // IP -> 位置缓存
+	geo         *geo.Service        // IP 定位（与账号模块共用）
 }
 
 // NewService 创建会话服务。
@@ -123,7 +122,7 @@ func NewService(db *gorm.DB, providers *provider.Service, users *user.Service, s
 	}
 	return &Service{
 		db: db, providers: providers, users: users, search: searcher,
-		attachments: attachments, settings: settings, cfg: cfg, toolClient: cfg.ToolClient,
+		attachments: attachments, settings: settings, cfg: cfg, toolClient: cfg.ToolClient, geo: cfg.Geo,
 	}
 }
 
@@ -1855,67 +1854,23 @@ func (s *Service) runtimeContext(ctx context.Context, clientIP string) string {
 	return fmt.Sprintf("【环境信息】\n当前时间：%s\n当前位置：%s", now.Format("2006-01-02 15:04:05"), location)
 }
 
-type geoEntry struct {
-	location string
-	timezone string
-	expires  time.Time
-}
-
-// lookupLocation 通过客户端公网 IP 定位；私网/失败时使用配置兜底。
+// lookupLocation 返回客户端所在位置与时区。
+// 定位统一由 internal/geo 负责（带缓存与超时）；本包只决定兜底值。
 func (s *Service) lookupLocation(ctx context.Context, clientIP string) (string, string) {
 	fallbackLocation := strings.TrimSpace(s.cfg.Location)
 	fallbackTimezone := strings.TrimSpace(s.cfg.Timezone)
-	ip := net.ParseIP(strings.TrimSpace(clientIP))
-	if ip == nil || ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsUnspecified() {
+	if s.geo == nil {
 		return fallbackLocation, fallbackTimezone
 	}
-	if cached, ok := s.geoCache.Load(ip.String()); ok {
-		if entry, ok := cached.(geoEntry); ok && time.Now().Before(entry.expires) {
-			return entry.location, entry.timezone
-		}
-	}
-	lookupCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-	endpoint := "https://ipapi.co/" + url.PathEscape(ip.String()) + "/json/"
-	req, err := http.NewRequestWithContext(lookupCtx, http.MethodGet, endpoint, nil)
-	if err != nil {
+	location, ok := s.geo.Lookup(ctx, clientIP)
+	if !ok {
 		return fallbackLocation, fallbackTimezone
 	}
-	req.Header.Set("User-Agent", "DeepTalk/1.0")
-	resp, err := (&http.Client{Timeout: 2 * time.Second}).Do(req)
-	if err != nil {
-		return fallbackLocation, fallbackTimezone
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fallbackLocation, fallbackTimezone
-	}
-	var payload struct {
-		City        string `json:"city"`
-		Region      string `json:"region"`
-		CountryName string `json:"country_name"`
-		Timezone    string `json:"timezone"`
-	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 64*1024)).Decode(&payload); err != nil {
-		return fallbackLocation, fallbackTimezone
-	}
-	parts := make([]string, 0, 3)
-	for _, part := range []string{payload.CountryName, payload.Region, payload.City} {
-		part = strings.TrimSpace(part)
-		if part != "" {
-			parts = append(parts, part)
-		}
-	}
-	location := strings.Join(parts, " ")
-	if location == "" {
-		return fallbackLocation, fallbackTimezone
-	}
-	timezone := strings.TrimSpace(payload.Timezone)
+	timezone := location.Timezone
 	if timezone == "" {
 		timezone = fallbackTimezone
 	}
-	s.geoCache.Store(ip.String(), geoEntry{location: location, timezone: timezone, expires: time.Now().Add(6 * time.Hour)})
-	return location, timezone
+	return location.Display(), timezone
 }
 
 // ResolveRef 把 URL/API 中的公开 ID 或旧数字 ID 解析成内部主键。

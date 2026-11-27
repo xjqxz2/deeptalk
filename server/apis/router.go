@@ -58,8 +58,9 @@ func NewRouter(cfg Config, deps Deps, log *slog.Logger) *gin.Engine {
 	// 请求签名：密钥按会话派生，服务端只存 key id
 	signVerifier := security.NewVerifier(cfg.SecuritySecret)
 	router := gin.New()
-	// 不信任任何代理头，IP 以 RemoteAddr 为准，避免伪造登录地
-	_ = router.SetTrustedProxies(nil)
+	// 只信任本机与私有网段的代理（Nginx / Docker 网关）：
+	// 这样能拿到 Nginx 透传的真实客户端 IP，外网直连伪造的 X-Forwarded-For 会被忽略。
+	_ = router.SetTrustedProxies([]string{"127.0.0.1/32", "::1/128", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"})
 	router.Use(middleware.RequestID())
 	router.Use(middleware.Recovery(log))
 	router.Use(middleware.AccessLog(log))

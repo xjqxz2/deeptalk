@@ -196,7 +196,7 @@ func (h *WSController) Conn(c *gin.Context) {
 				ModelID:       req.ModelID,
 				AttachmentIDs: req.AttachmentIDs,
 				Regenerate:    req.Regenerate,
-				ClientIP:      c.ClientIP(),
+				ClientIP:      middleware.ClientIP(c),
 				Platform:      wsPlatform(c, req.Platform),
 			}, streamCtx)
 		default:
